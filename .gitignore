@@ -1,0 +1,128 @@
+# =====================
+# OS generated files
+# =====================
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+*.lnk
+
+# =====================
+# Editor / IDE
+# =====================
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.tsbuildinfo
+*.eslintcache
+
+.vscode
+.trae
+.cursor
+.claude
+
+
+# =====================
+# Environment & secrets
+# =====================
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+
+# =====================
+# Logs
+# =====================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =====================
+# Python (backend)
+# =====================
+__pycache__/
+*.py[cod]
+*$py.class
+build/
+dist/
+wheels/
+*.egg-info
+.eggs/
+develop-eggs/
+sdist/
+wheels/
+pip-wheel-metadata/
+.installer/
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test / coverage
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+
+# Type checkers / tools
+.python-version
+
+# =====================
+# Node.js / Vite (frontend)
+# =====================
+node_modules/
+dist/
+dist-ssr/
+coverage/
+
+# Vite
+*.timestamp-*-*.mjs
+
+# Cypress
+/cypress/videos/
+/cypress/screenshots/
+
+# Vitest
+__screenshots__/
+
+# =====================
+# Databases / runtime
+# =====================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# =====================
+# Misc / temp
+# =====================
+*.bak
+*.tmp
+*.swp
+*.orig
+abc.txt

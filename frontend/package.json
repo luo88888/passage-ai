@@ -1,0 +1,31 @@
+{
+  "name": "ai-passage-creator",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "openapi2ts": "openapi2ts"
+  },
+  "dependencies": {
+    "ant-design-vue": "^4.2.6",
+    "axios": "^1.18.1",
+    "dayjs": "^1.11.13",
+    "pinia": "^2.1.7",
+    "vue": "^3.5.38",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@umijs/openapi": "^1.14.1",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "tslib": "^2.8.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "vite-plugin-vue-devtools": "^8.1.2"
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.12.0"
+  }
+}
