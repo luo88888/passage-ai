@@ -7,6 +7,7 @@ from fastapi import Cookie, Depends, HTTPException, status
 from app.exceptions import ErrorCode, BusinessException
 from app.schemas.user import LoginUserVO
 from app.utils.session import get_session
+from app.utils.logger import logger
 
 
 async def get_session_id(session_id: Optional[str] = Cookie(None, alias="SESSION")) -> Optional[str]:
@@ -34,6 +35,7 @@ async def require_login(
 ) -> LoginUserVO:
     """要求必须登录"""
     if not current_user:
+        logger.warning("访问需要登录的接口但未登录")
         raise BusinessException(ErrorCode.NOT_LOGIN_ERROR)
     return current_user
 
@@ -43,6 +45,8 @@ async def require_admin(
 ) -> LoginUserVO:
     """要求必须是管理员"""
     if current_user.user_role != "admin":
+        logger.warning("无管理员权限访问受控接口 userId=%s, userRole=%s",
+                       current_user.id, current_user.user_role)
         raise BusinessException(ErrorCode.NO_AUTH_ERROR)
     return current_user
 

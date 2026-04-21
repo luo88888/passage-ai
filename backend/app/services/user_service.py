@@ -17,6 +17,7 @@ from app.schemas.user import (
 from app.constants.user import UserConstant
 from app.exceptions import ErrorCode, throw_if, throw_if_not, BusinessException
 from app.utils.password import encrypt_password
+from app.utils.logger import logger
 
 
 class UserService:
@@ -69,7 +70,8 @@ class UserService:
                 "quota": UserConstant.DEFAULT_QUOTA,
             }
         )
-        
+
+        logger.info("用户注册成功 userAccount=%s, userId=%s", request.user_account, user_id)
         return user_id
     
     async def login(self, request: UserLoginRequest) -> LoginUserVO:
@@ -96,15 +98,19 @@ class UserService:
         
         # 验证密码
         encrypted_password = encrypt_password(request.user_password)
+        password_match = user["userPassword"] == encrypted_password
+        if not password_match:
+            logger.warning("登录密码错误 userAccount=%s", request.user_account)
         throw_if(
-            user["userPassword"] != encrypted_password,
+            not password_match,
             ErrorCode.PASSWORD_ERROR,
             "密码错误"
         )
 
         user_dict = dict(user)
-        
+
         # 返回登录用户信息
+        logger.info("用户登录成功 userAccount=%s, userId=%s", user_dict["userAccount"], user_dict["id"])
         return LoginUserVO(
             id=user_dict["id"],
             userAccount=user_dict["userAccount"],
@@ -228,7 +234,8 @@ class UserService:
                 "quota": UserConstant.DEFAULT_QUOTA,
             }
         )
-        
+
+        logger.info("管理员新增用户 userAccount=%s, userId=%s, userRole=%s", request.user_account, user_id, request.user_role)
         return user_id
     
     async def update_user(self, request: UserUpdateRequest) -> bool:
@@ -263,7 +270,8 @@ class UserService:
         # 执行更新
         query = f"UPDATE user SET {', '.join(update_fields)} WHERE id = :id"
         await self.db.execute(query=query, values=values)
-        
+
+        logger.info("管理员更新用户 userId=%s, fields=%s", request.id, update_fields)
         return True
     
     async def delete_user(self, user_id: int) -> bool:
@@ -276,5 +284,6 @@ class UserService:
         # 逻辑删除
         query = "UPDATE user SET isDelete = 1 WHERE id = :id"
         await self.db.execute(query=query, values={"id": user_id})
-        
+
+        logger.info("管理员删除用户 userId=%s", user_id)
         return True

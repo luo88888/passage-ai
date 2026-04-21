@@ -9,9 +9,10 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.database import database
-from app.routers import user_router, health_router
+from app.routers import user_router, health_router, article_router
 from app.exceptions import BusinessException, ErrorCode
 from app.utils.session import init_redis, close_redis
+from app.utils.logger import logger
 
 
 @asynccontextmanager
@@ -19,20 +20,20 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
 
     # 启动时执行
-    print("启动中...")
+    logger.info("应用启动中...")
     await database.connect()
-    print("数据库连接成功")
+    logger.info("数据库连接成功")
     await init_redis()
-    print("Redis 初始化成功")
-    print(f"数据库连接成功：{settings.database_url}")
-    print(f"Redis 连接成功：{settings.redis_url}")
+    logger.info("Redis 初始化成功")
+    logger.info(f"数据库连接成功：{settings.database_url}")
+    logger.info(f"Redis 连接成功：{settings.redis_url}")
 
     yield   # 分隔启动和关闭逻辑
 
     # 关闭时执行
     await database.disconnect()
     await close_redis()
-    print("应用已关闭")
+    logger.info("应用已关闭")
 
 
 # 创建 FastAPI 应用
@@ -74,7 +75,7 @@ async def business_exception_handler(request: Request, exc: BusinessException):
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """全局异常处理"""
-    print(f"未处理的异常：{exc}")
+    logger.error(f"未处理的异常：{exc}", exc_info=True)
     return JSONResponse(
         status_code=200,
         content={
@@ -89,6 +90,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # 注册路由
 app.include_router(health_router, prefix="/api")
 app.include_router(user_router, prefix="/api")
+app.include_router(article_router, prefix="/api")
 
 
 if __name__ == "__main__":
