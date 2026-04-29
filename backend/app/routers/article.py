@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from app.database import get_db
 from app.deps import require_login
 from app.exceptions import ErrorCode, throw_if
-from app.schemas.article import ArticleCreateRequest, ArticleQueryRequest, ArticleVO
+from app.schemas.article import ArticleCreateRequest, ArticleQueryRequest, ArticleVO, CreationOptionsVO
 from app.schemas.common import BaseResponse, DeleteRequest
 from app.schemas.user import LoginUserVO
 from app.services.article_async_service import article_async_service
@@ -30,15 +30,36 @@ async def create_article(
     )
     
     service = ArticleService(db)
-    task_id = await service.create_article_task_with_quota_check(request.topic, current_user)
+    task_id = await service.create_article_task_with_quota_check(
+        request.topic,
+        current_user,
+        request.style,
+        request.enabled_image_methods        
+    )
     
     # 用 asyncio.create_task 异步执行文章生成，不等待完成
     # FIXME: 未保存引用的 Task 可能被 GC
     asyncio.create_task(
-        article_async_service.execute_article_generation(task_id, request.topic)
+        article_async_service.execute_article_generation(
+            task_id,
+            request.topic,
+            request.style,
+            request.enabled_image_methods
+        )
     )
     
     return BaseResponse.success(data=task_id, message="任务创建成功")
+
+
+@router.get("/options", response_model=BaseResponse[CreationOptionsVO])
+async def get_creation_options(
+    db: Database = Depends(get_db),
+    current_user: LoginUserVO = Depends(require_login)
+):
+    """获取创作页可选项（文章风格 / 配图方式），供前端动态渲染，避免硬编码"""
+    service = ArticleService(db)
+    data = service.get_creation_options()
+    return BaseResponse.success(data=data)
 
 
 @router.get("/progress/{task_id}")

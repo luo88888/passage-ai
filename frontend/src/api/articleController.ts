@@ -114,6 +114,27 @@ export async function listArticle(body: API.ArticleQueryRequest, options?: { [ke
   })
 }
 
+// NOTE: 以下 getCreationOptions 为手写补充——后端 OpenAPI 暴露在默认 /openapi.json，
+// 而 openapi2ts.config.ts 指向的 /api/v3/api-docs 路径后端未提供，openapi2ts 无法直接生成。
+// 类型 API.CreationOptionsVO / API.OptionItem 未生成，故这里内联最小类型。
+export interface CreationOptionItem {
+  value: string
+  label: string
+  description?: string
+}
+export interface CreationOptionsVO {
+  styles: CreationOptionItem[]
+  imageMethods: CreationOptionItem[]
+}
+
+/** 获取创作页可选项（文章风格 / 配图方式） GET /article/options */
+export async function getCreationOptions(options?: { [key: string]: any }) {
+  return request<{ code: number; data: CreationOptionsVO; message?: string }>('/article/options', {
+    method: 'GET',
+    ...(options || {}),
+  })
+}
+
 /** 获取文章生成进度(SSE) GET /article/progress/${param0} */
 export async function getProgress(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)

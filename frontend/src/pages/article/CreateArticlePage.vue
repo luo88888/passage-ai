@@ -21,7 +21,12 @@ import {
 
 import { useLoginUserStore } from '@/stores/loginUser'
 import { isAdmin } from '@/utils/permission'
-import { createArticle, getArticle } from '@/api/articleController'
+import {
+  createArticle,
+  getArticle,
+  getCreationOptions,
+  type CreationOptionItem,
+} from '@/api/articleController'
 import { subscribeArticleProgress, type SseMessage } from '@/utils/sse'
 import { renderMarkdown } from '@/utils/markdown'
 import { exportMarkdown, exportHtml } from '@/utils/export'
@@ -38,6 +43,13 @@ const taskId = ref('')
 const creating = ref(false)
 const completed = ref(false)
 const errorMsg = ref('')
+
+// 文章风格 / 配图方式 可选项（由后端 /article/options 动态返回，不在前端硬编码）
+// 文章风格为单选：'default' 表示"默认"项（前端写死，后端不返回，提交时映射为 style=null）。
+const styleOptions = ref<CreationOptionItem[]>([])
+const imageMethodOptions = ref<CreationOptionItem[]>([])
+const selectedStyle = ref<string>('default')
+const selectedImageMethods = ref<string[]>([])
 
 // 时间轴当前步（0~6），每完成一个 *_COMPLETE 推进一步
 const currentStep = ref(0)
@@ -192,6 +204,23 @@ const fetchFinalDetail = async () => {
   }
 }
 
+// 拉取创作页可选项（文章风格 / 配图方式）；失败不阻塞创作
+const fetchCreationOptions = async () => {
+  try {
+    const res = await getCreationOptions()
+    const data = res.data?.data
+    if (res.data.code === 0 && data) {
+      styleOptions.value = data.styles || []
+      imageMethodOptions.value = data.imageMethods || []
+    }
+  } catch (e) {
+    // 兜底：接口失败则不展示选项，提交时走后端默认（style=null、enabledImageMethods=null）
+    console.warn('拉取创作选项失败:', e)
+    styleOptions.value = []
+    imageMethodOptions.value = []
+  }
+}
+
 // 开始创作
 const startGenerate = async () => {
   if (!topic.value.trim()) return
@@ -199,7 +228,15 @@ const startGenerate = async () => {
   creating.value = true
   errorMsg.value = ''
   try {
-    const res = await createArticle({ topic: topic.value.trim() })
+    // style: 'default' 映射为 null（后端走通用爆款风格）；enabledImageMethods: 空数组映射为 null（全部可用）
+    const style = selectedStyle.value === 'default' ? null : selectedStyle.value
+    const enabledImageMethods =
+      selectedImageMethods.value.length > 0 ? selectedImageMethods.value : null
+    const res = await createArticle({
+      topic: topic.value.trim(),
+      style,
+      enabledImageMethods,
+    } as any)
     if (res.data.code !== 0 || !res.data.data) {
       errorMsg.value = res.data.message || '创建任务失败'
       message.error(errorMsg.value)
@@ -283,6 +320,8 @@ onMounted(() => {
   if (q && typeof q === 'string') {
     topic.value = q
   }
+  // 拉取文章风格 / 配图方式可选项
+  fetchCreationOptions()
 })
 
 onBeforeUnmount(() => {
@@ -314,6 +353,38 @@ onBeforeUnmount(() => {
             :auto-size="{ minRows: 6 }"
             @pressEnter="startGenerate"
           />
+          <!-- 文章风格：单选（含"默认"，默认项提交时映射为 null） -->
+          <div v-if="styleOptions.length" class="option-group">
+            <div class="option-head">
+              <span class="option-title">文章风格</span>
+              <span class="option-hint">（可选风格，单选，默认走通用爆款风格）</span>
+            </div>
+            <a-radio-group v-model:value="selectedStyle" class="option-options">
+              <a-radio-button value="default">默认</a-radio-button>
+              <a-radio-button
+                v-for="item in styleOptions"
+                :key="item.value"
+                :value="item.value"
+              >{{ item.label }}</a-radio-button>
+            </a-radio-group>
+          </div>
+
+          <!-- 配图方式：多选（不选则使用全部可用方式） -->
+          <div v-if="imageMethodOptions.length" class="option-group">
+            <div class="option-head">
+              <span class="option-title">配图方式</span>
+              <span class="option-hint">（可多选，不选则使用全部可用方式）</span>
+            </div>
+            <a-checkbox-group v-model:value="selectedImageMethods" class="option-options">
+              <a-checkbox
+                v-for="item in imageMethodOptions"
+                :key="item.value"
+                :value="item.value"
+                class="option-check"
+              >{{ item.label }}</a-checkbox>
+            </a-checkbox-group>
+          </div>
+
           <a-button
             type="primary"
             size="large"
@@ -724,6 +795,61 @@ onBeforeUnmount(() => {
   color: var(--color-error);
   font-size: 13px;
   text-align: center;
+}
+
+/* 文章风格 / 配图方式 选项 */
+.option-group {
+  margin-top: 20px;
+}
+.option-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.option-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.option-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.option-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.option-check {
+  margin-inline-start: 0 !important;
+}
+
+/* 风格单选胶囊：选中态为绿色背景白字，贴合参考图 */
+:deep(.ant-radio-button-wrapper) {
+  border-radius: var(--radius-full) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-secondary) !important;
+}
+:deep(.ant-radio-button-wrapper:not(:first-child)) {
+  /* 圆角胶囊视觉不连缀，去掉左侧直角叠加 */
+  border-inline-start: 1px solid var(--color-border) !important;
+}
+:deep(.ant-radio-button-wrapper-checked) {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+:deep(.ant-radio-button-wrapper-checked)::before {
+  background: var(--color-primary) !important;
+}
+:deep(.ant-radio-button-wrapper:hover) {
+  color: var(--color-primary-dark) !important;
+  border-color: var(--color-primary-light) !important;
+}
+:deep(.ant-radio-button-wrapper-checked:hover) {
+  color: #fff !important;
 }
 
 /* 时间轴 */

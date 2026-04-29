@@ -4,7 +4,7 @@
 
 
 import json
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from app.database import database
 from app.models.enums import ArticleStatusEnum, SseMessageTypeEnum
@@ -21,7 +21,13 @@ class ArticleAsyncService:
     """
 
 
-    async def execute_article_generation(self, task_id: str, topic: str):
+    async def execute_article_generation(
+            self,
+            task_id: str,
+            topic: str,
+            style: Optional[str] = None,
+            enabled_image_methods: Optional[List[str]] = None
+        ):
         """异步执行文章生成"""
         article_agent_service = ArticleAgentService()
         article_service = ArticleService(database)
@@ -34,6 +40,8 @@ class ArticleAsyncService:
             state = ArticleState()
             state.task_id = task_id
             state.topic = topic
+            state.style = style
+            state.enabled_image_methods = enabled_image_methods
 
             logger.info("开始执行文章生成 taskId=%s, topic=%s", task_id, topic)
 

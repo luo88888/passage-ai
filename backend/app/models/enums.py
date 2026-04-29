@@ -3,6 +3,7 @@
 """
 
 from enum import Enum
+from typing import Optional
 
 
 class ArticleStatusEnum(str, Enum):
@@ -12,13 +13,6 @@ class ArticleStatusEnum(str, Enum):
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
-
-
-class ImageMethodEnum(str, Enum):
-    """配图方式枚举"""
-
-    PEXELS = "PEXELS"
-    PICSUM = "PICSUM"
 
 
 class SseMessageTypeEnum(str, Enum):
@@ -39,3 +33,78 @@ class SseMessageTypeEnum(str, Enum):
     def get_streaming_prefix(self) -> str:
         """获取流式输出消息前缀"""
         return f"{self.value}:"
+
+
+class ImageMethodEnum(str, Enum):
+    """配图方式枚举
+
+    每个成员形如 (value, label, description)：
+    - value: 与策略器/数据库约定的英文标识，保持向后兼容（ImageMethodEnum("PEXELS")、e.value 等用法不受影响）
+    - label: 前端展示用中文名
+    - description: 可选简短说明
+    """
+
+    PEXELS = "PEXELS", "Pexels 真实图", "高质量真实摄影图，适合封面与场景配图"
+    NANO_BANANA = "NANO_BANANA", "Nano Banana", "AI 创意插画，适合抽象概念与信息图表"
+    MERMAID = "MERMAID", "Mermaid 流程图", "代码生成流程图/时序图等结构化图表"
+    ICONIFY = "ICONIFY", "Iconify 图标", "海量开源图标库，适合图标点缀"
+    EMOJI_PACK = "EMOJI_PACK", "表情包", "表情图，增加趣味性"
+    SVG_DIAGRAM = "SVG_DIAGRAM", "SVG 图表", "AI 生成 SVG 矢量图，适合示意图"
+    PICSUM = "PICSUM", "Picsum 兜底图", "降级专用随机图（不在创作选项中暴露）"
+
+    def __new__(cls, value: str, label: str = "", description: str = ""):
+        # str 枚举需用 __new__ 构造成员，显式设置 _value_ 以兼容元组写法
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj.label = label
+        obj.description = description
+        return obj
+
+    def is_ai_generated(self) -> bool:
+        """是否为 AI 生成图片"""
+        return self in [
+            ImageMethodEnum.NANO_BANANA,
+            ImageMethodEnum.MERMAID,
+            ImageMethodEnum.SVG_DIAGRAM
+        ]
+
+    def is_fallback(self) -> bool:
+        """是否为降级方案"""
+        return self in [
+            ImageMethodEnum.PICSUM
+        ]
+
+    @classmethod
+    def get_default_search_method(cls):
+        return cls.PEXELS
+
+    @classmethod
+    def get_fallback_method(cls):
+        return cls.PICSUM
+
+
+class ArticleStyleEnum(str, Enum):
+    """文章风格枚举
+
+    每个成员形如 (value, label, description)，value 保持向后兼容。
+    创作页"默认"项由前端写死，对应 style=null（后端走通用爆款风格），故此处不含"默认"。
+    """
+
+    TECH = "tech", "科技风", "语言专业严谨，重数据与事实"
+    EMOTIONAL = "emotional", "情感风", "语言温暖细腻，注重共鸣"
+    EDUCATIONAL = "educational", "教育风", "深入浅出，结构清晰便于学习"
+    HUMOROUS = "humorous", "幽默风", "轻松活泼，善用流行语与比喻"
+
+    def __new__(cls, value: str, label: str = "", description: str = ""):
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj.label = label
+        obj.description = description
+        return obj
+
+    @classmethod
+    def is_valid(cls, value: Optional[str]) -> bool:
+        """校验是否为有效的风格值"""
+        if not value:
+            return True  # 允许为空
+        return value in [e.value for e in cls]

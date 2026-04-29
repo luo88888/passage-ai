@@ -24,7 +24,16 @@ $RECYCLE.BIN/
 .trae
 .cursor
 .claude
+CLAUDE.local.md
+.mcp.json
 
+# =====================
+# 本地或临时文件
+# =====================
+/项目说明/
+/temp/
+/local*
+/docs/
 
 # =====================
 # Environment & secrets

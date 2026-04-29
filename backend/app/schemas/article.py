@@ -9,11 +9,33 @@ from app.schemas.common import PageRequest
 
 
 # ==================== 请求模型 ====================
-
 class ArticleCreateRequest(BaseModel):
     """创建文章请求"""
-    
+
     topic: str = Field(..., min_length=1, description="选题")
+    style: Optional[str] = Field(None, description="文章风格：tech/emotional/educational/humorous")
+    enabled_image_methods: Optional[List[str]] = Field(None, alias="enabledImageMethods", description="允许使用的配图方式列表（为空表示可以使用全部方式）")
+
+
+class OptionItem(BaseModel):
+    """通用可选项（value=后端枚举值，label=前端展示文案，description=可选说明）"""
+
+    value: str
+    label: str
+    description: Optional[str] = None
+
+    class Config:
+        populate_by_name = True
+
+
+class CreationOptionsVO(BaseModel):
+    """创作页可选项：文章风格 / 配图方式"""
+
+    styles: List[OptionItem]
+    image_methods: List[OptionItem] = Field(..., alias="imageMethods")
+
+    class Config:
+        populate_by_name = True
 
 
 class ArticleQueryRequest(PageRequest):
@@ -98,6 +120,19 @@ class ImageRequirement(BaseModel):
     type: str
     section_title: str = Field(..., alias="sectionTitle")
     keywords: str
+    image_source: str = Field(..., alias="imageSource", description="图片来源")
+    prompt: str = Field(..., description="AI 生图提示词")
+    placeholder_id: str = Field(..., alias="placeholderId", description="占位符ID")
+
+    class Config:
+        populate_by_name = True
+
+
+class Agent4Result(BaseModel):
+    """智能体4返回结果"""
+
+    content_with_placeholders: str = Field(..., alias="contentWithPlaceholders")
+    image_requirements: List[ImageRequirement] = Field(..., alias="imageRequirements")
 
     class Config:
         populate_by_name = True
@@ -112,6 +147,7 @@ class ImageResult(BaseModel):
     keywords: str
     section_title: str = Field(..., alias="sectionTitle")
     description: str
+    placeholder_id: str = Field(..., alias="placeholderId", description="占位符ID")
 
     class Config:
         populate_by_name = True
@@ -131,3 +167,5 @@ class ArticleState:
         self.images: Optional[List[ImageResult]] = None                     # 智能体5输出
         self.cover_image: Optional[str] = None
         self.full_content: Optional[str] = None                             # 图文合并的最终结果
+        self.enabled_image_methods: Optional[List[str]] = None              # 可使用的配图方式
+        self.style: Optional[str] = None                                    # 文章风格

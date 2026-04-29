@@ -11,9 +11,10 @@ from sqlalchemy import and_, func, select
 from app.constants.user import UserConstant
 from app.exceptions import BusinessException, ErrorCode, throw_if_not
 from app.models.article import Article
-from app.models.enums import ArticleStatusEnum
-from app.schemas.article import ArticleQueryRequest, ArticleState, ArticleVO
+from app.models.enums import ArticleStatusEnum, ArticleStyleEnum
+from app.schemas.article import ArticleQueryRequest, ArticleState, ArticleVO, CreationOptionsVO, OptionItem
 from app.schemas.user import LoginUserVO
+from app.services.image_service_strategy import image_service_strategy
 from app.utils.logger import logger
 
 
@@ -33,14 +34,16 @@ class ArticleService:
     async def create_article_task_with_quota_check(
         self,
         topic: str,
-        login_user: LoginUserVO
+        login_user: LoginUserVO,
+        style: Optional[str] = None,
+        enabled_image_methods: Optional[List[str]] = None
     ) -> str:
         """创建文章任务（暂不检查配额）"""
         task_id = str(uuid.uuid4())
         
         query = """
-            INSERT INTO article (taskId, userId, topic, status, createTime)
-            VALUES (:taskId, :userId, :topic, :status, :createTime)
+            INSERT INTO article (taskId, userId, topic, style, status, createTime)
+            VALUES (:taskId, :userId, :topic, :style, :status, :createTime)
         """
         await self.db.execute(
             query=query,
@@ -48,6 +51,7 @@ class ArticleService:
                 "taskId": task_id,
                 "userId": login_user.id,
                 "topic": topic,
+                "style": style,
                 "status": ArticleStatusEnum.PENDING.value,
                 "createTime": datetime.now()
             }
@@ -55,6 +59,23 @@ class ArticleService:
 
         logger.info("创建文章任务 taskId=%s, userId=%s, topic=%s", task_id, login_user.id, topic)
         return task_id
+
+    def get_creation_options(self) -> CreationOptionsVO:
+        """获取创作页可选项：文章风格（全量枚举）+ 配图方式（仅已注册可用的方法）。
+
+        enums.ArticleStyleEnum / ImageMethodEnum 提供 label 与 description 中文文案，
+        而非在此处硬编码；配图方式直接取策略器 service_map 已注册集合，
+        保证与实际可用能力始终一致。
+        """
+        styles = [
+            OptionItem(value=s.value, label=s.label, description=s.description)
+            for s in ArticleStyleEnum
+        ]
+        image_methods = [
+            OptionItem(value=m.value, label=m.label, description=m.description)
+            for m in image_service_strategy.get_enabled_methods()
+        ]
+        return CreationOptionsVO(styles=styles, image_methods=image_methods)
 
 
     async def update_article_status(

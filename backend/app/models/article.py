@@ -28,3 +28,4 @@ class Article(Base):
     completed_time = Column("completedTime", DateTime, nullable=True, comment="完成时间")
     update_time = Column("updateTime", DateTime, nullable=False, default=func.now(), onupdate=func.now(), comment="更新时间")
     is_delete = Column("isDelete", SmallInteger, nullable=False, default=0, comment="是否删除")
+    style = Column(String(20), nullable=True, comment="文章风格：tech/emotional/educational/humorous")

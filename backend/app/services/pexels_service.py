@@ -5,16 +5,17 @@ from typing import Optional
 from app.config import settings
 from app.constants.article import ArticleConstant
 from app.models.enums import ImageMethodEnum
+from app.services.image_search_service import BaseImageSearchService
 from app.utils.logger import logger
 
 
-class PexelsService:
-    """Pexels 图片检索服务"""
-    
+class PexelsService(BaseImageSearchService):
+    """Pexels 图片检索服务（基于 URL，复用基类默认的 get_image_data() 实现）"""
+
     def __init__(self):
         self.api_key = settings.pexels_api_key
         self.client = httpx.AsyncClient(timeout=30.0)
-    
+
     async def search_image(self, keywords: str) -> Optional[str]:
         """根据关键词搜索图片"""
         try:
