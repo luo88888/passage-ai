@@ -30,6 +30,9 @@ class SseMessageTypeEnum(str, Enum):
     ALL_COMPLETE = "ALL_COMPLETE"           # 全部完成
     ERROR = "ERROR"                         # 错误
 
+    TITLE_GENERATED = "TITLE_GENERATED"    # 标题生成完成，等待用户选择
+    OUTLINE_GENERATED = "OUTLINE_GENERATED" # 大纲生成完成，等待用户编辑
+
     def get_streaming_prefix(self) -> str:
         """获取流式输出消息前缀"""
         return f"{self.value}:"
@@ -43,6 +46,9 @@ class ImageMethodEnum(str, Enum):
     - label: 前端展示用中文名
     - description: 可选简短说明
     """
+
+    label: str
+    description: str
 
     PEXELS = "PEXELS", "Pexels 真实图", "高质量真实摄影图，适合封面与场景配图"
     NANO_BANANA = "NANO_BANANA", "Nano Banana", "AI 创意插画，适合抽象概念与信息图表"
@@ -90,6 +96,9 @@ class ArticleStyleEnum(str, Enum):
     创作页"默认"项由前端写死，对应 style=null（后端走通用爆款风格），故此处不含"默认"。
     """
 
+    label: str
+    description: str
+
     TECH = "tech", "科技风", "语言专业严谨，重数据与事实"
     EMOTIONAL = "emotional", "情感风", "语言温暖细腻，注重共鸣"
     EDUCATIONAL = "educational", "教育风", "深入浅出，结构清晰便于学习"
@@ -108,3 +117,26 @@ class ArticleStyleEnum(str, Enum):
         if not value:
             return True  # 允许为空
         return value in [e.value for e in cls]
+
+
+class ArticlePhaseEnum(str, Enum):
+    """文章阶段枚举"""
+
+    PENDING = "PENDING"                         # 待处理
+    TITLE_GENERATING = "TITLE_GENERATING"       # 阶段1：生成标题
+    TITLE_SELECTING = "TITLE_SELECTING"         # 阶段2：选择标题
+    OUTLINE_GENERATING = "OUTLINE_GENERATING"   # 阶段3：生成大纲
+    OUTLINE_EDITING = "OUTLINE_EDITING"         # 阶段4：编辑大纲
+    CONTENT_GENERATING = "CONTENT_GENERATING"   # 阶段5：生成正文
+
+    def can_transition_to(self, target_phase: "ArticlePhaseEnum") -> bool:
+        """校验是否可流转到目标阶段"""
+        transitions = {
+            ArticlePhaseEnum.PENDING: {ArticlePhaseEnum.TITLE_GENERATING},
+            ArticlePhaseEnum.TITLE_GENERATING: {ArticlePhaseEnum.TITLE_SELECTING},
+            ArticlePhaseEnum.TITLE_SELECTING: {ArticlePhaseEnum.OUTLINE_GENERATING},
+            ArticlePhaseEnum.OUTLINE_GENERATING: {ArticlePhaseEnum.OUTLINE_EDITING},
+            ArticlePhaseEnum.OUTLINE_EDITING: {ArticlePhaseEnum.CONTENT_GENERATING},
+            ArticlePhaseEnum.CONTENT_GENERATING: set(),
+        }
+        return target_phase in transitions.get(self, set())

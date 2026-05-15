@@ -11,8 +11,10 @@
 /** SSE 消息类型（与后端 SseMessageTypeEnum 对齐） */
 export type SseMessageType =
   | 'AGENT1_COMPLETE'
+  | 'TITLE_GENERATED' // 阶段1结束：标题候选已就绪，等待用户选择（不关流）
   | 'AGENT2_STREAMING'
   | 'AGENT2_COMPLETE'
+  | 'OUTLINE_GENERATED' // 阶段2结束：大纲已就绪，等待用户编辑（不关流）
   | 'AGENT3_STREAMING'
   | 'AGENT3_COMPLETE'
   | 'AGENT4_COMPLETE'
@@ -22,19 +24,43 @@ export type SseMessageType =
   | 'ALL_COMPLETE'
   | 'ERROR'
 
+/** 标题候选（AGENT1_COMPLETE / TITLE_GENERATED 携带） */
+export interface TitleOption {
+  mainTitle: string
+  subTitle: string
+}
+
+/** 大纲章节（AGENT2_COMPLETE / OUTLINE_GENERATED 携带，后端 OutlineSection 无 alias，字段为 snake_case） */
+export interface OutlineSection {
+  section: number
+  title: string
+  points: string[]
+}
+
+/** 配图结果（IMAGE_COMPLETE 的 content 经 JSON.parse / AGENT5_COMPLETE 携带，camelCase） */
+export interface ImageResult {
+  position: number
+  url: string
+  method: string
+  keywords: string
+  sectionTitle: string
+  description: string
+  placeholderId?: string
+}
+
 /** SSE 消息载荷（按 type 不同携带不同字段） */
 export interface SseMessage {
   type: SseMessageType
-  // AGENT1_COMPLETE
-  titleResult?: { mainTitle: string; subTitle: string }
-  // AGENT2_STREAMING / AGENT3_STREAMING / IMAGE_COMPLETE 增量内容
+  // AGENT1_COMPLETE / TITLE_GENERATED：标题候选列表
+  titleOptions?: TitleOption[]
+  // AGENT2_STREAMING / AGENT3_STREAMING 增量内容；IMAGE_COMPLETE 为 ImageResult 的 JSON 字符串
   content?: string
-  // AGENT2_COMPLETE
-  outline?: Array<{ section: number; title: string; points: string[] }>
+  // AGENT2_COMPLETE / OUTLINE_GENERATED：大纲章节（snake_case）
+  outline?: OutlineSection[]
   // AGENT4_COMPLETE
   imageRequirements?: Array<{ position: number; type: string; sectionTitle: string; keywords: string }>
-  // AGENT5_COMPLETE
-  images?: Array<{ position: number; url: string; method: string; keywords: string; sectionTitle: string; description: string }>
+  // AGENT5_COMPLETE：全量配图（camelCase）
+  images?: ImageResult[]
   // MERGE_COMPLETE
   fullContent?: string
   // ALL_COMPLETE

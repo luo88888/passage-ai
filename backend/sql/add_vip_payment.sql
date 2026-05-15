@@ -1,5 +1,4 @@
 -- 添加会员和支付功能
--- @author <a href="https://codefather.cn">编程导航学习圈</a>
 
 use ai_passage_creator;
 

@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+from datetime import datetime
 import json
 
 from openai import AsyncOpenAI
@@ -8,7 +10,7 @@ from app.config import settings
 from app.schemas.article import (
     Agent4Result,
     ArticleState,
-    TitleResult,
+    TitleOption,
     OutlineSection,
     OutlineResult,
     ImageResult,
@@ -43,56 +45,23 @@ class ArticleAgentService:
         self.image_service_strategy = ImageServiceStrategy()
         # self.cos_service = CosService()
 
-    async def execute_article_generator(
-        self,
-        state: ArticleState,
-        stream_handler: Callable[[str], None]
-    ):
-        """执行完整的文章生成流程"""
-        try:
-            # 智能体1：生成标题
-            logger.info("智能体1-生成标题开始 taskId=%s", state.task_id)
-            await self.agent1_generate_title(state)
-            stream_handler(SseMessageTypeEnum.AGENT1_COMPLETE.value)
 
-            # 智能体2：生成大纲（流式输出）
-            logger.info("智能体2-生成大纲开始 taskId=%s", state.task_id)
-            await self.agent2_generate_outline(state, stream_handler)
-            stream_handler(SseMessageTypeEnum.AGENT2_COMPLETE.value)
-
-            # 智能体3：生成正文（流式输出）
-            logger.info("智能体3-生成正文开始 taskId=%s", state.task_id)
-            await self.agent3_generate_content(state, stream_handler)
-            stream_handler(SseMessageTypeEnum.AGENT3_COMPLETE.value)
-
-            # 智能体4：分析配图需求
-            logger.info("智能体4-分析配图需求开始 taskId=%s", state.task_id)
-            await self.agent4_analyze_image_requirements(state)
-            stream_handler(SseMessageTypeEnum.AGENT4_COMPLETE.value)
-
-            # 智能体5：生成配图
-            logger.info("智能体5-生成配图开始 taskId=%s", state.task_id)
-            await self.agent5_generate_images(state, stream_handler)
-            stream_handler(SseMessageTypeEnum.AGENT5_COMPLETE.value)
-
-            # 图文合并：将配图插入正文
-            self.merge_image_into_content(state)
-            stream_handler(SseMessageTypeEnum.MERGE_COMPLETE.value)
-            logger.info("文章生成流程全部完成 taskId=%s", state.task_id)
-
-        except Exception as e:
-            logger.error("文章生成失败 taskId=%s, error=%s", state.task_id, str(e), exc_info=True)
-            raise RuntimeError(f"文章生成失败：{str(e)}")
-
-    async def agent1_generate_title(self, state: ArticleState):
-        """智能体1：生成标题"""
+    async def agent1_generate_title_options(self, state: ArticleState):
+        """智能体1：生成标题方案列表"""
         prompt = PromptConstant.AGENT1_TITLE_PROMPT.format(topic=state.topic)
         prompt += self._get_style_prompt(state.style)
 
-        content = await self._call_llm(prompt)
-        title_data = self._parse_json_response(content, "标题")
-        state.title = TitleResult(**title_data)
-        logger.info("智能体1-标题生成完成 taskId=%s, mainTitle=%s", state.task_id, state.title.main_title)
+        async with self._agent_log_context(
+            task_id=state.task_id,
+            agent_name="agent1_generate_titles",
+            prompt=prompt,
+            input_data={"topic": state.topic, "style": state.style},
+        ) as log_data:
+            content = await self._call_llm(prompt)
+            title_options_data = self._parse_json_list_response(content, "标题方案")
+            state.title_options = [TitleOption(**item) for item in title_options_data]
+            log_data["outputData"] = self._safe_json_dumps({"optionsCount": len(state.title_options)})
+            logger.info("智能体1：标题方案生成成功, count=%s", len(state.title_options))
 
     async def agent2_generate_outline(
         self,
@@ -100,32 +69,53 @@ class ArticleAgentService:
         stream_handler: Callable[[str], None]
     ):
         """智能体2：生成大纲（流式输出）"""
-        assert state.title is not None
-        prompt = PromptConstant.AGENT2_OUTLINE_PROMPT.format(
-            mainTitle=state.title.main_title,
-            subTitle=state.title.sub_title
+        description_section = ""
+        if state.user_description and state.user_description.strip():
+            description_section = PromptConstant.AGENT2_DESCRIPTION_SECTION.replace(
+                "{userDescription}",
+                state.user_description,
+            )
+
+        prompt = (
+            PromptConstant.AGENT2_OUTLINE_PROMPT
+            .replace("{mainTitle}", state.title.main_title) # type: ignore
+            .replace("{subTitle}", state.title.sub_title)   # type: ignore
+            .replace("{descriptionSection}", description_section)
         )
         prompt += self._get_style_prompt(state.style)
 
-        # print(f"智能体2提示词：{prompt}")
-
         content = await self._call_llm_with_streaming(
-            prompt,
-            stream_handler,
-            SseMessageTypeEnum.AGENT2_STREAMING
+            prompt, stream_handler, SseMessageTypeEnum.AGENT2_STREAMING
         )
-        from pprint import pprint
-        print("智能体2输出：")
-        pprint(content)
-
         outline_data = self._parse_json_response(content, "大纲")
-
-        print("outline_data")
-        pprint(outline_data)
-        
         sections = [OutlineSection(**section) for section in outline_data["sections"]]
         state.outline = OutlineResult(sections=sections)
-        logger.info("智能体2-大纲生成完成 taskId=%s, sectionsCount=%s", state.task_id, len(sections))
+        logger.info(f"智能体2：大纲生成成功, sections={len(state.outline.sections)}")
+
+    async def ai_modify_outline(
+        self,
+        main_title: str,
+        sub_title: str,
+        current_outline: List[OutlineSection],
+        modify_suggestion: str,
+    ) -> List[OutlineSection]:
+        """AI 修改大纲"""
+        current_outline_json = json.dumps(
+            [item.model_dump() for item in current_outline],
+            ensure_ascii=False,
+        )
+        prompt = (
+            PromptConstant.AI_MODIFY_OUTLINE_PROMPT
+            .replace("{mainTitle}", main_title)
+            .replace("{subTitle}", sub_title)
+            .replace("{currentOutline}", current_outline_json)
+            .replace("{modifySuggestion}", modify_suggestion)
+        )
+        content = await self._call_llm(prompt)
+        outline_data = self._parse_json_response(content, "修改后的大纲")
+        sections = [OutlineSection(**section) for section in outline_data["sections"]]
+        return sections
+
 
     async def agent3_generate_content(
         self,
@@ -346,7 +336,7 @@ class ArticleAgentService:
             ImageMethodEnum.EMOJI_PACK: "适合表情包、搞笑图片、轻松幽默的配图",
             ImageMethodEnum.SVG_DIAGRAM: "适合概念示意图、思维导图样式、逻辑关系展示（不涉及精确数据）",
         }
-        return descriptions.get(method, method.value)
+        return descriptions.get(method, method.value)   # type: ignore
 
     def _build_method_usage_guide(
         self,
@@ -426,3 +416,131 @@ class ArticleAgentService:
             return style_map.get(style_enum, "")
         except ValueError:
             return ""
+
+    async def execute_phase1_generate_titles(
+        self,
+        state: ArticleState,
+        stream_handler: Callable[[str], None]
+    ):
+        """
+        阶段1：生成标题方案
+        
+        Args:
+            state: 文章状态
+            stream_handler: 流式输出处理器
+        """
+        try:
+            logger.info(f"阶段1：开始生成标题方案, taskId={state.task_id}")
+            await self.agent1_generate_title_options(state)
+            stream_handler(SseMessageTypeEnum.AGENT1_COMPLETE.value)
+            logger.info(
+                "阶段1：标题方案生成成功, taskId=%s, optionsCount=%s",
+                state.task_id,
+                len(state.title_options or []),
+            )
+        except Exception as e:
+            logger.error(f"阶段1失败, taskId={state.task_id}, error={e}")
+            raise RuntimeError(f"标题方案生成失败: {str(e)}")
+
+    async def execute_phase2_generate_outline(
+        self,
+        state: ArticleState,
+        stream_handler: Callable[[str], None]
+    ):
+        """阶段2：生成大纲"""
+        try:
+            logger.info(f"阶段2：开始生成大纲, taskId={state.task_id}")
+            await self.agent2_generate_outline(state, stream_handler)
+            stream_handler(SseMessageTypeEnum.AGENT2_COMPLETE.value)
+            logger.info(f"阶段2：大纲生成成功, taskId={state.task_id}")
+        except Exception as e:
+            logger.error(f"阶段2失败, taskId={state.task_id}, error={e}")
+            raise RuntimeError(f"大纲生成失败: {str(e)}")
+
+    async def execute_phase3_generate_content(
+        self,
+        state: ArticleState,
+        stream_handler: Callable[[str], None]
+    ):
+        """阶段3：生成正文、配图和合并内容"""
+        try:
+            logger.info(f"阶段3：开始生成正文, taskId={state.task_id}")
+            await self.agent3_generate_content(state, stream_handler)
+            stream_handler(SseMessageTypeEnum.AGENT3_COMPLETE.value)
+
+            logger.info(f"阶段3：开始分析配图需求, taskId={state.task_id}")
+            await self.agent4_analyze_image_requirements(state)
+            stream_handler(SseMessageTypeEnum.AGENT4_COMPLETE.value)
+
+            logger.info(f"阶段3：开始生成配图, taskId={state.task_id}")
+            await self.agent5_generate_images(state, stream_handler)
+            stream_handler(SseMessageTypeEnum.AGENT5_COMPLETE.value)
+
+            logger.info(f"阶段3：开始图文合成, taskId={state.task_id}")
+            self.merge_image_into_content(state)
+            stream_handler(SseMessageTypeEnum.MERGE_COMPLETE.value)
+        except Exception as e:
+            logger.error(f"阶段3失败, taskId={state.task_id}, error={e}")
+            raise RuntimeError(f"正文生成失败: {str(e)}")
+
+    @asynccontextmanager
+    async def _agent_log_context(
+        self,
+        task_id: Optional[str],
+        agent_name: str,
+        prompt: Optional[str] = None,
+        input_data: Optional[dict] = None,
+    ):
+        """异步智能体日志上下文"""
+        start_time = datetime.now()
+        log_data = {
+            "taskId": task_id or "unknown",
+            "agentName": agent_name,
+            "startTime": start_time,
+            "status": "RUNNING",
+            "prompt": prompt,
+            "inputData": self._safe_json_dumps(input_data),
+            "outputData": None,
+            "errorMessage": None,
+        }
+        try:
+            yield log_data
+            log_data["status"] = "SUCCESS"
+        except Exception as exc:
+            log_data["status"] = "FAILED"
+            log_data["errorMessage"] = str(exc)
+            raise
+        finally:
+            end_time = datetime.now()
+            duration_ms = int((end_time - start_time).total_seconds() * 1000)
+            log_data["endTime"] = end_time
+            log_data["durationMs"] = duration_ms
+            # self.agent_log_service.save_log_async(log_data)
+
+    @staticmethod
+    def _safe_json_dumps(value: Optional[dict]) -> Optional[str]:
+        """安全序列化 JSON"""
+        if value is None:
+            return None
+        try:
+            return json.dumps(value, ensure_ascii=False)
+        except Exception:
+            return None
+
+    def _parse_json_list_response(self, content: str, name: str) -> list:
+        """解析 JSON 数组响应
+        Args:
+            content: 待解析的 JSON 字符串
+            name: 任务名称，用于日志记录和抛出异常
+        """
+        try:
+            result = json.loads(content)
+            if not isinstance(result, list):
+                raise ValueError("响应不是 JSON 数组")
+            return result
+        except json.JSONDecodeError as e:
+            logger.error(f"{name}解析失败, content={content}, error={e}")
+            raise RuntimeError(f"{name}解析失败")
+        except ValueError as e:
+            logger.error(f"{name}解析失败, content={content}, error={e}")
+            raise RuntimeError(f"{name}解析失败")

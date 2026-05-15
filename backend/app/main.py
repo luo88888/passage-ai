@@ -1,5 +1,6 @@
 """
 FastAPI 主程序入口
+启动方式: uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8567
 """
 
 from contextlib import asynccontextmanager

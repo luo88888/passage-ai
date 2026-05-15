@@ -17,7 +17,8 @@
     "marked": "^18.0.6",
     "pinia": "^2.1.7",
     "vue": "^3.5.38",
-    "vue-router": "^4.4.5"
+    "vue-router": "^4.4.5",
+    "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
     "@umijs/openapi": "^1.14.1",

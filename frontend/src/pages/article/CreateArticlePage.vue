@@ -17,6 +17,7 @@ import {
   FileTextOutlined,
   PictureOutlined,
   ThunderboltOutlined,
+  CheckOutlined,
 } from '@ant-design/icons-vue'
 
 import { useLoginUserStore } from '@/stores/loginUser'
@@ -24,20 +25,29 @@ import { isAdmin } from '@/utils/permission'
 import {
   createArticle,
   getArticle,
+  confirmTitle,
+  confirmOutline,
   getCreationOptions,
   type CreationOptionItem,
 } from '@/api/articleController'
-import { subscribeArticleProgress, type SseMessage } from '@/utils/sse'
+import { subscribeArticleProgress, type SseMessage, type OutlineSection, type TitleOption } from '@/utils/sse'
 import { renderMarkdown } from '@/utils/markdown'
 import { exportMarkdown, exportHtml } from '@/utils/export'
+import OutlineEditor from '@/components/article/OutlineEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
 
 // ==================== 状态 ====================
-// input 输入态 | generating 生成中（含完成）
-const stage = ref<'input' | 'generating'>('input')
+// 多阶段状态机（对应后端 ArticlePhaseEnum + status）：
+//   input       选题输入
+//   titleSelect 阶段1完成，展示标题候选供用户选择
+//   outlineEdit 阶段2完成，展示大纲编辑器
+//   generating  阶段3进行中，流式预览正文/配图
+//   done        全部完成
+type Stage = 'input' | 'titleSelect' | 'outlineEdit' | 'generating' | 'done'
+const stage = ref<Stage>('input')
 const topic = ref('')
 const taskId = ref('')
 const creating = ref(false)
@@ -50,6 +60,20 @@ const styleOptions = ref<CreationOptionItem[]>([])
 const imageMethodOptions = ref<CreationOptionItem[]>([])
 const selectedStyle = ref<string>('default')
 const selectedImageMethods = ref<string[]>([])
+
+// 标题候选阶段数据
+const titleOptions = ref<TitleOption[]>([])
+// selectedTitleIdx：选中的候选索引，或 'custom' 表示自定义标题
+const selectedTitleIdx = ref<number | 'custom'>(0)
+const customMainTitle = ref('')
+const customSubTitle = ref('')
+const userDescription = ref('') // 补充描述：随确认标题提交，影响大纲生成侧重点
+const confirmingTitle = ref(false)
+
+// 大纲编辑阶段数据（与 OutlineEditor v-model 双向同步）
+const outline = ref<OutlineSection[]>([])
+const confirmingOutline = ref(false)
+const outlineEditorRef = ref<InstanceType<typeof OutlineEditor> | null>(null)
 
 // 时间轴当前步（0~6），每完成一个 *_COMPLETE 推进一步
 const currentStep = ref(0)
@@ -70,15 +94,16 @@ const steps: StepMeta[] = [
 
 // 流式累积内容
 const titleResult = ref<{ mainTitle: string; subTitle: string } | null>(null)
-const outlineRaw = ref('') // AGENT2_STREAMING 增量拼接
-const outline = ref<Array<{ section: number; title: string; points: string[] }>>([])
+const outlineRaw = ref('') // AGENT2_STREAMING 增量拼接（大纲生成中的流式预览）
 const contentRaw = ref('') // AGENT3_STREAMING 增量拼接
-const imageUrls = ref<string[]>([]) // IMAGE_COMPLETE 增量
+const imageUrls = ref<string[]>([]) // IMAGE_COMPLETE 增量（解析 ImageResult JSON 取 url）
 const images = ref<Array<{ position: number; url: string; description: string }>>([]) // AGENT5_COMPLETE 全量
 const fullContent = ref('') // MERGE_COMPLETE
 
 // SSE 句柄
 let sseHandle: { close: () => void } | null = null
+let reconnecting = false // 重连防递归标志
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
 // ==================== 计算属性 ====================
 const canSubmit = computed(() => !!topic.value.trim() && !creating.value)
@@ -119,47 +144,108 @@ const tips = [
 const resetAll = () => {
   sseHandle?.close()
   sseHandle = null
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+  reconnecting = false
   stage.value = 'input'
   taskId.value = ''
   completed.value = false
   errorMsg.value = ''
   currentStep.value = 0
   titleResult.value = null
-  outlineRaw.value = ''
+  titleOptions.value = []
+  selectedTitleIdx.value = 0
+  customMainTitle.value = ''
+  customSubTitle.value = ''
+  userDescription.value = ''
+  confirmingTitle.value = false
   outline.value = []
+  confirmingOutline.value = false
+  outlineRaw.value = ''
   contentRaw.value = ''
   imageUrls.value = []
   images.value = []
   fullContent.value = ''
 }
 
-// SSE 事件分派
+// 订阅 SSE（若尚未订阅）。跨阶段复用同一条连接，避免重复订阅。
+// 断连后 sseHandle 会被置空并自动延迟重连一次，确保多阶段长连接在抖动后自愈。
+const ensureSse = () => {
+  if (sseHandle || !taskId.value) return
+  sseHandle = subscribeArticleProgress(taskId.value, {
+    onMessage: handleSse,
+    onError: () => {
+      // 连接断开：置空句柄以便可重连；未到终态时延迟自动重连一次
+      sseHandle = null
+      if (completed.value || stage.value === 'done' || reconnecting) return
+      reconnecting = true
+      errorMsg.value = '生成进度连接中断，正在自动重连…'
+      message.warning(errorMsg.value)
+      // 延迟重连，给后端/网络一点恢复时间
+      reconnectTimer = setTimeout(() => {
+        reconnecting = false
+        reconnectTimer = null
+        ensureSse()
+      }, 2000)
+    },
+  })
+}
+
+// SSE 事件分派（多阶段）
 const handleSse = (data: SseMessage) => {
   errorMsg.value = ''
   switch (data.type) {
     case 'AGENT1_COMPLETE':
-      titleResult.value = data.titleResult || null
+      // 兼容性兜底：部分实现可能仅发 AGENT1_COMPLETE，提前拿到候选
+      if (data.titleOptions?.length) titleOptions.value = data.titleOptions
       currentStep.value = 1
+      break
+    case 'TITLE_GENERATED':
+      // 阶段1结束：标题候选就绪，切到选标题 UI（不关流，等用户确认后继续 phase2）
+      if (data.titleOptions?.length) titleOptions.value = data.titleOptions
+      selectedTitleIdx.value = 0
+      currentStep.value = 1
+      stage.value = 'titleSelect'
       break
     case 'AGENT2_STREAMING':
       outlineRaw.value += data.content || ''
       break
     case 'AGENT2_COMPLETE':
-      outline.value = data.outline || []
+      if (data.outline?.length) outline.value = data.outline
       currentStep.value = 2
+      break
+    case 'OUTLINE_GENERATED':
+      // 阶段2结束：大纲就绪，切到编辑大纲 UI（不关流，等用户确认后继续 phase3）
+      if (data.outline?.length) outline.value = data.outline
+      outlineRaw.value = ''
+      currentStep.value = 2
+      stage.value = 'outlineEdit'
       break
     case 'AGENT3_STREAMING':
       contentRaw.value += data.content || ''
+      stage.value = 'generating'
       break
     case 'AGENT3_COMPLETE':
+      stage.value = 'generating'
       currentStep.value = 3
       break
     case 'AGENT4_COMPLETE':
       currentStep.value = 4
       break
     case 'IMAGE_COMPLETE':
-      if (data.content && !imageUrls.value.includes(data.content)) {
-        imageUrls.value.push(data.content)
+      // content 是 ImageResult 的 JSON 字符串，解析取 url
+      if (data.content) {
+        try {
+          const img = JSON.parse(data.content)
+          if (img?.url && !imageUrls.value.includes(img.url)) {
+            imageUrls.value.push(img.url)
+          }
+        } catch {
+          // 兼容旧实现：content 直接是 URL
+          if (!imageUrls.value.includes(data.content)) imageUrls.value.push(data.content)
+        }
       }
       break
     case 'AGENT5_COMPLETE':
@@ -174,6 +260,7 @@ const handleSse = (data: SseMessage) => {
       break
     case 'ALL_COMPLETE':
       completed.value = true
+      stage.value = 'done'
       fetchFinalDetail()
       break
     case 'ERROR':
@@ -187,13 +274,15 @@ const handleSse = (data: SseMessage) => {
 const fetchFinalDetail = async () => {
   if (!taskId.value) return
   try {
-    const res = await getArticle({ taskId: taskId.value })
+    const res = await getArticle({ taskId: taskId.value } as any)
     const a = res.data?.data
     if (a) {
       if (!fullContent.value && a.fullContent) fullContent.value = a.fullContent
       if (a.content && !contentRaw.value) contentRaw.value = a.content
-      if (a.outline && !outline.value.length) outline.value = a.outline
-      if (a.images && !images.value.length) images.value = a.images
+      if (a.outline && !outline.value.length) outline.value = a.outline as OutlineSection[]
+      if (a.images && !images.value.length) {
+        images.value = (a.images as any[]).map((i) => ({ position: i.position, url: i.url, description: i.description }))
+      }
       if (!titleResult.value && a.mainTitle) {
         titleResult.value = { mainTitle: a.mainTitle, subTitle: a.subTitle || '' }
       }
@@ -243,23 +332,169 @@ const startGenerate = async () => {
       return
     }
     taskId.value = res.data.data
-    stage.value = 'generating'
-    // 立即订阅 SSE（后端 fire-and-forget 可能已开跑，丢一两条早期事件可接受）
-    sseHandle = subscribeArticleProgress(taskId.value, {
-      onMessage: handleSse,
-      onError: () => {
-        // 连接异常且尚未完成：提示并保持在生成态，可重试
-        if (!completed.value) {
-          errorMsg.value = '生成进度连接中断，请稍后重试'
-          message.warning(errorMsg.value)
-        }
-      },
-    })
+    // 阶段1只触发"生成标题"，先停在输入态等待 TITLE_GENERATED 再切到选标题
+    // （这里不切 stage，等 SSE 推 TITLE_GENERATED 再切；订阅 SSE 拿候选）
+    ensureSse()
   } catch (e: any) {
     errorMsg.value = e?.message || '创建任务失败'
     message.error(errorMsg.value)
   } finally {
     creating.value = false
+  }
+}
+
+// 确认标题：调 confirm-title，触发后端 phase2（生成大纲）
+const confirmTitleSelection = async () => {
+  // 确定选中的主/副标题
+  let mainTitle = ''
+  let subTitle = ''
+  if (selectedTitleIdx.value === 'custom') {
+    mainTitle = customMainTitle.value.trim()
+    subTitle = customSubTitle.value.trim()
+    if (!mainTitle) {
+      message.warning('请输入自定义主标题')
+      return
+    }
+  } else {
+    const opt = titleOptions.value[selectedTitleIdx.value]
+    if (!opt) {
+      message.warning('请选择一个标题方案')
+      return
+    }
+    mainTitle = opt.mainTitle
+    subTitle = opt.subTitle
+  }
+
+  confirmingTitle.value = true
+  errorMsg.value = ''
+  try {
+    const res = await confirmTitle({
+      taskId: taskId.value,
+      selectedMainTitle: mainTitle,
+      selectedSubTitle: subTitle,
+      userDescription: userDescription.value.trim() || undefined,
+    } as any)
+    if (res.data.code !== 0) {
+      errorMsg.value = res.data.message || '确认标题失败'
+      message.error(errorMsg.value)
+      return
+    }
+    // 记录已选标题用于后续展示
+    titleResult.value = { mainTitle, subTitle }
+    // 切到大纲编辑阶段；phase2 异步开始，SSE 继续推 AGENT2_STREAMING / OUTLINE_GENERATED
+    // 先进入 outlineEdit（展示"大纲生成中"占位），OUTLINE_GENERATED 到来后填充大纲
+    outlineRaw.value = ''
+    outline.value = []
+    stage.value = 'outlineEdit'
+    ensureSse()
+  } catch (e: any) {
+    errorMsg.value = e?.message || '确认标题失败'
+    message.error(errorMsg.value)
+  } finally {
+    confirmingTitle.value = false
+  }
+}
+
+// 大纲编辑器确认：调 confirm-outline，触发后端 phase3（生成正文+配图）
+const onOutlineConfirm = async () => {
+  confirmingOutline.value = true
+  errorMsg.value = ''
+  try {
+    const res = await confirmOutline({
+      taskId: taskId.value,
+      outline: outline.value,
+    } as any)
+    if (res.data.code !== 0) {
+      errorMsg.value = res.data.message || '确认大纲失败'
+      message.error(errorMsg.value)
+      // 通知子组件重置确认 loading
+      outlineEditorRef.value?.resetConfirming()
+      confirmingOutline.value = false
+      return
+    }
+    // 切到正文生成阶段，重连 SSE 看 phase3 流式
+    contentRaw.value = ''
+    imageUrls.value = []
+    images.value = []
+    fullContent.value = ''
+    currentStep.value = 2
+    stage.value = 'generating'
+    ensureSse()
+  } catch (e: any) {
+    errorMsg.value = e?.message || '确认大纲失败'
+    message.error(errorMsg.value)
+    outlineEditorRef.value?.resetConfirming()
+  } finally {
+    confirmingOutline.value = false
+  }
+}
+
+// 断点续作：根据 taskId 拉取 ArticleVO，按 phase/status 恢复到对应阶段
+const resumeByTaskId = async (id: string) => {
+  try {
+    const res = await getArticle({ taskId: id } as any)
+    if (res.data.code !== 0 || !res.data?.data) {
+      message.error(res.data?.message || '恢复任务失败')
+      return
+    }
+    const a = res.data.data as any
+    taskId.value = id
+    errorMsg.value = a.errorMessage || ''
+
+    // 失败态：展示错误
+    if (a.status === 'FAILED') {
+      stage.value = 'generating'
+      completed.value = false
+      return
+    }
+
+    // 完成态：直接展示结果
+    if (a.status === 'COMPLETED') {
+      if (a.mainTitle) titleResult.value = { mainTitle: a.mainTitle, subTitle: a.subTitle || '' }
+      if (a.outline) outline.value = a.outline as OutlineSection[]
+      if (a.content) contentRaw.value = a.content
+      if (a.fullContent) fullContent.value = a.fullContent
+      if (a.images) {
+        images.value = (a.images as any[]).map((i) => ({ position: i.position, url: i.url, description: i.description }))
+      }
+      completed.value = true
+      stage.value = 'done'
+      return
+    }
+
+    // 进行中：按 phase 定位阶段
+    const phase = a.phase
+    if (phase === 'TITLE_SELECTING') {
+      // 标题候选已就绪，等待用户选择；不重连 SSE（后端已停）
+      if (a.titleOptions) titleOptions.value = a.titleOptions
+      selectedTitleIdx.value = 0
+      stage.value = 'titleSelect'
+    } else if (phase === 'TITLE_GENERATING') {
+      // 标题还在生成，重连 SSE 等推 TITLE_GENERATED
+      stage.value = 'titleSelect'
+      ensureSse()
+    } else if (phase === 'OUTLINE_EDITING') {
+      // 大纲已就绪，等待用户编辑；不重连 SSE
+      if (a.outline) outline.value = a.outline as OutlineSection[]
+      stage.value = 'outlineEdit'
+    } else if (phase === 'OUTLINE_GENERATING') {
+      // 大纲还在生成，重连 SSE 等推 OUTLINE_GENERATED
+      if (a.mainTitle) titleResult.value = { mainTitle: a.mainTitle, subTitle: a.subTitle || '' }
+      stage.value = 'outlineEdit'
+      ensureSse()
+    } else if (phase === 'CONTENT_GENERATING') {
+      // 正文生成中，重连 SSE 看 phase3 流式（接受历史片段丢失）
+      if (a.mainTitle) titleResult.value = { mainTitle: a.mainTitle, subTitle: a.subTitle || '' }
+      if (a.outline) outline.value = a.outline as OutlineSection[]
+      stage.value = 'generating'
+      ensureSse()
+    } else {
+      // 未知/早期阶段，回退到输入态
+      stage.value = 'input'
+    }
+  } catch (e: any) {
+    console.warn('恢复任务失败:', e)
+    message.error('恢复任务失败')
   }
 }
 
@@ -315,7 +550,14 @@ onMounted(() => {
     router.replace(`/user/login?redirect=${encodeURIComponent(route.fullPath)}`)
     return
   }
-  // 支持 /create?topic= 预填
+  // 断点续作：优先处理 taskId（详情页"去创作页观察进度"会带 taskId 跳转）
+  const qTaskId = route.query.taskId
+  if (qTaskId && typeof qTaskId === 'string') {
+    resumeByTaskId(qTaskId)
+    fetchCreationOptions()
+    return
+  }
+  // 支持 /create?topic= 预填（仅新建流程生效）
   const q = route.query.topic
   if (q && typeof q === 'string') {
     topic.value = q
@@ -325,6 +567,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
   sseHandle?.close()
   sseHandle = null
 })
@@ -483,9 +729,126 @@ onBeforeUnmount(() => {
         </div>
       </aside>
 
-      <!-- 中栏：流式文章预览 -->
+      <!-- 中栏：按阶段切换内容 -->
       <main class="main-panel">
-        <div class="preview-card">
+        <!-- 阶段：选择标题 -->
+        <div v-if="stage === 'titleSelect'" class="preview-card">
+          <div class="stage-head">
+            <h2 class="stage-title">选择标题</h2>
+            <p class="stage-subtitle">AI 已生成多个标题方案，选择一个或自定义，确认后开始生成大纲</p>
+          </div>
+          <div v-if="errorMsg" class="error-banner">
+            <a-alert :message="errorMsg" type="error" show-icon />
+          </div>
+
+          <!-- 标题候选列表 -->
+          <div v-if="titleOptions.length" class="title-options">
+            <div
+              v-for="(opt, i) in titleOptions"
+              :key="i"
+              class="title-option-card"
+              :class="{ selected: selectedTitleIdx === i }"
+              @click="selectedTitleIdx = i"
+            >
+              <div class="title-option-radio">
+                <CheckCircleFilled v-if="selectedTitleIdx === i" />
+                <span v-else class="radio-empty"></span>
+              </div>
+              <div class="title-option-body">
+                <div class="title-option-main">{{ opt.mainTitle }}</div>
+                <div class="title-option-sub">{{ opt.subTitle }}</div>
+              </div>
+            </div>
+            <!-- 自定义标题选项 -->
+            <div
+              class="title-option-card custom"
+              :class="{ selected: selectedTitleIdx === 'custom' }"
+              @click="selectedTitleIdx = 'custom'"
+            >
+              <div class="title-option-radio">
+                <CheckCircleFilled v-if="selectedTitleIdx === 'custom'" />
+                <span v-else class="radio-empty"></span>
+              </div>
+              <div class="title-option-body">
+                <div class="title-option-main custom-label"><EditOutlined /> 自定义标题</div>
+                <div v-if="selectedTitleIdx === 'custom'" class="custom-inputs" @click.stop>
+                  <a-input
+                    v-model:value="customMainTitle"
+                    class="custom-input"
+                    placeholder="请输入主标题"
+                    :maxlength="100"
+                  />
+                  <a-input
+                    v-model:value="customSubTitle"
+                    class="custom-input"
+                    placeholder="请输入副标题（可选）"
+                    :maxlength="100"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-streaming">
+            <a-spin tip="AI 正在生成标题方案…" />
+          </div>
+
+          <!-- 补充描述 -->
+          <div class="desc-area">
+            <div class="desc-head">
+              <span class="desc-title">补充描述</span>
+              <span class="desc-hint">（可选，告诉 AI 生成大纲时的侧重点）</span>
+            </div>
+            <a-textarea
+              v-model:value="userDescription"
+              class="desc-textarea"
+              placeholder="例如：重点写实战案例、面向初级读者、多加入数据对比…"
+              :auto-size="{ minRows: 2, maxRows: 4 }"
+              :maxlength="300"
+              show-count
+            />
+          </div>
+
+          <!-- 确认按钮 -->
+          <a-button
+            type="primary"
+            size="large"
+            block
+            class="stage-confirm-btn"
+            :loading="confirmingTitle"
+            :disabled="!titleOptions.length && selectedTitleIdx !== 'custom'"
+            @click="confirmTitleSelection"
+          >
+            <CheckOutlined v-if="!confirmingTitle" />
+            确认标题并生成大纲
+          </a-button>
+        </div>
+
+        <!-- 阶段：编辑大纲 -->
+        <div v-else-if="stage === 'outlineEdit'" class="preview-card">
+          <div class="stage-head">
+            <h2 class="stage-title">编辑大纲</h2>
+            <p class="stage-subtitle">可拖拽排序、直接编辑，或用 AI 助手自然语言修改，确认后生成正文与配图</p>
+          </div>
+          <div v-if="errorMsg" class="error-banner">
+            <a-alert :message="errorMsg" type="error" show-icon />
+          </div>
+          <!-- 大纲生成中占位；OUTLINE_GENERATED 到来后展示编辑器 -->
+          <div v-if="!outline.length" class="empty-streaming">
+            <a-spin tip="AI 正在生成大纲…">
+              <div v-if="outlineRaw" class="markdown-body streaming" v-html="outlineHtml"></div>
+            </a-spin>
+          </div>
+          <OutlineEditor
+            v-else
+            ref="outlineEditorRef"
+            v-model:outline="outline"
+            :task-id="taskId"
+            @confirm="onOutlineConfirm"
+          />
+        </div>
+
+        <!-- 阶段：生成中/完成（流式预览） -->
+        <div v-else class="preview-card">
           <!-- 完成胶囊 -->
           <div v-if="completed" class="complete-badge">
             <CheckCircleFilled />
@@ -1119,4 +1482,122 @@ onBeforeUnmount(() => {
   background: var(--color-background-secondary);
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
+
+/* ===== 多阶段交互 UI ===== */
+/* 阶段标题 */
+.stage-head {
+  margin-bottom: 20px;
+}
+.stage-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 6px;
+}
+.stage-subtitle {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* 标题候选 */
+.title-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.title-option-card {
+  display: flex;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--color-background-secondary);
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.title-option-card:hover {
+  border-color: var(--color-primary-light);
+}
+.title-option-card.selected {
+  border-color: var(--color-primary);
+  background: rgba(34, 197, 94, 0.06);
+}
+.title-option-radio {
+  flex-shrink: 0;
+  padding-top: 2px;
+  font-size: 20px;
+  color: var(--color-primary);
+}
+.radio-empty {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  background: var(--color-background);
+}
+.title-option-body {
+  flex: 1;
+  min-width: 0;
+}
+.title-option-main {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+.title-option-sub {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+.custom-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-primary-dark);
+}
+.custom-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.custom-input {
+  border-radius: var(--radius-md);
+}
+
+/* 补充描述 */
+.desc-area {
+  margin-bottom: 18px;
+}
+.desc-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.desc-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.desc-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.desc-textarea {
+  border-radius: var(--radius-md);
+}
+
+/* 阶段确认按钮 */
+.stage-confirm-btn {
+  height: 46px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  border-radius: var(--radius-md) !important;
+}
+
 </style>

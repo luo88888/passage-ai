@@ -7,8 +7,8 @@ import json
 from typing import Any, Dict, List, Optional
 
 from app.database import database
-from app.models.enums import ArticleStatusEnum, SseMessageTypeEnum
-from app.schemas.article import ArticleState
+from app.models.enums import ArticlePhaseEnum, ArticleStatusEnum, SseMessageTypeEnum
+from app.schemas.article import ArticleState, OutlineResult, OutlineSection, TitleResult
 from app.services.article_agent_service import ArticleAgentService
 from app.managers.sse_manager import sse_emitter_manager
 from app.services.article_service import ArticleService
@@ -19,53 +19,6 @@ class ArticleAsyncService:
     """文章异步任务服务，提供下述服务：
     1. 执行异步文章生成，传入 task_id 参数
     """
-
-
-    async def execute_article_generation(
-            self,
-            task_id: str,
-            topic: str,
-            style: Optional[str] = None,
-            enabled_image_methods: Optional[List[str]] = None
-        ):
-        """异步执行文章生成"""
-        article_agent_service = ArticleAgentService()
-        article_service = ArticleService(database)
-
-        try:
-            # 更新状态为处理中
-            await article_service.update_article_status(task_id, ArticleStatusEnum.PROCESSING)
-
-            # 创建状态对象
-            state = ArticleState()
-            state.task_id = task_id
-            state.topic = topic
-            state.style = style
-            state.enabled_image_methods = enabled_image_methods
-
-            logger.info("开始执行文章生成 taskId=%s, topic=%s", task_id, topic)
-
-            # 执行智能体编排，通过 SSE 推送进度
-            await article_agent_service.execute_article_generator(
-                state,
-                lambda message: self._handle_agent_message(task_id, message, state)
-            )
-
-            # 保存完整文章到数据库
-            await article_service.save_article_content(task_id, state)
-
-            # 更新状态为已完成
-            await article_service.update_article_status(task_id, ArticleStatusEnum.COMPLETED)
-
-            # 推送完成消息并关闭 SSE 连接
-            self._send_sse_message(task_id, SseMessageTypeEnum.ALL_COMPLETE, {"taskId": task_id})
-            sse_emitter_manager.complete(task_id)
-            logger.info("文章生成完成 taskId=%s", task_id)
-        except Exception as e:
-            logger.error("异步任务失败 taskId=%s, error=%s", task_id, str(e), exc_info=True)
-            await article_service.update_article_status(task_id, ArticleStatusEnum.FAILED, str(e))
-            self._send_sse_message(task_id, SseMessageTypeEnum.ERROR, {"message": str(e)})
-            sse_emitter_manager.complete(task_id)
 
     def _build_message_data(self, message: str, state: ArticleState) -> Dict[str, Any]:
         """构建要推送给前端的 SSE 消息数据。
@@ -132,11 +85,9 @@ class ArticleAsyncService:
         
         if message == SseMessageTypeEnum.AGENT1_COMPLETE.value:
             data["type"] = SseMessageTypeEnum.AGENT1_COMPLETE.value
-            # HACK: 现在只生成一个候选标题
-            # data["titleOptions"] = [
-            #     item.model_dump(by_alias=True) for item in (state.title_options or [])
-            # ]
-            data["titleResult"] = state.title.model_dump(by_alias=True) if state.title else None
+            data["titleOptions"] = [
+                item.model_dump(by_alias=True) for item in (state.title_options or [])
+            ]
         elif message == SseMessageTypeEnum.AGENT2_COMPLETE.value:
             data["type"] = SseMessageTypeEnum.AGENT2_COMPLETE.value
             data["outline"] = [s.model_dump() for s in state.outline.sections] if state.outline else []
@@ -156,6 +107,7 @@ class ArticleAsyncService:
             data["type"] = SseMessageTypeEnum.MERGE_COMPLETE.value
             data["fullContent"] = state.full_content
         else:
+            logger.error("未知完成消息: %s", message)
             return None # type: ignore
         
         return data
@@ -177,6 +129,151 @@ class ArticleAsyncService:
         data = self._build_message_data(message, state)
         if data is not None:
             sse_emitter_manager.send(task_id, json.dumps(data, ensure_ascii=False))
+
+    async def execute_phase1(
+        self,
+        task_id: str,
+        topic: str,
+        style: Optional[str] = None,
+    ):
+        """阶段1：异步生成标题方案"""
+        logger.info("阶段1异步任务开始, taskId=%s, topic=%s, style=%s", task_id, topic, style)
+        article_agent_service = ArticleAgentService()
+        article_service = ArticleService(database)
+
+        try:
+            await article_service.update_article_status(task_id, ArticleStatusEnum.PROCESSING)
+            await article_service.update_phase(task_id, ArticlePhaseEnum.TITLE_GENERATING)
+
+            state = ArticleState()
+            state.task_id = task_id
+            state.topic = topic
+            state.style = style
+
+            await article_agent_service.execute_phase1_generate_titles(
+                state,
+                lambda message: self._handle_agent_message(task_id, message, state)
+            )
+
+            await article_service.save_title_options(task_id, state.title_options or [])
+            await article_service.update_phase(task_id, ArticlePhaseEnum.TITLE_SELECTING)
+
+            self._send_sse_message(
+                task_id,
+                SseMessageTypeEnum.TITLE_GENERATED,
+                {
+                    "titleOptions": [
+                        item.model_dump(by_alias=True) for item in (state.title_options or [])
+                    ]
+                },
+            )
+
+            logger.info("阶段1异步任务完成, taskId=%s", task_id)
+        except Exception as e:
+            logger.error("阶段1异步任务失败, taskId=%s, error=%s", task_id, e)
+            await article_service.update_article_status(
+                task_id,
+                ArticleStatusEnum.FAILED,
+                str(e)
+            )
+            self._send_sse_message(
+                task_id,
+                SseMessageTypeEnum.ERROR,
+                {"message": str(e)}
+            )
+            sse_emitter_manager.complete(task_id)
+
+    async def execute_phase2(self, task_id: str):
+        """阶段2：异步生成大纲"""
+        logger.info("阶段2异步任务开始, taskId=%s", task_id)
+        article_agent_service = ArticleAgentService()
+        article_service = ArticleService(database)
+
+        try:
+            article = await article_service.get_by_task_id(task_id)
+            if not article:
+                raise RuntimeError("文章不存在")
+
+            state = ArticleState()
+            state.task_id = task_id
+            state.style = article["style"]
+            state.user_description = article["userDescription"]
+            state.title = TitleResult(
+                mainTitle=article["mainTitle"],
+                subTitle=article["subTitle"],
+            )
+
+            await article_agent_service.execute_phase2_generate_outline(
+                state,
+                lambda message: self._handle_agent_message(task_id, message, state)
+            )
+            await article_service.save_outline(task_id, state.outline.sections if state.outline else [])
+            await article_service.update_phase(task_id, ArticlePhaseEnum.OUTLINE_EDITING)
+
+            self._send_sse_message(
+                task_id,
+                SseMessageTypeEnum.OUTLINE_GENERATED,
+                {
+                    "outline": [
+                        item.model_dump() for item in (state.outline.sections if state.outline else [])
+                    ]
+                },
+            )
+            logger.info("阶段2异步任务完成, taskId=%s", task_id)
+        except Exception as e:
+            logger.error("阶段2异步任务失败, taskId=%s, error=%s", task_id, e)
+            await article_service.update_article_status(task_id, ArticleStatusEnum.FAILED, str(e))
+            self._send_sse_message(task_id, SseMessageTypeEnum.ERROR, {"message": str(e)})
+            sse_emitter_manager.complete(task_id)
+
+    async def execute_phase3(self, task_id: str):
+        """阶段3：异步生成正文与配图"""
+        logger.info("阶段3异步任务开始, taskId=%s", task_id)
+        article_agent_service = ArticleAgentService()
+        article_service = ArticleService(database)
+
+        try:
+            article = await article_service.get_by_task_id(task_id)
+            if not article:
+                raise RuntimeError("文章不存在")
+
+            outline_data = json.loads(article["outline"]) if article["outline"] else []
+            state = ArticleState()
+            state.task_id = task_id
+            state.style = article["style"]
+            state.enabled_image_methods = (
+                json.loads(article["enabledImageMethods"])
+                if article["enabledImageMethods"]
+                else None
+            )
+            state.title = TitleResult(
+                mainTitle=article["mainTitle"],
+                subTitle=article["subTitle"],
+            )
+            state.outline = OutlineResult(
+                sections=[OutlineSection(**item) for item in outline_data]
+            )
+
+            await article_agent_service.execute_phase3_generate_content(
+                state,
+                lambda message: self._handle_agent_message(task_id, message, state)
+            )
+            await article_service.save_article_content(task_id, state)
+            await article_service.update_article_status(task_id, ArticleStatusEnum.COMPLETED)
+
+            self._send_sse_message(
+                task_id,
+                SseMessageTypeEnum.ALL_COMPLETE,
+                {"taskId": task_id}
+            )
+            sse_emitter_manager.complete(task_id)
+            logger.info("阶段3异步任务完成, taskId=%s", task_id)
+        except Exception as e:
+            logger.error("阶段3异步任务失败, taskId=%s, error=%s", task_id, e)
+            await article_service.update_article_status(task_id, ArticleStatusEnum.FAILED, str(e))
+            self._send_sse_message(task_id, SseMessageTypeEnum.ERROR, {"message": str(e)})
+            sse_emitter_manager.complete(task_id)
+
 
 
 # 全局单例

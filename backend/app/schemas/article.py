@@ -16,6 +16,9 @@ class ArticleCreateRequest(BaseModel):
     style: Optional[str] = Field(None, description="文章风格：tech/emotional/educational/humorous")
     enabled_image_methods: Optional[List[str]] = Field(None, alias="enabledImageMethods", description="允许使用的配图方式列表（为空表示可以使用全部方式）")
 
+    class Config:
+        populate_by_name = True
+
 
 class OptionItem(BaseModel):
     """通用可选项（value=后端枚举值，label=前端展示文案，description=可选说明）"""
@@ -58,6 +61,49 @@ class TitleOption(BaseModel):
         populate_by_name = True
 
 
+class ArticleConfirmTitleRequest(BaseModel):
+    """确认标题请求"""
+
+    task_id: str = Field(..., alias="taskId", min_length=1, description="任务 ID")
+    selected_main_title: str = Field(..., alias="selectedMainTitle", min_length=1, description="用户选择的主标题")
+    selected_sub_title: str = Field(..., alias="selectedSubTitle", min_length=1, description="用户选择的副标题")
+    user_description: Optional[str] = Field(None, alias="userDescription", description="用户语言描述")
+
+    class Config:
+        populate_by_name = True
+
+
+class OutlineSection(BaseModel):
+    """大纲章节"""
+
+    section: int
+    title: str
+    points: List[str]
+
+
+class ArticleConfirmOutlineRequest(BaseModel):
+    """确认大纲请求，传用户编辑后的完整大纲"""
+
+    task_id: str = Field(..., alias="taskId", min_length=1, description="任务 ID")
+    outline: List[OutlineSection] = Field(..., alias="outline", description="用户选择的大纲")
+
+    class Config:
+        populate_by_name = True
+
+
+class ArticleAiModifyOutlineRequest(BaseModel):
+    """AI 修改大纲请求，传修改建议"""
+
+    task_id: str = Field(..., alias="taskId", min_length=1, description="任务 ID")
+    modify_suggestion: str = Field(..., alias="modifySuggestion", description="用户的修改建议")
+
+    class Config:
+        populate_by_name = True
+
+
+# ==================== 响应模型 ====================
+
+
 class ArticleVO(BaseModel):
     """文章视图对象"""
     
@@ -82,12 +128,10 @@ class ArticleVO(BaseModel):
     completed_time: Optional[str] = Field(None, alias="completedTime")
     update_time: str = Field(..., alias="updateTime")
     
+    
     class Config:
         populate_by_name = True
 
-        
-
-# ==================== 响应模型 ====================
 
 class TitleResult(BaseModel):
     """标题结果"""
@@ -97,14 +141,6 @@ class TitleResult(BaseModel):
 
     class Config:
         populate_by_name = True
-
-
-class OutlineSection(BaseModel):
-    """大纲章节"""
-
-    section: int
-    title: str
-    points: List[str]
 
 
 class OutlineResult(BaseModel):
@@ -159,7 +195,6 @@ class ArticleState:
     def __init__(self):
         self.task_id: Optional[str] = None
         self.topic: Optional[str] = None                                    # 用户指定
-        self.title_options: Optional[List[TitleOption]] = None
         self.title: Optional[TitleResult] = None                            # 智能体1输出
         self.outline: Optional[OutlineResult] = None                        # 智能体2输出
         self.content: Optional[str] = None                                  # 智能体3输出
@@ -169,3 +204,5 @@ class ArticleState:
         self.full_content: Optional[str] = None                             # 图文合并的最终结果
         self.enabled_image_methods: Optional[List[str]] = None              # 可使用的配图方式
         self.style: Optional[str] = None                                    # 文章风格
+        self.title_options: Optional[List[TitleOption]] = None              # 标题方案
+        self.user_description: Optional[str] = None                         # 用户补充描述
