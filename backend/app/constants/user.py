@@ -7,5 +7,5 @@ class UserConstant:
     DEFAULT_ROLE = "user"
     ADMIN_ROLE = "admin"
     VIP_ROLE = "vip"
-    DEFAULT_QUOTA = 5
+    DEFAULT_QUOTA = 5   # 默认配额
 

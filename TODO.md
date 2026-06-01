@@ -26,7 +26,8 @@
 - [ ] asyncio.create_task GC 风险
 - [ ] phase2-3 未重置 status
 - [ ] agent2 缺 None 校验
-- [ ] 配额检查名不副实
+- [X] 配额检查名不副实
+- [ ] 会员充值成功但未生效
 
 ## 测试
 

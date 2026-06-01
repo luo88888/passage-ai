@@ -11,7 +11,7 @@ from sqlalchemy import and_, func, select
 from app.constants.user import UserConstant
 from app.exceptions import BusinessException, ErrorCode, throw_if, throw_if_not
 from app.models.article import Article
-from app.models.enums import ArticlePhaseEnum, ArticleStatusEnum, ArticleStyleEnum
+from app.models.enums import ArticlePhaseEnum, ArticleStatusEnum, ArticleStyleEnum, ImageMethodEnum
 from app.schemas.article import ArticleQueryRequest, ArticleState, ArticleVO, CreationOptionsVO, OptionItem, OutlineSection, TitleOption
 from app.schemas.user import LoginUserVO
 from app.services.article_agent_service import ArticleAgentService
@@ -31,36 +31,102 @@ class ArticleService:
 
     def __init__(self, db: Database):
         self.db = db
+        self._default_non_vip_image_methods = [
+            ImageMethodEnum.PEXELS.value,
+            ImageMethodEnum.MERMAID.value,
+            ImageMethodEnum.ICONIFY.value,
+            ImageMethodEnum.EMOJI_PACK.value,
+        ]
+        self._vip_only_image_methods = {
+            ImageMethodEnum.NANO_BANANA.value,
+            ImageMethodEnum.SVG_DIAGRAM.value,
+        }
+
+
+    async def create_article_task(
+            self,
+            topic: str,
+            login_user: LoginUserVO,
+            style: Optional[str] = None,
+            enabled_image_methods: Optional[List[str]] = None,
+        ) -> str:
+            """创建文章任务"""
+            final_image_methods = self._process_image_methods(enabled_image_methods, login_user)
+            self._validate_image_methods(final_image_methods, login_user)
+
+            task_id = str(uuid.uuid4())
+            now = datetime.now()
+            query = """
+                INSERT INTO article (
+                    taskId, userId, topic, style, enabledImageMethods, status, phase, createTime
+                )
+                VALUES (
+                    :taskId, :userId, :topic, :style, :enabledImageMethods, :status, :phase, :createTime
+                )
+            """
+            await self.db.execute(
+                query=query,
+                values={
+                    "taskId": task_id,
+                    "userId": login_user.id,
+                    "topic": topic,
+                    "style": style,
+                    "enabledImageMethods": json.dumps(final_image_methods, ensure_ascii=False)
+                    if final_image_methods
+                    else None,
+                    "status": ArticleStatusEnum.PENDING.value,
+                    "phase": ArticlePhaseEnum.PENDING.value,
+                    "createTime": now,
+                },
+            )
+            logger.info("文章任务创建成功, taskId=%s, userId=%s", task_id, login_user.id)
+            return task_id
 
     async def create_article_task_with_quota_check(
         self,
         topic: str,
         login_user: LoginUserVO,
         style: Optional[str] = None,
-        enabled_image_methods: Optional[List[str]] = None
+        enabled_image_methods: Optional[List[str]] = None,
     ) -> str:
-        """创建文章任务（暂不检查配额）"""
-        task_id = str(uuid.uuid4())
-        
-        query = """
-            INSERT INTO article (taskId, userId, topic, style, status, createTime, enabledImageMethods)
-            VALUES (:taskId, :userId, :topic, :style, :status, :createTime, :enabledImageMethods)
-        """
-        await self.db.execute(
-            query=query,
-            values={
-                "taskId": task_id,
-                "userId": login_user.id,
-                "topic": topic,
-                "style": style,
-                "status": ArticleStatusEnum.PENDING.value,
-                "createTime": datetime.now(),
-                "enabledImageMethods": json.dumps(enabled_image_methods or [])
-            }
-        )
+        """在同一事务中完成配额扣减和任务创建"""
+        if self._is_vip_or_admin(login_user):
+            return await self.create_article_task(
+                topic=topic,
+                login_user=login_user,
+                style=style,
+                enabled_image_methods=enabled_image_methods,
+            )
 
-        logger.info("创建文章任务 taskId=%s, userId=%s, topic=%s", task_id, login_user.id, topic)
-        return task_id
+        async with self.db.transaction():
+            quota_row = await self.db.fetch_one(
+                query="""
+                    SELECT quota
+                    FROM user
+                    WHERE id = :userId AND isDelete = 0
+                    FOR UPDATE
+                """,
+                values={"userId": login_user.id},
+            )
+            throw_if_not(quota_row, ErrorCode.NOT_FOUND_ERROR, "用户不存在")
+            throw_if(quota_row["quota"] <= 0, ErrorCode.OPERATION_ERROR, "配额不足")
+
+            await self.db.execute(
+                query="""
+                    UPDATE user
+                    SET quota = quota - 1
+                    WHERE id = :userId
+                """,
+                values={"userId": login_user.id},
+            )
+
+            return await self.create_article_task(
+                topic=topic,
+                login_user=login_user,
+                style=style,
+                enabled_image_methods=enabled_image_methods,
+            )
+
 
     def get_creation_options(self) -> CreationOptionsVO:
         """获取创作页可选项：文章风格（全量枚举）+ 配图方式（仅已注册可用的方法）。
@@ -74,7 +140,12 @@ class ArticleService:
             for s in ArticleStyleEnum
         ]
         image_methods = [
-            OptionItem(value=m.value, label=m.label, description=m.description)
+            OptionItem(
+                value=m.value,
+                label=m.label,
+                description=m.description,
+                vip_only=m.value in self._vip_only_image_methods,
+            )
             for m in image_service_strategy.get_enabled_methods()
         ]
         return CreationOptionsVO(styles=styles, imageMethods=image_methods)
@@ -364,6 +435,11 @@ class ArticleService:
             "当前阶段不允许 AI 修改大纲",
         )
         throw_if(not article["outline"], ErrorCode.OPERATION_ERROR, "当前文章尚未生成大纲") # type: ignore
+        throw_if_not(
+            self._is_vip_or_admin(login_user),
+            ErrorCode.NO_AUTH_ERROR,
+            "AI 修改大纲功能仅限 VIP 会员使用",
+        )
 
         current_outline = [OutlineSection(**item) for item in json.loads(article["outline"])]   # type: ignore
         agent_service = ArticleAgentService()
@@ -384,3 +460,37 @@ class ArticleService:
             },
         )
         return modified_outline
+
+    def _process_image_methods(
+        self,
+        enabled_image_methods: Optional[List[str]],
+        login_user: LoginUserVO,
+    ) -> Optional[List[str]]:
+        """处理配图方式默认值"""
+        if enabled_image_methods:
+            return enabled_image_methods
+
+        if self._is_vip_or_admin(login_user):
+            return None
+
+        return list(self._default_non_vip_image_methods)
+
+    def _validate_image_methods(
+        self,
+        enabled_image_methods: Optional[List[str]],
+        login_user: LoginUserVO,
+    ):
+        """校验普通用户高级配图权限"""
+        if not enabled_image_methods or self._is_vip_or_admin(login_user):
+            return
+
+        for method in enabled_image_methods:
+            if method in self._vip_only_image_methods:
+                raise BusinessException(
+                    ErrorCode.NO_AUTH_ERROR,
+                    "高级配图功能（AI 生图、SVG 图表）仅限 VIP 会员使用",
+                )
+
+    def _is_vip_or_admin(self, login_user: LoginUserVO) -> bool:
+        """是否为 VIP 或管理员"""
+        return login_user.user_role in {UserConstant.ADMIN_ROLE, UserConstant.VIP_ROLE}

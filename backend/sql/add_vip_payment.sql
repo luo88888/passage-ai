@@ -10,8 +10,8 @@ ADD COLUMN vipTime DATETIME NULL COMMENT '成为会员时间';
 CREATE TABLE IF NOT EXISTS payment_record (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     userId BIGINT NOT NULL COMMENT '用户ID',
-    stripeSessionId VARCHAR(128) COMMENT 'Stripe Checkout Session ID',
-    stripePaymentIntentId VARCHAR(128) COMMENT 'Stripe 支付意向ID',
+    stripeSessionId VARCHAR(128) COMMENT 'Stripe Checkout Session ID，关联支付会话',
+    stripePaymentIntentId VARCHAR(128) COMMENT 'Stripe 支付意向ID，退款时用到',
     amount DECIMAL(10,2) NOT NULL COMMENT '金额（美元）',
     currency VARCHAR(8) DEFAULT 'usd' COMMENT '货币',
     status VARCHAR(32) NOT NULL COMMENT '状态：PENDING/SUCCEEDED/FAILED/REFUNDED',

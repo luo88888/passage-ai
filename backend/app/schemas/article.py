@@ -26,6 +26,7 @@ class OptionItem(BaseModel):
     value: str
     label: str
     description: Optional[str] = None
+    vip_only: bool = Field(False, alias="vipOnly", description="是否为会员专属（配图方式中高级项为 True）")
 
     class Config:
         populate_by_name = True

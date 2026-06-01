@@ -93,6 +93,11 @@ class Settings(BaseSettings):
     svg_diagram_default_height: int = 600
     svg_diagram_folder: str = "svg-diagrams"
 
+    # ==================== Stripe 支付配置 ====================
+    stripe_api_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_success_url: str = "http://localhost:5173/payment/success"
+    stripe_cancel_url: str = "http://localhost:5173/payment/cancel"
 
 
 

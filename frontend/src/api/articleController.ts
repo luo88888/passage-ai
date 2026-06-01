@@ -107,6 +107,7 @@ export interface CreationOptionItem {
   value: string
   label: string
   description?: string
+  vipOnly?: boolean
 }
 export interface CreationOptionsVO {
   styles: CreationOptionItem[]

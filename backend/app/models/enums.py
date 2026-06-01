@@ -2,6 +2,7 @@
 枚举类型定义
 """
 
+from decimal import Decimal
 from enum import Enum
 from typing import Optional
 
@@ -140,3 +141,32 @@ class ArticlePhaseEnum(str, Enum):
             ArticlePhaseEnum.CONTENT_GENERATING: set(),
         }
         return target_phase in transitions.get(self, set())
+
+
+class PaymentStatusEnum(str, Enum):
+    """支付状态枚举"""
+
+    PENDING = "PENDING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    REFUNDED = "REFUNDED"
+
+
+class ProductTypeEnum(str, Enum):
+    """产品类型枚举"""
+
+    VIP_PERMANENT = "VIP_PERMANENT"
+
+    @property
+    def description(self) -> str:
+        descriptions = {
+            ProductTypeEnum.VIP_PERMANENT: "永久会员",
+        }
+        return descriptions[self]
+
+    @property
+    def price(self) -> Decimal:
+        prices = {
+            ProductTypeEnum.VIP_PERMANENT: Decimal("1.99"),
+        }
+        return prices[self]

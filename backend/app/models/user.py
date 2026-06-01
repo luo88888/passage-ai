@@ -1,7 +1,7 @@
 """用户 ORM 模型"""
 
 from datetime import datetime
-from sqlalchemy import Column, BigInteger, String, DateTime, SmallInteger, Text
+from sqlalchemy import Column, BigInteger, Integer, String, DateTime, SmallInteger, Text
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -24,3 +24,6 @@ class User(Base):
     create_time = Column("createTime", DateTime, nullable=False, default=func.now(), comment="创建时间")
     update_time = Column("updateTime", DateTime, nullable=False, default=func.now(), onupdate=func.now(), comment="更新时间")
     is_delete = Column("isDelete", SmallInteger, nullable=False, default=0, comment="是否删除")
+
+    quota = Column("quota", Integer, nullable=False, default=5, comment="剩余配额")
+    vip_time = Column("vipTime", DateTime, nullable=True, comment="成为会员时间")

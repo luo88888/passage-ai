@@ -35,6 +35,8 @@ CLAUDE.local.md
 /local*
 /docs/
 运维.md
+note.md
+个人笔记.md
 
 # =====================
 # Environment & secrets

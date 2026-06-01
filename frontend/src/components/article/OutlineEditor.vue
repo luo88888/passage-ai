@@ -16,6 +16,7 @@
  *   - AI 修改在本组件内调用 aiModifyOutline（需 taskId），成功后整体替换本地大纲
  */
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import draggable from 'vuedraggable'
 import {
@@ -24,14 +25,18 @@ import {
   HolderOutlined,
   RobotOutlined,
   CheckOutlined,
+  CrownOutlined,
 } from '@ant-design/icons-vue'
 
 import { aiModifyOutline } from '@/api/articleController'
 import type { OutlineSection } from '@/utils/sse'
 
+const router = useRouter()
+
 const props = defineProps<{
   outline: OutlineSection[]
   taskId: string
+  isVip?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -87,10 +92,17 @@ const removePoint = (sIdx: number, pIdx: number) => {
 const onFieldChange = () => syncUp()
 
 // ==================== AI 助手修改 ====================
+// AI 修改大纲为会员/管理员专属（后端 service 校验），非会员触发跳转开通页
+const aiUnlocked = computed(() => props.isVip === true)
 const modifySuggestion = ref('')
 const aiModifying = ref(false)
 
 const aiModify = async () => {
+  if (!aiUnlocked.value) {
+    message.warning('AI 修改大纲为会员专属功能，开通会员后可使用')
+    router.push('/vip')
+    return
+  }
   if (!modifySuggestion.value.trim()) {
     message.warning('请输入修改建议')
     return
@@ -252,15 +264,21 @@ defineExpose({
     </a-button>
 
     <!-- AI 助手修改 -->
-    <div class="ai-assistant">
+    <div class="ai-assistant" :class="{ 'ai-assistant-locked': !aiUnlocked }">
       <div class="ai-head">
         <RobotOutlined />
         <span>AI 助手修改</span>
+        <span v-if="!aiUnlocked" class="ai-vip-mark" @click="router.push('/vip')" title="开通会员解锁">
+          <CrownOutlined /> 会员专属
+        </span>
       </div>
       <a-textarea
         v-model:value="modifySuggestion"
         class="ai-input"
-        placeholder="用自然语言描述你想怎么改，如：把第三章拆成两章并加入实战案例；增加一个总结章节；语言更轻松一些"
+        :disabled="!aiUnlocked"
+        :placeholder="aiUnlocked
+          ? '用自然语言描述你想怎么改，如：把第三章拆成两章并加入实战案例；增加一个总结章节；语言更轻松一些'
+          : 'AI 修改大纲为会员专属功能，开通会员后可使用'"
         :auto-size="{ minRows: 2, maxRows: 4 }"
         :maxlength="500"
       />
@@ -268,13 +286,13 @@ defineExpose({
         <a-button
           type="primary"
           :loading="aiModifying"
-          :disabled="!modifySuggestion.trim()"
+          :disabled="!aiUnlocked || !modifySuggestion.trim()"
           @click="aiModify"
         >
           <RobotOutlined v-if="!aiModifying" />
           AI 修改大纲
         </a-button>
-        <span class="ai-tip">可多次修改，每次基于当前大纲调整</span>
+        <span class="ai-tip">{{ aiUnlocked ? '可多次修改，每次基于当前大纲调整' : '开通会员解锁 AI 修改大纲' }}</span>
       </div>
     </div>
 
@@ -432,6 +450,24 @@ defineExpose({
 }
 .ai-head .anticon {
   color: var(--color-primary);
+}
+.ai-vip-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-inline-start: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #f59e0b;
+  cursor: pointer;
+  user-select: none;
+}
+.ai-vip-mark:hover {
+  color: #d97706;
+}
+.ai-assistant-locked {
+  background: rgba(245, 158, 11, 0.05);
+  border-color: rgba(245, 158, 11, 0.25);
 }
 .ai-input {
   border-radius: var(--radius-md);

@@ -41,6 +41,21 @@ const router = createRouter({
       name: '文章详情',
       component: () => import('@/pages/article/ArticleDetailPage.vue'),
     },
+    {
+      path: '/vip',
+      name: '开通会员',
+      component: () => import('@/pages/vip/VipPage.vue'),
+    },
+    {
+      path: '/payment/success',
+      name: '支付成功',
+      component: () => import('@/pages/payment/PaymentResultPage.vue'),
+    },
+    {
+      path: '/payment/cancel',
+      name: '支付取消',
+      component: () => import('@/pages/payment/PaymentResultPage.vue'),
+    },
   ],
 })
 

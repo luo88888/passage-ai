@@ -10,7 +10,13 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.database import database
-from app.routers import user_router, health_router, article_router
+from app.routers import (
+    user_router,
+    health_router,
+    article_router,
+    payment_router,
+    webhook_router
+)
 from app.exceptions import BusinessException, ErrorCode
 from app.utils.session import init_redis, close_redis
 from app.utils.logger import logger
@@ -98,6 +104,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(health_router, prefix="/api")
 app.include_router(user_router, prefix="/api")
 app.include_router(article_router, prefix="/api")
+app.include_router(payment_router, prefix="/api")
+app.include_router(webhook_router, prefix="/api")
 
 
 if __name__ == "__main__":

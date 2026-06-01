@@ -18,10 +18,11 @@ import {
   PictureOutlined,
   ThunderboltOutlined,
   CheckOutlined,
+  CrownOutlined,
 } from '@ant-design/icons-vue'
 
 import { useLoginUserStore } from '@/stores/loginUser'
-import { isAdmin } from '@/utils/permission'
+import { isAdmin, isVip } from '@/utils/permission'
 import {
   createArticle,
   getArticle,
@@ -117,6 +118,12 @@ const imageCount = computed(() => (images.value.length ? images.value.length : i
 
 // 管理员标识
 const isAdminUser = computed(() => isAdmin(loginUserStore.loginUser))
+
+// 会员标识（VIP 或管理员均享受会员权益，后端 _is_vip_or_admin 同口径）
+const isVipUser = computed(() => isVip(loginUserStore.loginUser))
+
+// 判断某配图方式是否对该用户锁定：vipOnly 且非会员时为不可选
+const isImageMethodLocked = (item: CreationOptionItem) => !!item.vipOnly && !isVipUser.value
 
 // 文章正文 markdown HTML
 const contentHtml = computed(() => renderMarkdown(contentRaw.value))
@@ -319,8 +326,11 @@ const startGenerate = async () => {
   try {
     // style: 'default' 映射为 null（后端走通用爆款风格）；enabledImageMethods: 空数组映射为 null（全部可用）
     const style = selectedStyle.value === 'default' ? null : selectedStyle.value
-    const enabledImageMethods =
-      selectedImageMethods.value.length > 0 ? selectedImageMethods.value : null
+    // 过滤掉对当前用户锁定的会员专属配图方式，避免误提交后被后端拦截
+    const allowedMethods = selectedImageMethods.value.filter(
+      (m) => !imageMethodOptions.value.find((o) => o.value === m)?.vipOnly || isVipUser.value
+    )
+    const enabledImageMethods = allowedMethods.length > 0 ? allowedMethods : null
     const res = await createArticle({
       topic: topic.value.trim(),
       style,
@@ -626,9 +636,25 @@ onBeforeUnmount(() => {
                 v-for="item in imageMethodOptions"
                 :key="item.value"
                 :value="item.value"
-                class="option-check"
-              >{{ item.label }}</a-checkbox>
+                :disabled="isImageMethodLocked(item)"
+                :class="['option-check', { 'option-check-locked': isImageMethodLocked(item) }]"
+              >
+                <span>{{ item.label }}</span>
+                <span
+                  v-if="item.vipOnly"
+                  class="vip-only-mark"
+                  :title="isVipUser ? '会员专属' : '开通会员解锁'"
+                >
+                  <CrownOutlined /> 会员
+                </span>
+              </a-checkbox>
             </a-checkbox-group>
+            <!-- 非会员：底部开通会员入口 -->
+            <div v-if="!isVipUser" class="option-unlock">
+              <a-button type="link" size="small" @click="router.push('/vip')">
+                <CrownOutlined /> 开通会员解锁全部配图方式
+              </a-button>
+            </div>
           </div>
 
           <a-button
@@ -843,6 +869,7 @@ onBeforeUnmount(() => {
             ref="outlineEditorRef"
             v-model:outline="outline"
             :task-id="taskId"
+            :is-vip="isVipUser"
             @confirm="onOutlineConfirm"
           />
         </div>
@@ -1186,6 +1213,38 @@ onBeforeUnmount(() => {
 }
 .option-check {
   margin-inline-start: 0 !important;
+}
+
+/* 会员专属配图：置灰 + 皇冠小标 */
+.option-check-locked :deep(.ant-checkbox-inner) {
+  background-color: #e5e7eb !important;
+  border-color: #d1d5db !important;
+}
+.option-check-locked :deep(.ant-checkbox-wrapper) {
+  color: var(--color-text-muted) !important;
+}
+.vip-only-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-inline-start: 6px;
+  font-size: 12px;
+  line-height: 1;
+  color: #f59e0b;
+  vertical-align: middle;
+}
+.option-check-locked .vip-only-mark {
+  opacity: 0.8;
+}
+.option-unlock {
+  margin-top: 6px;
+}
+.option-unlock .ant-btn {
+  padding-inline-start: 0;
+  color: #f59e0b;
+}
+.option-unlock .ant-btn:hover {
+  color: #d97706;
 }
 
 /* 风格单选胶囊：选中态为绿色背景白字，贴合参考图 */
