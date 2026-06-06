@@ -8,7 +8,9 @@ from app.deps import require_login
 from app.exceptions import ErrorCode, throw_if
 from app.schemas.article import ArticleAiModifyOutlineRequest, ArticleConfirmOutlineRequest, ArticleConfirmTitleRequest, ArticleCreateRequest, ArticleQueryRequest, ArticleVO, CreationOptionsVO
 from app.schemas.common import BaseResponse, DeleteRequest
+from app.schemas.statistic import AgentExecutionStatsVO
 from app.schemas.user import LoginUserVO
+from app.services.agent_log_service import AgentLogService
 from app.services.article_async_service import article_async_service
 from app.services.article_service import ArticleService
 from app.managers.sse_manager import sse_emitter_manager
@@ -172,3 +174,16 @@ async def get_article(
     service = ArticleService(db)
     article_vo = await service.get_article_detail(task_id, current_user)
     return BaseResponse.success(data=article_vo)
+
+
+@router.get("/execution-logs/{task_id}", response_model=BaseResponse[AgentExecutionStatsVO])
+async def get_execution_logs(
+    task_id: str,
+    db: Database = Depends(get_db),
+    current_user: LoginUserVO = Depends(require_login),
+):
+    """获取任务执行日志"""
+    throw_if(not task_id or not task_id.strip(), ErrorCode.PARAMS_ERROR, "任务ID不能为空")
+    service = AgentLogService(db)
+    stats = await service.get_execution_stats(task_id)
+    return BaseResponse.success(data=stats)

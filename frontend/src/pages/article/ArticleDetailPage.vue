@@ -17,6 +17,7 @@ import { statusText, statusDotColor } from '@/utils/articleStatus'
 import { renderMarkdown } from '@/utils/markdown'
 import { exportMarkdown, exportHtml } from '@/utils/export'
 import { useLoginUserStore } from '@/stores/loginUser'
+import ExecutionLogPanel from '@/components/article/ExecutionLogPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -199,6 +200,13 @@ onBeforeUnmount(() => {
             </div>
             <a-divider />
           </div>
+
+          <!-- 智能体执行日志（默认收起，展开后时间线展示） -->
+          <ExecutionLogPanel
+            v-if="route.params.taskId"
+            :task-id="route.params.taskId as string"
+            :article-status="article.status"
+          />
 
           <!-- 生成中态 -->
           <div v-if="article.status === 'PROCESSING' || article.status === 'PENDING'" class="status-notice">

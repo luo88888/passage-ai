@@ -135,3 +135,49 @@ export async function getProgress(
     ...(options || {}),
   })
 }
+
+// NOTE: 以下 getExecutionLogs 为手写补充——同 getCreationOptions，后端 OpenAPI 路径与
+// openapi2ts.config.ts 指向的 /api/v3/api-docs 不一致，故无法自动生成，类型内联最小定义。
+// 后端对应：GET /article/execution-logs/{taskId}，返回 BaseResponse<AgentExecutionStatsVO>。
+
+/** 单个智能体执行日志 */
+export interface AgentLogVO {
+  id: number
+  taskId: string
+  agentName: string
+  startTime: string
+  endTime?: string | null
+  durationMs?: number | null
+  status: 'RUNNING' | 'SUCCESS' | 'FAILED' | string
+  errorMessage?: string | null
+  prompt?: string | null
+  inputData?: string | null
+  outputData?: string | null
+  createTime: string
+  updateTime: string
+}
+
+/** 任务执行统计（含全部日志） */
+export interface AgentExecutionStatsVO {
+  taskId: string
+  totalDurationMs: number
+  agentCount: number
+  agentDurations: Record<string, number>
+  overallStatus: 'RUNNING' | 'SUCCESS' | 'FAILED' | 'NOT_FOUND' | string
+  logs: AgentLogVO[]
+}
+
+/** 获取任务执行日志 GET /article/execution-logs/${param0} */
+export async function getExecutionLogs(
+  params: { taskId: string },
+  options?: { [key: string]: any }
+) {
+  const { taskId: param0 } = params
+  return request<{ code: number; data: AgentExecutionStatsVO; message?: string }>(
+    `/article/execution-logs/${param0}`,
+    {
+      method: 'GET',
+      ...(options || {}),
+    }
+  )
+}

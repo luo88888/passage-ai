@@ -1,0 +1,43 @@
+"""
+Agent 执行日志相关请求/响应模型
+"""
+
+from typing import Dict, Optional, List
+from pydantic import BaseModel, Field
+
+
+
+
+class AgentLogVO(BaseModel):
+    """智能体执行日志视图对象（单个智能体）"""
+
+    id: int
+    task_id: str = Field(..., alias="taskId")
+    agent_name: str = Field(..., alias="agentName")
+    start_time: str = Field(..., alias="startTime")
+    end_time: Optional[str] = Field(None, alias="endTime")
+    duration_ms: Optional[int] = Field(None, alias="durationMs")
+    status: str
+    error_message: Optional[str] = Field(None, alias="errorMessage")
+    prompt: Optional[str] = None
+    input_data: Optional[str] = Field(None, alias="inputData")
+    output_data: Optional[str] = Field(None, alias="outputData")
+    create_time: str = Field(..., alias="createTime")
+    update_time: str = Field(..., alias="updateTime")
+
+    class Config:
+        populate_by_name = True
+
+
+class AgentExecutionStatsVO(BaseModel):
+    """任务执行统计"""
+
+    task_id: str = Field(..., alias="taskId")
+    total_duration_ms: int = Field(..., alias="totalDurationMs")
+    agent_count: int = Field(..., alias="agentCount")
+    agent_durations: Dict[str, int] = Field(default_factory=dict, alias="agentDurations")
+    overall_status: str = Field(..., alias="overallStatus")
+    logs: List[AgentLogVO] = Field(default_factory=list)
+
+    class Config:
+        populate_by_name = True
