@@ -6,6 +6,8 @@ from openai import AsyncOpenAI
 from typing import Callable, List, Optional
 
 
+from app.agent.image_generator import ParallelImageGenerator
+from app.agent.orchestrator import ArticleAgentOrchestrator
 from app.database import database
 from app.config import settings
 from app.schemas.article import (
@@ -46,6 +48,14 @@ class ArticleAgentService:
         self.pexels_service = PexelsService()
         self.image_service_strategy = ImageServiceStrategy()
         self.agent_log_service = AgentLogService(database)
+
+        self.parallel_image_generator = ParallelImageGenerator(
+            image_service_strategy=self.image_service_strategy,
+            max_concurrency=settings.agent_image_max_concurrency,
+            fail_fast=settings.agent_image_fail_fast,
+        )
+        self.orchestrator = ArticleAgentOrchestrator()
+
 
         # self.cos_service = CosService()
 
@@ -228,43 +238,46 @@ class ArticleAgentService:
         state: ArticleState,
         stream_handler: Callable[[str], None]
     ):
-        """智能体5：生成配图 上传 COS"""
-        image_results = []
-
+        """智能体5：生成配图（第 5 期：策略模式 + 统一上传 COS）"""
         async with self._agent_log_context(
             task_id=state.task_id,
             agent_name="agent5_generate_images",
+            prompt=PromptConstant.AGENT5_IMAGE_EXECUTION_PROMPT,
             input_data={"requirementsCount": len(state.image_requirements or [])},
         ) as log_data:
-            for requirement in state.image_requirements:    # type: ignore
-                # 调用图片检索服务
-                image_request = ImageRequest(   # type: ignore
-                    keyword=requirement.keywords,
-                    prompt=requirement.prompt,
-                    position=requirement.position,
-                    type=requirement.type,
+            generated_pairs = await self.parallel_image_generator.generate(state.image_requirements or [])
+            image_results = []
+
+            for requirement, result in generated_pairs:
+                image_source = requirement.image_source
+                logger.info(
+                    f"智能体5：开始获取配图, position={requirement.position}, "
+                    f"imageSource={image_source}, keywords={requirement.keywords}"
                 )
 
-                result = await self.image_service_strategy.get_image_and_upload(
-                    requirement.image_source,
-                    image_request
-                )
+                cos_url = result.url
+                method = result.method
 
-                image_result = self._build_image_result(
-                    requirement,
-                    result.url,
-                    result.method
-                )
-
+                # 创建配图结果（URL 已经是 COS 地址）
+                image_result = self._build_image_result(requirement, cos_url, method)
                 image_results.append(image_result)
 
-                stream_handler(
-                    SseMessageTypeEnum.IMAGE_COMPLETE.get_streaming_prefix() + image_result.model_dump_json(by_alias=True)
+                # 推送单张配图完成
+                image_complete_message = (
+                    SseMessageTypeEnum.IMAGE_COMPLETE.get_streaming_prefix() +
+                    image_result.model_dump_json(by_alias=True)
+                )
+                stream_handler(image_complete_message)
+
+                logger.info(
+                    f"智能体5：配图获取并上传成功, position={requirement.position}, "
+                    f"method={method.value}, cosUrl={cos_url}"
                 )
 
-        state.images = image_results
-        log_data["outputData"] = self._safe_json_dumps({"imagesCount": len(image_results)})
-        logger.info("智能体5-配图生成完成 taskId=%s, imagesCount=%s", state.task_id, len(image_results))
+            # 并行执行后按位置排序，确保输出稳定
+            state.images = sorted(image_results, key=lambda item: item.position)
+            log_data["outputData"] = self._safe_json_dumps({"imagesCount": len(image_results)})
+            logger.info(f"智能体5：所有配图生成并上传完成, count={len(image_results)}")
 
     def merge_image_into_content(self, state: ArticleState):
         """图文合成：将配图插入正文对应位置"""
@@ -489,22 +502,8 @@ class ArticleAgentService:
         state: ArticleState,
         stream_handler: Callable[[str], None]
     ):
-        """
-        阶段1：生成标题方案
-        
-        Args:
-            state: 文章状态
-            stream_handler: 流式输出处理器
-        """
         try:
-            logger.info(f"阶段1：开始生成标题方案, taskId={state.task_id}")
-            await self.agent1_generate_title_options(state)
-            stream_handler(SseMessageTypeEnum.AGENT1_COMPLETE.value)
-            logger.info(
-                "阶段1：标题方案生成成功, taskId=%s, optionsCount=%s",
-                state.task_id,
-                len(state.title_options or []),
-            )
+            await self.orchestrator.execute_phase1(self, state, stream_handler)
         except Exception as e:
             logger.error(f"阶段1失败, taskId={state.task_id}, error={e}")
             raise RuntimeError(f"标题方案生成失败: {str(e)}")
@@ -516,10 +515,7 @@ class ArticleAgentService:
     ):
         """阶段2：生成大纲"""
         try:
-            logger.info(f"阶段2：开始生成大纲, taskId={state.task_id}")
-            await self.agent2_generate_outline(state, stream_handler)
-            stream_handler(SseMessageTypeEnum.AGENT2_COMPLETE.value)
-            logger.info(f"阶段2：大纲生成成功, taskId={state.task_id}")
+            await self.orchestrator.execute_phase2(self, state, stream_handler)
         except Exception as e:
             logger.error(f"阶段2失败, taskId={state.task_id}, error={e}")
             raise RuntimeError(f"大纲生成失败: {str(e)}")
@@ -531,21 +527,7 @@ class ArticleAgentService:
     ):
         """阶段3：生成正文、配图和合并内容"""
         try:
-            logger.info(f"阶段3：开始生成正文, taskId={state.task_id}")
-            await self.agent3_generate_content(state, stream_handler)
-            stream_handler(SseMessageTypeEnum.AGENT3_COMPLETE.value)
-
-            logger.info(f"阶段3：开始分析配图需求, taskId={state.task_id}")
-            await self.agent4_analyze_image_requirements(state)
-            stream_handler(SseMessageTypeEnum.AGENT4_COMPLETE.value)
-
-            logger.info(f"阶段3：开始生成配图, taskId={state.task_id}")
-            await self.agent5_generate_images(state, stream_handler)
-            stream_handler(SseMessageTypeEnum.AGENT5_COMPLETE.value)
-
-            logger.info(f"阶段3：开始图文合成, taskId={state.task_id}")
-            self.merge_image_into_content(state)
-            stream_handler(SseMessageTypeEnum.MERGE_COMPLETE.value)
+            await self.orchestrator.execute_phase3(self, state, stream_handler)
         except Exception as e:
             logger.error(f"阶段3失败, taskId={state.task_id}, error={e}")
             raise RuntimeError(f"正文生成失败: {str(e)}")

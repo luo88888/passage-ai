@@ -280,3 +280,5 @@ class PromptConstant:
 - 善用网络流行语、俏皮话和有趣的比喻
 - 适当自嘲或调侃，增加趣味性
 """
+
+    AGENT5_IMAGE_EXECUTION_PROMPT = "并行执行配图生成，确保结果按 position 顺序回填。"

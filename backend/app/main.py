@@ -15,7 +15,8 @@ from app.routers import (
     health_router,
     article_router,
     payment_router,
-    webhook_router
+    webhook_router,
+    statistics_router
 )
 from app.exceptions import BusinessException, ErrorCode
 from app.utils.session import init_redis, close_redis
@@ -106,6 +107,7 @@ app.include_router(user_router, prefix="/api")
 app.include_router(article_router, prefix="/api")
 app.include_router(payment_router, prefix="/api")
 app.include_router(webhook_router, prefix="/api")
+app.include_router(statistics_router, prefix="/api")
 
 
 if __name__ == "__main__":

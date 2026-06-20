@@ -99,6 +99,9 @@ class Settings(BaseSettings):
     stripe_success_url: str = "http://localhost:5173/payment/success"
     stripe_cancel_url: str = "http://localhost:5173/payment/cancel"
 
+    # 多智能体并行编排配置
+    agent_image_max_concurrency: int = 3
+    agent_image_fail_fast: bool = True
 
 
     @property

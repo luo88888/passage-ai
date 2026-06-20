@@ -9,3 +9,9 @@ class ArticleConstant:
     PEXELS_ORIENTATION_LANDSCAPE = "landscape"
     
     PICSUM_URL_TEMPLATE = "https://picsum.photos/800/600?random={}"
+
+    # 并行配图最大并发数默认值
+    AGENT_IMAGE_MAX_CONCURRENCY = 3
+
+    # 并行配图失败策略（True 表示快速失败）
+    AGENT_IMAGE_FAIL_FAST = True
