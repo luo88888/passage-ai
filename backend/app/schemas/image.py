@@ -8,7 +8,7 @@ from typing import Optional
 class ImageRequest(BaseModel):
     """图片请求对象"""
 
-    keyword: Optional[str] = Field(None, description="搜索关键词（用于图库检索）")
+    keywords: Optional[str] = Field(None, description="搜索关键词（用于图库检索）")
     prompt: Optional[str] = Field(None, description="生图提示词（用于 AI 生图")
     position: Optional[int] = Field(None, description="图片位置序号")
     type: Optional[str] = Field(None, description="图片类型（cover/section）")
@@ -19,8 +19,8 @@ class ImageRequest(BaseModel):
     def get_effective_param(self, is_ai_generated: bool) -> str:
         """AI 生图优先使用 prompt，图库检索使用 keywords"""
         if is_ai_generated:
-            return self.prompt if self.prompt else self.keyword or ""
-        return self.keyword if self.keyword else self.prompt or ""
+            return self.prompt if self.prompt else self.keywords or ""
+        return self.keywords if self.keywords else self.prompt or ""
 
 
 class DataType(str, Enum):

@@ -37,6 +37,7 @@ CLAUDE.local.md
 运维.md
 note.md
 个人笔记.md
+设计图/
 
 # =====================
 # Environment & secrets
@@ -138,3 +139,8 @@ __screenshots__/
 *.swp
 *.orig
 abc.txt
+
+# =====================
+# Local file storage images
+# =====================
+backend/static/images/

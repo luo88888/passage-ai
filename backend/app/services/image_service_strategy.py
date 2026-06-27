@@ -9,7 +9,8 @@ from app.constants.article import ArticleConstant
 from app.models.enums import ImageMethodEnum
 from app.schemas.image import ImageData, ImageRequest
 from app.services.image_search_service import BaseImageSearchService
-from app.services.cos_service import CosService
+# COS 暂未弃用，改用本地文件存储
+from app.services.local_file_service import LocalFileService
 from app.services.pexels_service import PexelsService
 # NanoBananaService 暂未注册（见 _register_services 注释），import 保留待额度恢复后启用
 # from app.services.nano_banana_service import NanoBananaService
@@ -38,7 +39,7 @@ class ImageServiceStrategy:
     
     def __init__(self):
         self.service_map: Dict[ImageMethodEnum, BaseImageSearchService] = {}
-        self.cos_service = CosService()
+        self.local_file_service = LocalFileService()
         self._register_services()
     
     def _register_services(self):
@@ -81,7 +82,7 @@ class ImageServiceStrategy:
             folder = self._get_folder_for_method(method)
 
             # 3. 上传图片数据
-            cos_url = await self.cos_service.upload_image_data(image_data, folder)
+            cos_url = await self.local_file_service.upload_image_data(image_data, folder)
             
             if cos_url:
                 return ImageResult(cos_url, method)
@@ -96,7 +97,7 @@ class ImageServiceStrategy:
         pos = position if position else 1
         fallback_url = ArticleConstant.PICSUM_URL_TEMPLATE.format(pos)
         fallback_data = ImageData.from_url(fallback_url)
-        cos_url = await self.cos_service.upload_image_data(fallback_data, "fallback")   # type: ignore
+        cos_url = await self.local_file_service.upload_image_data(fallback_data, "fallback")   # type: ignore
         final_url = cos_url if cos_url else fallback_url
         return ImageResult(final_url, ImageMethodEnum.get_fallback_method())
 
@@ -133,5 +134,5 @@ class ImageServiceStrategy:
         return list(self.service_map.keys())
 
 
-# 模块级单例：strategy 无状态，CosService 构造无网络请求，开销可忽略，全局复用安全。
+# 模块级单例：strategy 无状态，LocalFileService 构造开销可忽略，全局复用安全。
 image_service_strategy = ImageServiceStrategy()

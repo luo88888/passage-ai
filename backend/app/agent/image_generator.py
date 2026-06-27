@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import asyncio
-from typing import List, Tuple
+from typing import TYPE_CHECKING, List, Tuple
 
 from app.schemas.article import ImageRequirement
 from app.schemas.image import ImageRequest
+
+if TYPE_CHECKING:
+    from app.services.image_service_strategy import ImageResult
 
 
 class ParallelImageGenerator:
@@ -16,7 +21,7 @@ class ParallelImageGenerator:
     async def generate(
         self,
         requirements: List[ImageRequirement],
-    ) -> List[Tuple[ImageRequirement, object]]:
+    ) -> List[Tuple[ImageRequirement, ImageResult]]:
         """并行生成图片，按输入顺序返回结果"""
         if not requirements:
             return []
@@ -25,7 +30,7 @@ class ParallelImageGenerator:
 
         async def _generate_single(requirement: ImageRequirement):
             async with semaphore:
-                image_request = ImageRequest(
+                image_request = ImageRequest(   # type: ignore
                     keywords=requirement.keywords,
                     prompt=requirement.prompt,
                     position=requirement.position,

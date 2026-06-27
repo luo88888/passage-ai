@@ -1,0 +1,255 @@
+"""
+智能体基类，提供所有文本型 Agent 共享的能力
+"""
+from __future__ import annotations
+
+from contextlib import asynccontextmanager, contextmanager
+from datetime import datetime
+import json
+from typing import TYPE_CHECKING, Callable, Optional
+
+from openai import AsyncOpenAI
+
+from app.constants.prompt import PromptConstant
+from app.models.enums import ArticleStyleEnum, SseMessageTypeEnum
+from app.utils.logger import logger
+
+if TYPE_CHECKING:
+    from app.services.agent_log_service import AgentLogService
+
+
+# ==================== 模块级工具函数 ====================
+
+def _safe_json_dumps(value: Optional[dict]) -> Optional[str]:
+    """安全序列化 JSON"""
+    if value is None:
+        return None
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except Exception:
+        return None
+
+
+@asynccontextmanager
+async def agent_log_context(
+    agent_log_service: AgentLogService,
+    task_id: Optional[str],
+    agent_name: str,
+    prompt: Optional[str] = None,
+    input_data: Optional[dict] = None,
+):
+    """异步智能体日志上下文（模块级函数，可供任意类使用）"""
+    start_time = datetime.now()
+    log_data = {
+        "taskId": task_id or "unknown",
+        "agentName": agent_name,
+        "startTime": start_time,
+        "status": "RUNNING",
+        "prompt": prompt,
+        "inputData": _safe_json_dumps(input_data),
+        "outputData": None,
+        "errorMessage": None,
+    }
+    try:
+        yield log_data
+        log_data["status"] = "SUCCESS"
+    except Exception as exc:
+        log_data["status"] = "FAILED"
+        log_data["errorMessage"] = str(exc)
+        raise
+    finally:
+        end_time = datetime.now()
+        duration_ms = int((end_time - start_time).total_seconds() * 1000)
+        log_data["endTime"] = end_time
+        log_data["durationMs"] = duration_ms
+        agent_log_service.save_log_async(log_data)
+
+
+@contextmanager
+def agent_log_context_sync(
+    agent_log_service: AgentLogService,
+    task_id: Optional[str],
+    agent_name: str,
+    prompt: Optional[str] = None,
+    input_data: Optional[dict] = None,
+):
+    """同步智能体日志上下文（模块级函数，可供任意类使用）"""
+    start_time = datetime.now()
+    log_data = {
+        "taskId": task_id or "unknown",
+        "agentName": agent_name,
+        "startTime": start_time,
+        "status": "RUNNING",
+        "prompt": prompt,
+        "inputData": _safe_json_dumps(input_data),
+        "outputData": None,
+        "errorMessage": None,
+    }
+    try:
+        yield log_data
+        log_data["status"] = "SUCCESS"
+    except Exception as exc:
+        log_data["status"] = "FAILED"
+        log_data["errorMessage"] = str(exc)
+        raise
+    finally:
+        end_time = datetime.now()
+        duration_ms = int((end_time - start_time).total_seconds() * 1000)
+        log_data["endTime"] = end_time
+        log_data["durationMs"] = duration_ms
+        agent_log_service.save_log_async(log_data)
+
+
+class BaseAgent:
+    """基础智能体类，提供 LLM 调用、JSON 解析、日志记录等共享能力"""
+
+    def __init__(
+        self,
+        client: AsyncOpenAI,
+        model: str,
+        agent_log_service: AgentLogService,
+    ):
+        self.client = client
+        self.model = model
+        self.agent_log_service = agent_log_service
+
+    # ==================== LLM 调用 ====================
+
+    async def _call_llm(self, prompt: str) -> str:
+        """调用 LLM（非流式）"""
+        logger.debug(f"即将调用 LLM，prompt: {prompt}")
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return response.choices[0].message.content  # type: ignore
+        except Exception as e:
+            logger.error(
+                "LLM 调用失败(非流式) model=%s, error=%s",
+                self.model,
+                str(e),
+                exc_info=True,
+            )
+            raise
+
+    async def _call_llm_with_streaming(
+        self,
+        prompt: str,
+        stream_handler: Callable[[str], None],
+        message_type: SseMessageTypeEnum,
+    ) -> str:
+        """调用 LLM（流式输出）"""
+        logger.debug(f"即将调用 LLM，prompt: {prompt}")
+        content_builder = []
+
+        try:
+            stream = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                stream=True,
+            )
+
+            async for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    content = chunk.choices[0].delta.content
+                    content_builder.append(content)
+                    stream_handler(message_type.get_streaming_prefix() + content)
+        except Exception as e:
+            logger.error(
+                "LLM 调用失败(流式) model=%s, error=%s",
+                self.model,
+                str(e),
+                exc_info=True,
+            )
+            raise
+
+        return "".join(content_builder)
+
+    # ==================== JSON 解析 ====================
+
+    @staticmethod
+    def _parse_json_response(content: str, name: str) -> dict:
+        """解析 JSON 响应"""
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.error(
+                "%s解析失败, content=%s, error=%s", name, content, str(e)
+            )
+            raise RuntimeError(f"{name}解析失败")
+
+    @staticmethod
+    def _parse_json_list_response(content: str, name: str) -> list:
+        """解析 JSON 数组响应"""
+        try:
+            result = json.loads(content)
+            if not isinstance(result, list):
+                raise ValueError("响应不是 JSON 数组")
+            return result
+        except json.JSONDecodeError as e:
+            logger.error(f"{name}解析失败, content={content}, error={e}")
+            raise RuntimeError(f"{name}解析失败")
+        except ValueError as e:
+            logger.error(f"{name}解析失败, content={content}, error={e}")
+            raise RuntimeError(f"{name}解析失败")
+
+    # ==================== 风格 Prompt ====================
+
+    @staticmethod
+    def _get_style_prompt(style: Optional[str]) -> str:
+        """根据风格获取对应的 Prompt 附加内容"""
+        if not style:
+            return ""
+        try:
+            style_enum = ArticleStyleEnum(style)
+            style_map = {
+                ArticleStyleEnum.TECH: PromptConstant.STYLE_TECH_PROMPT,
+                ArticleStyleEnum.EMOTIONAL: PromptConstant.STYLE_EMOTIONAL_PROMPT,
+                ArticleStyleEnum.EDUCATIONAL: PromptConstant.STYLE_EDUCATIONAL_PROMPT,
+                ArticleStyleEnum.HUMOROUS: PromptConstant.STYLE_HUMOROUS_PROMPT,
+            }
+            return style_map.get(style_enum, "")
+        except ValueError:
+            return ""
+
+    # ==================== 日志上下文管理器（委托给模块级函数） ====================
+
+    def _agent_log_context(
+        self,
+        task_id: Optional[str],
+        agent_name: str,
+        prompt: Optional[str] = None,
+        input_data: Optional[dict] = None,
+    ):
+        """异步智能体日志上下文"""
+        return agent_log_context(
+            self.agent_log_service,
+            task_id=task_id,
+            agent_name=agent_name,
+            prompt=prompt,
+            input_data=input_data,
+        )
+
+    def _agent_log_context_sync(
+        self,
+        task_id: Optional[str],
+        agent_name: str,
+        prompt: Optional[str] = None,
+        input_data: Optional[dict] = None,
+    ):
+        """同步智能体日志上下文"""
+        return agent_log_context_sync(
+            self.agent_log_service,
+            task_id=task_id,
+            agent_name=agent_name,
+            prompt=prompt,
+            input_data=input_data,
+        )
+
+    # ==================== 工具方法 ====================
+
+    @staticmethod
+    def _safe_json_dumps(value: Optional[dict]) -> Optional[str]:
+        """安全序列化 JSON（委托给模块级函数）"""
+        return _safe_json_dumps(value)

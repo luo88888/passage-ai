@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     tencent_cos_bucket: str
     tencent_cos_domain: str = ""
 
+    # 本地文件存储（临时替代 COS）
+    static_base_url: str = "http://localhost:8567"
+
     # ==================== 配图类 ====================
     # Nano Banana / Gemini AI 生图
     nano_banana_api_key: str

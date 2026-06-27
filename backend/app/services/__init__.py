@@ -5,7 +5,7 @@ from app.services.user_service import UserService
 
 from app.services.image_service_strategy import ImageServiceStrategy
 from app.services.image_search_service import BaseImageSearchService
-from app.services.cos_service import CosService
+from app.services.local_file_service import LocalFileService
 from app.services.pexels_service import PexelsService
 from app.services.nano_banana_service import NanoBananaService
 from app.services.mermaid_service import MermaidService
@@ -23,7 +23,7 @@ __all__ = [
     # 图片相关服务
     "ImageServiceStrategy",
     "BaseImageSearchService",
-    "CosService",
+    "LocalFileService",
     "PexelsService",
     "NanoBananaService",
     "MermaidService",

@@ -63,14 +63,10 @@ class NanoBananaService(BaseImageSearchService):
             )
             return None
 
-    async def search_image(self, keywords: str) -> Optional[str]:
-        """此方法已废弃，请使用 get_image_data()"""
-        return None
-        
-    
+
     def get_method(self) -> ImageMethodEnum:
         return ImageMethodEnum.NANO_BANANA
-    
+
     def get_fallback_image(self, position: int) -> str:
         return ArticleConstant.PICSUM_URL_TEMPLATE.format(position)
 
@@ -79,7 +75,7 @@ if __name__ == "__main__":
     import asyncio
     service = NanoBananaService()
 
-    result = asyncio.run(service.get_image_data(ImageRequest(keyword="hello world")))   # type: ignore
+    result = asyncio.run(service.get_image_data(ImageRequest(keywords="hello world")))   # type: ignore
     print(f"type: {type(result)}")
     if not result:
         print("result is None")

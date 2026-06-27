@@ -153,12 +153,14 @@ class OutlineResult(BaseModel):
 class ImageRequirement(BaseModel):
     """配图需求"""
 
-    position: int
-    type: str
+    position: int   # 图片在文章中的序号
+    type: str       # cover/section/inline
     section_title: str = Field(..., alias="sectionTitle")
-    keywords: str
+    keywords: str   # 图库搜索关键词
+    # ImageMethodEnum
     image_source: str = Field(..., alias="imageSource", description="图片来源")
     prompt: str = Field(..., description="AI 生图提示词")
+    # 正文中的占位符标记，图文合并时定位插入点
     placeholder_id: str = Field(..., alias="placeholderId", description="占位符ID")
 
     class Config:

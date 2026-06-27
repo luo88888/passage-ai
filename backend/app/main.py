@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import database
@@ -108,6 +109,9 @@ app.include_router(article_router, prefix="/api")
 app.include_router(payment_router, prefix="/api")
 app.include_router(webhook_router, prefix="/api")
 app.include_router(statistics_router, prefix="/api")
+
+# 挂载静态文件目录（本地图片存储）
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 if __name__ == "__main__":

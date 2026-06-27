@@ -1,5 +1,5 @@
 """
-图片服务
+图片服务抽象基类 — 定义图片获取的统一接口，便于扩展多种图片来源。
 """
 from abc import ABC, abstractmethod
 from typing import Optional
@@ -10,33 +10,73 @@ from app.schemas.image import ImageRequest, ImageData
 
 
 class BaseImageSearchService(ABC):
-    """图片服务类，抽象图片获取逻辑，便于扩展多种来源"""
+    """图片服务抽象基类。
 
-    async def get_image(self, request: ImageRequest) -> Optional[str]:
-        """根据请求获取图片，子类可重写（弃用）"""
-        params:str = request.get_effective_param(self.get_method().is_ai_generated())
-        return await self.search_image(params)
+    所有图片获取服务（Pexels、Mermaid、Iconify 等）均继承此类，
+    必须实现 get_image_data、get_method、get_fallback_image 三个抽象方法。
+    可选实现 is_available 方法。
 
-    async def get_image_data(self, request: ImageRequest) -> Optional[ImageData]:
-        """根据请求获取图片数据，子类可重写"""
-        url = await self.get_image(request)
-        return ImageData.from_url(url)
+    数据流:
+        ImageRequest → get_image_data() → ImageData → FileService.upload_image_data() → URL
+
+    子类实现约定:
+        - 图库检索类（Pexels / Iconify / EmojiPack）：从 ImageRequest 取 keywords，
+          调用外部 API 搜索，返回 ImageData.from_url(url)。
+        - AI 生图类（Mermaid / SvgDiagram）：从 ImageRequest 取 prompt，
+          本地生成或调用 LLM，返回 ImageData.from_bytes(...)。
+    """
+
+    # ==================== 抽象方法（子类必须实现） ====================
 
     @abstractmethod
-    async def search_image(self, keywords: str) -> Optional[str]:
-        """根据关键词/提示词获取图片"""
+    async def get_image_data(self, request: ImageRequest) -> Optional[ImageData]:
+        """根据请求获取图片数据。
+
+        这是外部调用的唯一入口。子类必须实现此方法，根据自身图片来源
+        （API 检索 / AI 生成 / 本地渲染）返回对应的 ImageData。
+
+        Args:
+            request: 图片请求对象，包含 keywords、prompt、position、type 等字段。
+                图库检索类使用 request.keywords，AI 生图类使用 request.prompt。
+                可通过 request.get_effective_param(is_ai_generated) 自动选择。
+
+        Returns:
+            包含图片字节或 URL 的 ImageData 对象；获取失败时返回 None，
+        """
         pass
 
     @abstractmethod
     def get_method(self) -> ImageMethodEnum:
-        """获取图片服务类型"""
+        """返回该服务对应的图片方式枚举值。
+
+        Returns:
+            ImageMethodEnum 枚举成员（如 PEXELS、MERMAID）。
+        """
         pass
 
     @abstractmethod
     def get_fallback_image(self, position: int) -> str:
-        """降级获取图片 URL"""
+        """获取降级兜底图片 URL。
+
+        当服务不可用或 API 调用失败时，由策略器调用此方法获取兜底图。
+        通常返回 PICSUM 随机图片 URL。
+
+        Args:
+            position: 图片在文章中的位置序号（1 为封面图），用于生成不同的随机图。
+
+        Returns:
+            兜底图片的 URL 字符串。
+        """
         pass
 
+    # ==================== 可选覆写 ====================
+
     def is_available(self) -> bool:
-        """是否可用（子类可重写健康检查）"""
+        """检查该服务当前是否可用。
+
+        子类可覆写以实现健康检查（如 MermaidService 检查 mmdc CLI 是否安装）。
+
+        Returns:
+            True 表示服务可用，False 表示不可用。
+        """
         return True

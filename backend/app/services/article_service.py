@@ -22,11 +22,34 @@ from app.utils.logger import logger
 class ArticleService:
     """文章服务类，提供下述服务：
     1. 创建文章任务，返回 task_id（写进数据库）
-    2. 更新文章状态
-    3. 保存文章内容（根据传入的 state）
-    4. 获取文章详情（ArticleVO）
-    5. 删除文章
-    6. 分页查询，返回 (List[Article], total)
+        - create_article_task -> str
+        - create_article_task_with_quota_check -> str
+    2. 获取创作页可选项：文章风格 + 配图方式
+        - get_creation_options(self) -> CreationOptionsVO
+    3. 更新文章状态
+        - update_article_status
+    4. 保存文章内容（根据传入的 state）
+        - save_article_content
+    5. 获取文章详情（ArticleVO）
+        - get_article_detail -> ArticleVO
+    6. 根据任务 ID 查询文章记录
+        - get_by_task_id -> Optional[Record]
+    7. 删除文章
+        - delete_article
+    8. 分页查询文章列表
+        - list_article_by_page -> Tuple[List[ArticleVO], int]
+    9. 更新文章阶段
+        - update_phase
+    10. 保存标题方案列表
+        - save_title_options
+    11. 确认标题并进入大纲阶段
+        - confirm_title
+    12. 确认大纲并进入正文阶段
+        - confirm_outline
+    13. 保存大纲内容（不推进阶段）
+        - save_outline
+    14. AI 修改大纲
+        - ai_modify_outline
     """
 
     def __init__(self, db: Database):
@@ -109,7 +132,7 @@ class ArticleService:
                 values={"userId": login_user.id},
             )
             throw_if_not(quota_row, ErrorCode.NOT_FOUND_ERROR, "用户不存在")
-            throw_if(quota_row["quota"] <= 0, ErrorCode.OPERATION_ERROR, "配额不足")
+            throw_if(quota_row["quota"] <= 0, ErrorCode.OPERATION_ERROR, "配额不足") # pyright: ignore[reportOptionalSubscript]
 
             await self.db.execute(
                 query="""
@@ -136,7 +159,7 @@ class ArticleService:
         保证与实际可用能力始终一致。
         """
         styles = [
-            OptionItem(value=s.value, label=s.label, description=s.description)
+            OptionItem(value=s.value, label=s.label, description=s.description) # pyright: ignore[reportCallIssue]
             for s in ArticleStyleEnum
         ]
         image_methods = [
@@ -144,7 +167,7 @@ class ArticleService:
                 value=m.value,
                 label=m.label,
                 description=m.description,
-                vip_only=m.value in self._vip_only_image_methods,
+                vip_only=m.value in self._vip_only_image_methods, # pyright: ignore[reportCallIssue]
             )
             for m in image_service_strategy.get_enabled_methods()
         ]
