@@ -15,6 +15,11 @@ from app.config import settings
 class IconifyService(BaseImageSearchService):
     """Iconify 图标库检索服务 — 调用 Iconify API 搜索 275k+ 开源图标，返回 SVG URL 类型的 ImageData。"""
 
+    name = "ICONIFY"
+    description = "适合图标、符号、小型装饰性图标（如：箭头、勾选、星星、心形等）"
+    usage = "提供英文图标关键词(keywords)，如：check、arrow、star、heart。prompt 留空。"
+    is_ai_generate = False
+
     def __init__(self):
         self.api_url = settings.iconify_api_url
         self.search_limit = settings.iconify_search_limit
@@ -82,5 +87,5 @@ if __name__ == "__main__":
     iconify_service = IconifyService()
 
     keywords = "search"
-    result = asyncio.run(iconify_service.get_image_data(ImageRequest(keywords=keywords)))
+    result = asyncio.run(iconify_service.get_image_data(ImageRequest(keywords=keywords)))   # type: ignore
     print(f"{keywords} 的图标链接为：{result.url if result else '无结果'}")

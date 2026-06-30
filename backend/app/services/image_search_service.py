@@ -80,3 +80,32 @@ class BaseImageSearchService(ABC):
             True 表示服务可用，False 表示不可用。
         """
         return True
+
+    # ==================== 元数据（用于构建给 AI 的配图提示词） ====================
+    # 注意：以下为带类型标注的类属性，子类以类属性直接覆写
+    # （如 `name = "PEXELS"`），供 Prompt 类在构建配图提示词时按属性读取。
+
+    name: str
+    """方式标识，与 ImageMethodEnum.value 一致（如 "PEXELS"），非 UI 标签。
+
+    供 Prompt 类构建配图提示词时引用；与 get_method().value 保持一致。
+    """
+
+    description: str
+    """一句话适用场景说明（如 "适合真实场景、产品照片..."）。
+
+    供 Prompt 类拼出 "可用配图方式" 列表时使用。
+    """
+
+    usage: str
+    """详细使用指南（多行，可含示例）。
+
+    供 Prompt 类拼出 "配图方式使用指南" 时使用；用于指导 LLM
+    如何为该方式填写 keywords / prompt 等字段。
+    """
+
+    is_ai_generate: bool
+    """是否为 AI 生图方式。
+
+    与 get_method().is_ai_generated() 保持一致，显式声明便于提示词构建器读取。
+    """

@@ -19,6 +19,11 @@ from app.utils.logger import logger
 class EmojiPackService(BaseImageSearchService):
     """表情包检索服务 — 基于 Bing 图片搜索，自动在关键词后拼接"表情包"后缀，返回 URL 类型 ImageData。"""
 
+    name = "EMOJI_PACK"
+    description = "适合表情包、搞笑图片、轻松幽默的配图"
+    usage = "提供中文或英文关键词(keywords)描述表情内容。prompt 留空。系统会自动添加'表情包'搜索。"
+    is_ai_generate = False
+
     def __init__(self):
         self.search_url = settings.emoji_pack_search_url
         self.suffix = settings.emoji_pack_suffix

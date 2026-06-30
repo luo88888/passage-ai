@@ -12,6 +12,11 @@ from app.utils.logger import logger
 class PexelsService(BaseImageSearchService):
     """Pexels 图片检索服务 — 调用 Pexels API 搜索高质量真实摄影图，返回 URL 类型 ImageData。"""
 
+    name = "PEXELS"
+    description = "适合真实场景、产品照片、人物照片、自然风景等写实图片"
+    usage = "提供英文搜索关键词(keywords)，要准确、具体。prompt 留空。"
+    is_ai_generate = False
+
     def __init__(self):
         self.api_key = settings.pexels_api_key
         self.client = httpx.AsyncClient(timeout=30.0)
@@ -89,6 +94,6 @@ if __name__ == '__main__':
     px = PexelsService()
 
     print("正在搜索...")
-    image_data = asyncio.run(px.get_image_data(ImageRequest(keywords="apple")))
+    image_data = asyncio.run(px.get_image_data(ImageRequest(keywords="apple"))) # type: ignore
     print(image_data.url if image_data else "无结果")
     print("end")

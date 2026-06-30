@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 
 class NanoBananaService(BaseImageSearchService):
     """Nano Banana (Gemini 原生图片生成) 服务"""
+
+    name = "NANO_BANANA"
+    description = "适合创意插画、信息图表、需要文字渲染、抽象概念、艺术风格等 AI 生成图片"
+    usage = "提供详细的英文生图提示词(prompt),描述场景、风格、细节"
+    is_ai_generate = True
     
     def __init__(self):
         self.api_key = settings.nano_banana_api_key

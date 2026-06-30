@@ -3,7 +3,6 @@ from app.services.article_agent_service import ArticleAgentService
 from app.services.article_async_service import ArticleAsyncService
 from app.services.user_service import UserService
 
-from app.services.image_service_strategy import ImageServiceStrategy
 from app.services.image_search_service import BaseImageSearchService
 from app.services.local_file_service import LocalFileService
 from app.services.pexels_service import PexelsService
@@ -21,7 +20,6 @@ __all__ = [
     # 用户相关服务
     "UserService",
     # 图片相关服务
-    "ImageServiceStrategy",
     "BaseImageSearchService",
     "LocalFileService",
     "PexelsService",

@@ -6,13 +6,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable
 
 from app.agent.base_agent import _safe_json_dumps, agent_log_context
-from app.agent.image_generator import ParallelImageGenerator
 from app.constants.prompt import PromptConstant
 from app.models.enums import ImageMethodEnum, SseMessageTypeEnum
 from app.schemas.article import ArticleState, ImageRequirement, ImageResult
 from app.utils.logger import logger
 
 if TYPE_CHECKING:
+    from app.agent.image_generator import ParallelImageGenerator
     from app.services.agent_log_service import AgentLogService
 
 

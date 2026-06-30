@@ -10,7 +10,6 @@ from typing import Callable, List, Optional
 
 from openai import AsyncOpenAI
 
-from app.agent.image_generator import ParallelImageGenerator
 from app.agent.orchestrator import ArticleAgentOrchestrator
 from app.config import settings
 from app.database import database
@@ -20,7 +19,7 @@ from app.schemas.article import (
 )
 from app.constants.prompt import PromptConstant
 from app.services.agent_log_service import AgentLogService
-from app.services.image_service_strategy import ImageServiceStrategy
+from app.agent.image_generator import parallel_image_generator
 from app.utils.logger import logger
 
 
@@ -41,15 +40,10 @@ class ArticleAgentService:
         )
         self.model = settings.dashscope_model
 
-        # 初始化服务
-        self.image_service_strategy = ImageServiceStrategy()
+        # 复用图片生成模块单例（服务实例与 httpx/AsyncOpenAI 客户端全程共享，
+        # 避免每个请求重复构造 ParallelImageGenerator + 5 个图片服务）。
         self.agent_log_service = AgentLogService(database)
-
-        self.parallel_image_generator = ParallelImageGenerator(
-            image_service_strategy=self.image_service_strategy,
-            max_concurrency=settings.agent_image_max_concurrency,
-            fail_fast=settings.agent_image_fail_fast,
-        )
+        self.parallel_image_generator = parallel_image_generator
 
         # 创建编排器，注入所有共享依赖
         self.orchestrator = ArticleAgentOrchestrator(

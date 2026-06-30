@@ -15,7 +15,7 @@ from app.models.enums import ArticlePhaseEnum, ArticleStatusEnum, ArticleStyleEn
 from app.schemas.article import ArticleQueryRequest, ArticleState, ArticleVO, CreationOptionsVO, OptionItem, OutlineSection, TitleOption
 from app.schemas.user import LoginUserVO
 from app.services.article_agent_service import ArticleAgentService
-from app.services.image_service_strategy import image_service_strategy
+from app.agent.image_generator import parallel_image_generator
 from app.utils.logger import logger
 
 
@@ -64,6 +64,11 @@ class ArticleService:
             ImageMethodEnum.NANO_BANANA.value,
             ImageMethodEnum.SVG_DIAGRAM.value,
         }
+
+    @staticmethod
+    def _get_enabled_image_methods():
+        """返回当前已注册的配图方式"""
+        return parallel_image_generator.get_enabled_methods()
 
 
     async def create_article_task(
@@ -169,7 +174,7 @@ class ArticleService:
                 description=m.description,
                 vip_only=m.value in self._vip_only_image_methods, # pyright: ignore[reportCallIssue]
             )
-            for m in image_service_strategy.get_enabled_methods()
+            for m in self._get_enabled_image_methods()
         ]
         return CreationOptionsVO(styles=styles, imageMethods=image_methods)
 

@@ -18,6 +18,11 @@ from app.utils.logger import logger
 
 class MermaidService(BaseImageSearchService):
     """Mermaid 流程图生成服务"""
+
+    name = "MERMAID"
+    description = "适合流程图、架构图、时序图、关系图、甘特图等结构化图表"
+    usage = "在 prompt 字段生成完整的 Mermaid 代码（如流程图、架构图）。keywords 留空。"
+    is_ai_generate = True
     
     def __init__(self):
         self.cli_command = settings.mermaid_cli_command

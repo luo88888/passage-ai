@@ -13,6 +13,14 @@ from app.config import settings
 
 class SvgDiagramService(BaseImageSearchService):
     """SVG 概念示意图生成服务"""
+
+    name = "SVG_DIAGRAM"
+    description = "适合概念示意图、思维导图样式、逻辑关系展示（不涉及精确数据）"
+    usage = (
+        "在 prompt 字段描述示意图需求（中文），说明要表达的概念和关系。keywords 留空。\n"
+        "  示例：绘制思维导图样式的图，中心是'自律'，周围4个分支：习惯、环境、反馈、系统"
+    )
+    is_ai_generate = True
     
     def __init__(self):
         self.client = AsyncOpenAI(

@@ -11,12 +11,12 @@ from app.agent.agents.image_generator_agent import ImageGeneratorAgent
 from app.agent.agents.outline_generator import OutlineGeneratorAgent
 from app.agent.agents.title_generator import TitleGeneratorAgent
 from app.agent.context.stream_handler import StreamHandlerContext
-from app.agent.image_generator import ParallelImageGenerator
 from app.models.enums import SseMessageTypeEnum
 from app.schemas.article import ArticleState
 from app.utils.logger import logger
 
 if TYPE_CHECKING:
+    from app.agent.image_generator import ParallelImageGenerator
     from app.services.agent_log_service import AgentLogService
 
 
@@ -34,7 +34,7 @@ class ArticleAgentOrchestrator:
         self.outline_agent = OutlineGeneratorAgent(client, model, agent_log_service)
         self.content_agent = ContentGeneratorAgent(client, model, agent_log_service)
         self.image_analyzer_agent = ImageAnalyzerAgent(
-            client, model, agent_log_service
+            client, model, agent_log_service, parallel_image_generator
         )
         self.image_generator_agent = ImageGeneratorAgent(
             parallel_image_generator, agent_log_service
