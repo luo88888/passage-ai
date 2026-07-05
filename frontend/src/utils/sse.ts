@@ -22,6 +22,8 @@ export type SseMessageType =
   | 'AGENT5_COMPLETE'
   | 'MERGE_COMPLETE'
   | 'ALL_COMPLETE'
+  | 'AI_MODIFY_OUTLINE_COMPLETE' // AI 修改大纲完成（不关流）
+  | 'AI_MODIFY_OUTLINE_FAILED' // AI 修改大纲失败（不关流）
   | 'ERROR'
 
 /** 标题候选（AGENT1_COMPLETE / TITLE_GENERATED 携带） */
@@ -55,7 +57,7 @@ export interface SseMessage {
   titleOptions?: TitleOption[]
   // AGENT2_STREAMING / AGENT3_STREAMING 增量内容；IMAGE_COMPLETE 为 ImageResult 的 JSON 字符串
   content?: string
-  // AGENT2_COMPLETE / OUTLINE_GENERATED：大纲章节（snake_case）
+  // AGENT2_COMPLETE / OUTLINE_GENERATED / AI_MODIFY_OUTLINE_COMPLETE：大纲章节（snake_case）
   outline?: OutlineSection[]
   // AGENT4_COMPLETE
   imageRequirements?: Array<{ position: number; type: string; sectionTitle: string; keywords: string }>
@@ -65,7 +67,7 @@ export interface SseMessage {
   fullContent?: string
   // ALL_COMPLETE
   taskId?: string
-  // ERROR
+  // ERROR / AI_MODIFY_OUTLINE_FAILED
   message?: string
 }
 

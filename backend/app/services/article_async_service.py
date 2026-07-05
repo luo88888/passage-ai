@@ -1,279 +1,126 @@
 """
-文章异步任务服务
+文章异步任务服务（LangGraph 编排版，仅负责启停/恢复）
+
+职责已收窄为「创建/启动任务、恢复任务、持有 Task 引用防 GC、失败兜底」：
+  - start(task_id, topic, style): 建初始 state → ainvoke 跑到第一个 interrupt
+       （confirm_title 后：标题已落库 + TITLE_GENERATED 已发，等用户确认标题）
+  - resume(task_id, inject): 注入人工输入（确认标题后的 title/description、确认大纲后的 outline）
+       → aupdate_state + ainvoke(None) 续跑到下一个 interrupt 或 END
+  - register_task: 保存 asyncio.Task 引用，避免被 GC 中断（修复原 # FIXME）
+  - _handle_failure: 节点异常冒泡到此 → 标记 FAILED + 推 ERROR + 关闭 SSE（容错边界）
+
+成功路径的全部副作用（update_article_status / update_phase / save_title_options /
+save_outline / save_article_content / send_sse_message / sse complete）均已收入图节点
+（bootstrap / confirm_title / confirm_outline / finalize），本类不再 inline 做这些。
+图状态用 SQLite checkpointer 持久化（thread_id = taskId），取代原手工 checkpoint。
 """
-
-
-import json
-from typing import Any, Dict, List, Optional
+import asyncio
+from typing import Any, Dict, Optional
 
 from app.database import database
-from app.models.enums import ArticlePhaseEnum, ArticleStatusEnum, SseMessageTypeEnum
-from app.schemas.article import ArticleState, OutlineResult, OutlineSection, TitleResult
-from app.services.article_agent_service import ArticleAgentService
+from app.graph.builder import build_article_graph
+from app.graph.checkpointer import get_checkpointer
+from app.graph.sse_bridge import send_sse_message
 from app.managers.sse_manager import sse_emitter_manager
+from app.models.enums import ArticleStatusEnum, SseMessageTypeEnum
 from app.services.article_service import ArticleService
 from app.utils.logger import logger
 
 
 class ArticleAsyncService:
-    """文章异步任务服务，提供下述服务：
-    1. 执行异步文章生成，传入 task_id 参数
-    """
+    """文章异步任务服务：仅负责启停/恢复/失败兜底，成功路径副作用全在图节点里。"""
 
-    def _build_message_data(self, message: str, state: ArticleState) -> Dict[str, Any]:
-        """构建要推送给前端的 SSE 消息数据。
+    def __init__(self) -> None:
+        self._graph = None  # 已编译图单例，懒构造（需 lifespan 已 init checkpointer）
+        # 持有异步任务引用，避免被 Python GC 回收（修复原 # FIXME）
+        self._tasks: Dict[str, asyncio.Task] = {}
 
-        本函数是一个纯路由转换器：根据 message 的形态把它归类成「流式消息」或「完成消息」，
-        并组装出对应的 dict；若都不命中则返回 None（由调用方丢弃）。它本身不产生副作用，
-        不写 state、不发 SSE，便于单独测试。
+    # ==================== 图与 checkpointer 单例 ====================
 
-        message 有两种形态：
-            1) 流式消息：形如 f"{前缀}:{正文片段}"，前缀取自枚举的 get_streaming_prefix()，
-               即 "{枚举值}:"。目前涉及三种前缀：
-                 - "AGENT2_STREAMING:" 大纲流式片段
-                 - "AGENT3_STREAMING:" 正文流式片段
-                 - "IMAGE_COMPLETE:"   单张配图完成后的图片 URL
-            2) 完成消息：恰好等于某个 SseMessageTypeEnum 的 value（裸标识符），
-               例如 "AGENT1_COMPLETE" / "MERGE_COMPLETE" 等。
+    def _get_graph(self):
+        """惰性构造已编译图单例（注入 checkpointer）"""
+        if self._graph is None:
+            self._graph = build_article_graph(get_checkpointer())
+        return self._graph
 
-        Args:
-            message: 智能体编排过程中通过回调产出的进度字符串，形态见上方说明。
-            state: 贯穿整个编排过程的 ArticleState。仅当 message 命中「完成消息」时才会被读取，
-                用来取出对应阶段已生成的产物（标题/大纲/配图/全文等）序列化进返回结果；
-                流式消息分支不会使用 state。
+    @staticmethod
+    def _config(task_id: str) -> Dict[str, Any]:
+        """LangGraph 配置：thread_id = taskId，checkpointer 按此隔离各文章状态
 
         Returns:
-            三种可能之一：
-                - 流式消息命中：{"type": <枚举值>, "content": <剥掉前缀后的正文片段>}
-                - 完成消息命中：{"type": <枚举值>, <阶段产物字段>: ...}（由 _build_complete_message_data 拼装）
-                - 都未命中：None（调用方据此丢弃，不推送）
+            - {"configurable": {"thread_id": task_id}}
         """
-        # 处理流式消息（带冒号分隔符）
-        # 三个前缀形如 "AGENT2_STREAMING:"，用 startswith 做前缀匹配，命中后用切片剥离前缀只留正文。
-        # 注意：startswith 是顺序短路判断，三个前缀互不为子串，可安全按此顺序依次判断。
-        streaming_prefix2 = SseMessageTypeEnum.AGENT2_STREAMING.get_streaming_prefix()
-        streaming_prefix3 = SseMessageTypeEnum.AGENT3_STREAMING.get_streaming_prefix()
-        image_complete_prefix = SseMessageTypeEnum.IMAGE_COMPLETE.get_streaming_prefix()
+        return {"configurable": {"thread_id": task_id}}
 
-        # 大纲流式片段：前端逐步渲染大纲结构
-        if message.startswith(streaming_prefix2):
-            return {
-                "type": SseMessageTypeEnum.AGENT2_STREAMING.value,
-                "content": message[len(streaming_prefix2):]
-            }
-        # 正文流式片段：前端逐步渲染正文内容
-        if message.startswith(streaming_prefix3):
-            return {
-                "type": SseMessageTypeEnum.AGENT3_STREAMING.value,
-                "content": message[len(streaming_prefix3):]
-            }
-        # 单张配图完成：content 为该章配图的图片 URL，前端立即展示
-        if message.startswith(image_complete_prefix):
-            return {
-                "type": SseMessageTypeEnum.IMAGE_COMPLETE.value,
-                "content": message[len(image_complete_prefix):]
-            }
+    # ==================== AsyncTask 引用管理（GC 修复） ====================
 
-        # 处理完成消息（枚举值）：message 本身就是某个枚举的 value，
-        # 交给 _build_complete_message_data 从 state 取对应阶段产物拼装返回。
-        return self._build_complete_message_data(message, state)
+    def register_task(self, task_id: str, task: asyncio.Task) -> asyncio.Task:
+        """注册异步任务引用，完事后自动清理。在路由层调，避免 Task 被 GC。"""
+        self._tasks[task_id] = task
+        task.add_done_callback(lambda _t: self._tasks.pop(task_id, None))
+        return task
 
+    # ==================== 启动：建初始 state 跑到第一个 interrupt ====================
 
-    def _build_complete_message_data(self, message: str, state: ArticleState) -> Dict[str, Any]:
-        """构建完成消息数据"""
-        data = {}
-        
-        if message == SseMessageTypeEnum.AGENT1_COMPLETE.value:
-            data["type"] = SseMessageTypeEnum.AGENT1_COMPLETE.value
-            data["titleOptions"] = [
-                item.model_dump(by_alias=True) for item in (state.title_options or [])
-            ]
-        elif message == SseMessageTypeEnum.AGENT2_COMPLETE.value:
-            data["type"] = SseMessageTypeEnum.AGENT2_COMPLETE.value
-            data["outline"] = [s.model_dump() for s in state.outline.sections] if state.outline else []
-        elif message == SseMessageTypeEnum.AGENT3_COMPLETE.value:
-            data["type"] = SseMessageTypeEnum.AGENT3_COMPLETE.value
-        elif message == SseMessageTypeEnum.AGENT4_COMPLETE.value:
-            data["type"] = SseMessageTypeEnum.AGENT4_COMPLETE.value
-            data["imageRequirements"] = [
-                req.model_dump(by_alias=True) for req in state.image_requirements
-            ] if state.image_requirements else []
-        elif message == SseMessageTypeEnum.AGENT5_COMPLETE.value:
-            data["type"] = SseMessageTypeEnum.AGENT5_COMPLETE.value
-            data["images"] = [
-                img.model_dump(by_alias=True) for img in state.images
-            ] if state.images else []
-        elif message == SseMessageTypeEnum.MERGE_COMPLETE.value:
-            data["type"] = SseMessageTypeEnum.MERGE_COMPLETE.value
-            data["fullContent"] = state.full_content
-        else:
-            logger.error("未知完成消息: %s", message)
-            return None # type: ignore
-        
-        return data
-
-    def _send_sse_message(
-        self,
-        task_id: str,
-        type_enum: SseMessageTypeEnum,
-        additional_data: Dict[str, Any]
-    ):
-        """发送 SSE 消息"""
-        data = {"type": type_enum.value}
-        data.update(additional_data)
-        sse_emitter_manager.send(task_id, json.dumps(data, ensure_ascii=False))
-
-
-    def _handle_agent_message(self, task_id: str, message: str, state: ArticleState):
-        """处理智能体消息并推送"""
-        data = self._build_message_data(message, state)
-        if data is not None:
-            sse_emitter_manager.send(task_id, json.dumps(data, ensure_ascii=False))
-
-    async def execute_phase1(
+    async def start(
         self,
         task_id: str,
         topic: str,
         style: Optional[str] = None,
-    ):
-        """阶段1：异步生成标题方案"""
-        logger.info("阶段1异步任务开始, taskId=%s, topic=%s, style=%s", task_id, topic, style)
-        article_agent_service = ArticleAgentService()
-        article_service = ArticleService(database)
+    ) -> None:
+        """启动文章生成：建初始 state → ainvoke 跑到 confirm_title 后 interrupt
 
+        bootstrap 节点标记 PROCESSING + TITLE_GENERATING，generate_title 节点生成标题方案，
+        confirm_title 节点落库 + 发 TITLE_GENERATED，随后图暂停等用户确认标题。
+        本方法不做任何 DB/SSE 副作用（全在节点里），失败走 _handle_failure。
+        """
+        logger.info("启动文章生成任务, taskId=%s, topic=%s, style=%s", task_id, topic, style)
         try:
-            await article_service.update_article_status(task_id, ArticleStatusEnum.PROCESSING)
-            await article_service.update_phase(task_id, ArticlePhaseEnum.TITLE_GENERATING)
-
-            state = ArticleState()
-            state.task_id = task_id
-            state.topic = topic
-            state.style = style
-
-            await article_agent_service.execute_phase1_generate_titles(
-                state,
-                lambda message: self._handle_agent_message(task_id, message, state)
-            )
-
-            await article_service.save_title_options(task_id, state.title_options or [])
-            await article_service.update_phase(task_id, ArticlePhaseEnum.TITLE_SELECTING)
-
-            self._send_sse_message(
-                task_id,
-                SseMessageTypeEnum.TITLE_GENERATED,
-                {
-                    "titleOptions": [
-                        item.model_dump(by_alias=True) for item in (state.title_options or [])
-                    ]
-                },
-            )
-
-            logger.info("阶段1异步任务完成, taskId=%s", task_id)
+            initial_state = {
+                "task_id": task_id,
+                "topic": topic,
+                "style": style,
+            }
+            graph = self._get_graph()
+            await graph.ainvoke(initial_state, self._config(task_id))
+            # 跑到 confirm_title 后暂停：标题已落库 + TITLE_GENERATED 已发，无需在此做事
         except Exception as e:
-            logger.error("阶段1异步任务失败, taskId=%s, error=%s", task_id, e)
-            await article_service.update_article_status(
-                task_id,
-                ArticleStatusEnum.FAILED,
-                str(e)
-            )
-            self._send_sse_message(
-                task_id,
-                SseMessageTypeEnum.ERROR,
-                {"message": str(e)}
-            )
-            sse_emitter_manager.complete(task_id)
+            await self._handle_failure(task_id, e)
 
-    async def execute_phase2(self, task_id: str):
-        """阶段2：异步生成大纲"""
-        logger.info("阶段2异步任务开始, taskId=%s", task_id)
-        article_agent_service = ArticleAgentService()
-        article_service = ArticleService(database)
+    # ==================== 恢复：注入人工输入续跑到下一个 interrupt 或 END ====================
 
+    async def resume(self, task_id: str, inject: Optional[dict] = None) -> None:
+        """恢复文章生成：注入人工输入 → 续跑到下一个 interrupt 或 END
+
+        典型两次调用：
+          - 确认标题后：inject = {"title": {...}, "user_description": ...} → 续跑到 confirm_outline 后暂停
+          - 确认大纲后：inject = {"outline": {"sections": [...]}} → 续跑到 END（finalize 落全文 + 关 SSE）
+        confirm_outline / finalize 节点负责落库 + 发 SSE；本方法仅驱动图，失败走 _handle_failure。
+        """
+        logger.info("恢复文章生成任务, taskId=%s", task_id)
         try:
-            article = await article_service.get_by_task_id(task_id)
-            if not article:
-                raise RuntimeError("文章不存在")
-
-            state = ArticleState()
-            state.task_id = task_id
-            state.style = article["style"]
-            state.user_description = article["userDescription"]
-            state.title = TitleResult(
-                mainTitle=article["mainTitle"],
-                subTitle=article["subTitle"],
-            )
-
-            await article_agent_service.execute_phase2_generate_outline(
-                state,
-                lambda message: self._handle_agent_message(task_id, message, state)
-            )
-            await article_service.save_outline(task_id, state.outline.sections if state.outline else [])
-            await article_service.update_phase(task_id, ArticlePhaseEnum.OUTLINE_EDITING)
-
-            self._send_sse_message(
-                task_id,
-                SseMessageTypeEnum.OUTLINE_GENERATED,
-                {
-                    "outline": [
-                        item.model_dump() for item in (state.outline.sections if state.outline else [])
-                    ]
-                },
-            )
-            logger.info("阶段2异步任务完成, taskId=%s", task_id)
+            graph = self._get_graph()
+            config = self._config(task_id)
+            if inject:
+                await graph.aupdate_state(config, inject)
+            # None=续跑：从当前 checkpoint 接着跑到下一个 interrupt 或 END
+            await graph.ainvoke(None, config)
         except Exception as e:
-            logger.error("阶段2异步任务失败, taskId=%s, error=%s", task_id, e)
-            await article_service.update_article_status(task_id, ArticleStatusEnum.FAILED, str(e))
-            self._send_sse_message(task_id, SseMessageTypeEnum.ERROR, {"message": str(e)})
-            sse_emitter_manager.complete(task_id)
+            await self._handle_failure(task_id, e)
 
-    async def execute_phase3(self, task_id: str):
-        """阶段3：异步生成正文与配图"""
-        logger.info("阶段3异步任务开始, taskId=%s", task_id)
-        article_agent_service = ArticleAgentService()
+    # ==================== 失败兜底（容错边界，留 service 不进图） ====================
+
+    async def _handle_failure(self, task_id: str, e: Exception) -> None:
+        """统一失败处理：标记 FAILED + 推 ERROR + 关闭 SSE
+
+        成功路径副作用全部在图节点里；节点异常经 LangGraph 冒泡到 start/resume 的 try/except，
+        由本方法兜底标记任务失败并通知前端，service 作为容错边界不进图。
+        """
+        logger.error("文章生成任务失败, taskId=%s, error=%s", task_id, e, exc_info=True)
         article_service = ArticleService(database)
-
-        try:
-            article = await article_service.get_by_task_id(task_id)
-            if not article:
-                raise RuntimeError("文章不存在")
-
-            outline_data = json.loads(article["outline"]) if article["outline"] else []
-            state = ArticleState()
-            state.task_id = task_id
-            state.style = article["style"]
-            state.enabled_image_methods = (
-                json.loads(article["enabledImageMethods"])
-                if article["enabledImageMethods"]
-                else None
-            )
-            state.title = TitleResult(
-                mainTitle=article["mainTitle"],
-                subTitle=article["subTitle"],
-            )
-            state.outline = OutlineResult(
-                sections=[OutlineSection(**item) for item in outline_data]
-            )
-
-            await article_agent_service.execute_phase3_generate_content(
-                state,
-                lambda message: self._handle_agent_message(task_id, message, state)
-            )
-            await article_service.save_article_content(task_id, state)
-            await article_service.update_article_status(task_id, ArticleStatusEnum.COMPLETED)
-
-            self._send_sse_message(
-                task_id,
-                SseMessageTypeEnum.ALL_COMPLETE,
-                {"taskId": task_id}
-            )
-            sse_emitter_manager.complete(task_id)
-            logger.info("阶段3异步任务完成, taskId=%s", task_id)
-        except Exception as e:
-            logger.error("阶段3异步任务失败, taskId=%s, error=%s", task_id, e)
-            await article_service.update_article_status(task_id, ArticleStatusEnum.FAILED, str(e))
-            self._send_sse_message(task_id, SseMessageTypeEnum.ERROR, {"message": str(e)})
-            sse_emitter_manager.complete(task_id)
-
+        await article_service.update_article_status(task_id, ArticleStatusEnum.FAILED, str(e))
+        send_sse_message(task_id, SseMessageTypeEnum.ERROR, {"message": str(e)})
+        sse_emitter_manager.complete(task_id)
 
 
 # 全局单例

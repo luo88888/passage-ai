@@ -8,9 +8,12 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
+
 
 from app.config import settings
 from app.database import database
+from app.graph.checkpointer import close_checkpointer, init_checkpointer
 from app.routers import (
     user_router,
     health_router,
@@ -30,6 +33,7 @@ async def lifespan(app: FastAPI):
 
     # 启动时执行
     logger.info("应用启动中...")
+    load_dotenv(override=True)
     await database.connect()
     logger.info("数据库连接成功")
     await init_redis()
@@ -45,9 +49,14 @@ async def lifespan(app: FastAPI):
         [m.value for m in parallel_image_generator.get_enabled_methods()],
     )
 
+    # 初始化 LangGraph SQLite checkpointer（文章生成图的人机协同断点续跑依赖）
+    await init_checkpointer()
+    logger.info("SQLite checkpointer 初始化成功")
+
     yield   # 分隔启动和关闭逻辑
 
     # 关闭时执行
+    await close_checkpointer()
     await database.disconnect()
     await close_redis()
     logger.info("应用已关闭")

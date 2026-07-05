@@ -16,19 +16,25 @@ export async function getArticle(
   })
 }
 
-/** AI 修改大纲 POST /article/ai-modify-outline */
+/** AI 修改大纲 POST /article/ai-modify-outline
+ *  fire-and-forget:仅回 ack {taskId};新大纲由 SSE AI_MODIFY_OUTLINE_COMPLETE 回填前端。
+ *  body: { taskId, modifySuggestion };响应:{ code, data:{taskId}, message }。
+ */
 export async function aiModifyOutline(
   body: API.ArticleAiModifyOutlineRequest,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponseListOutlineSection>('/article/ai-modify-outline', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    data: body,
-    ...(options || {}),
-  })
+  return request<{ code: number; data: { taskId: string }; message?: string }>(
+    '/article/ai-modify-outline',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      data: body,
+      ...(options || {}),
+    }
+  )
 }
 
 /** 确认大纲 POST /article/confirm-outline */

@@ -12,10 +12,14 @@
  *
  * 与父组件约定：
  *   - v-model:outline 双向同步大纲数据
+ *   - v-model:aiModifying 双向同步 AI 修改 loading 态（由父组件 SSE handler 关闭）
+ *   - @ai-modify 父组件据此调 aiModifyOutline（fire-and-forget），大纲由 SSE 回填
+ *   - :clear-input-signal 计数器 prop，父组件 SSE 成功后 ++ 触发本组件清空建议输入
  *   - @confirm 父组件据此调用 confirmOutline 并推进到正文生成阶段
- *   - AI 修改在本组件内调用 aiModifyOutline（需 taskId），成功后整体替换本地大纲
+ *
+ * 注：AI 修改大纲已改为 fire-and-forget + SSE（不再从 HTTP 响应取大纲）。
  */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import draggable from 'vuedraggable'
@@ -28,7 +32,6 @@ import {
   CrownOutlined,
 } from '@ant-design/icons-vue'
 
-import { aiModifyOutline } from '@/api/articleController'
 import type { OutlineSection } from '@/utils/sse'
 
 const router = useRouter()
@@ -37,15 +40,28 @@ const props = defineProps<{
   outline: OutlineSection[]
   taskId: string
   isVip?: boolean
+  clearInputSignal?: number
 }>()
+
+// AI 修改 loading 态由父组件托管（SSE 回填后再关），通过 v-model:aiModifying 双向
+const aiModifying = defineModel<boolean>('aiModifying', { default: false })
 
 const emit = defineEmits<{
   (e: 'update:outline', outline: OutlineSection[]): void
+  (e: 'ai-modify', modifySuggestion: string): void
   (e: 'confirm'): void
 }>()
 
 // 本地可编辑副本：通过 v-model 与父组件同步
 const localOutline = ref<OutlineSection[]>(cloneOutline(props.outline))
+
+// 父组件 outline 由 SSE 回填更新时（AI 修改成功后/重连恢复时），重新同步本地副本
+watch(
+  () => props.outline,
+  (v) => {
+    localOutline.value = cloneOutline(v)
+  },
+)
 
 function cloneOutline(list: OutlineSection[]): OutlineSection[] {
   return (list || []).map((s) => ({ section: s.section, title: s.title, points: [...(s.points || [])] }))
@@ -95,9 +111,16 @@ const onFieldChange = () => syncUp()
 // AI 修改大纲为会员/管理员专属（后端 service 校验），非会员触发跳转开通页
 const aiUnlocked = computed(() => props.isVip === true)
 const modifySuggestion = ref('')
-const aiModifying = ref(false)
 
-const aiModify = async () => {
+// 父组件 SSE 成功回填大纲后 ++ clearInputSignal，触发本组件清空建议输入
+watch(
+  () => props.clearInputSignal,
+  () => {
+    modifySuggestion.value = ''
+  },
+)
+
+const aiModify = () => {
   if (!aiUnlocked.value) {
     message.warning('AI 修改大纲为会员专属功能，开通会员后可使用')
     router.push('/vip')
@@ -107,31 +130,9 @@ const aiModify = async () => {
     message.warning('请输入修改建议')
     return
   }
-  aiModifying.value = true
-  try {
-    const res = await aiModifyOutline({
-      taskId: props.taskId,
-      modifySuggestion: modifySuggestion.value.trim(),
-    } as any)
-    if (res.data.code !== 0 || !res.data.data) {
-      message.error(res.data.message || 'AI 修改大纲失败')
-      return
-    }
-    // 后端返回 snake_case 大纲数组，整体替换本地
-    const newOutline = (res.data.data as any[]).map((s) => ({
-      section: Number(s.section),
-      title: String(s.title || ''),
-      points: Array.isArray(s.points) ? s.points.map(String) : [],
-    })) as OutlineSection[]
-    localOutline.value = newOutline
-    syncUp()
-    modifySuggestion.value = ''
-    message.success('大纲已更新')
-  } catch (e: any) {
-    message.error(e?.message || 'AI 修改大纲失败')
-  } finally {
-    aiModifying.value = false
-  }
+  if (aiModifying.value) return
+  // fire-and-forget：交父组件调 aiModifyOutline + 托管 loading；大纲/成功提示由 SSE 回填
+  emit('ai-modify', modifySuggestion.value.trim())
 }
 
 // ==================== 确认大纲 ====================

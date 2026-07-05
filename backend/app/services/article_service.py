@@ -14,7 +14,6 @@ from app.models.article import Article
 from app.models.enums import ArticlePhaseEnum, ArticleStatusEnum, ArticleStyleEnum, ImageMethodEnum
 from app.schemas.article import ArticleQueryRequest, ArticleState, ArticleVO, CreationOptionsVO, OptionItem, OutlineSection, TitleOption
 from app.schemas.user import LoginUserVO
-from app.services.article_agent_service import ArticleAgentService
 from app.agent.image_generator import parallel_image_generator
 from app.utils.logger import logger
 
@@ -447,13 +446,16 @@ class ArticleService:
             },
         )
 
-    async def ai_modify_outline(
+    async def assert_can_ai_modify_outline(
         self,
         task_id: str,
-        modify_suggestion: str,
         login_user: LoginUserVO,
-    ) -> List[OutlineSection]:
-        """AI 修改大纲"""
+    ) -> None:
+        """AI 修改大纲前置校验：文章存在 / 归属 / 阶段为 OUTLINE_EDITING / 已有大纲 / VIP
+
+        实际的 LLM 重写 + 持久化 + SSE 已移入 graph 节点 ai_modify_outline_node，
+        路由层校验通过后 fire-and-forget 调 article_async_service.resume 续跑图。
+        """
         article = await self.get_by_task_id(task_id)
         throw_if_not(article, ErrorCode.NOT_FOUND_ERROR, "文章不存在")
         self._check_article_permission(article, login_user)
@@ -468,27 +470,6 @@ class ArticleService:
             ErrorCode.NO_AUTH_ERROR,
             "AI 修改大纲功能仅限 VIP 会员使用",
         )
-
-        current_outline = [OutlineSection(**item) for item in json.loads(article["outline"])]   # type: ignore
-        agent_service = ArticleAgentService()
-        modified_outline = await agent_service.ai_modify_outline(
-            main_title=article["mainTitle"],    # type: ignore
-            sub_title=article["subTitle"],      # type: ignore
-            current_outline=current_outline,
-            modify_suggestion=modify_suggestion,
-            task_id=task_id
-        )
-        await self.db.execute(
-            query="UPDATE article SET outline = :outline WHERE taskId = :taskId",
-            values={
-                "taskId": task_id,
-                "outline": json.dumps(
-                    [item.model_dump() for item in modified_outline],
-                    ensure_ascii=False,
-                ),
-            },
-        )
-        return modified_outline
 
     def _process_image_methods(
         self,

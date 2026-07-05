@@ -28,6 +28,7 @@ import {
   getArticle,
   confirmTitle,
   confirmOutline,
+  aiModifyOutline,
   getCreationOptions,
   type CreationOptionItem,
 } from '@/api/articleController'
@@ -75,6 +76,9 @@ const confirmingTitle = ref(false)
 const outline = ref<OutlineSection[]>([])
 const confirmingOutline = ref(false)
 const outlineEditorRef = ref<InstanceType<typeof OutlineEditor> | null>(null)
+// AI 修改大纲：fire-and-forget + SSE 回填，loading 与清空信号由本页托管下放给子组件
+const aiModifying = ref(false)
+const aiClearInputSignal = ref(0)
 
 // 时间轴当前步（0~6），每完成一个 *_COMPLETE 推进一步
 const currentStep = ref(0)
@@ -270,6 +274,19 @@ const handleSse = (data: SseMessage) => {
       stage.value = 'done'
       fetchFinalDetail()
       break
+    case 'AI_MODIFY_OUTLINE_COMPLETE':
+      // AI 修改大纲成功：SSE 回填新大纲，关 loading + 清空输入提示
+      if (data.outline?.length) outline.value = data.outline
+      aiModifying.value = false
+      aiClearInputSignal.value++
+      message.success('大纲已更新')
+      break
+    case 'AI_MODIFY_OUTLINE_FAILED':
+      // AI 修改大纲失败：关 loading，提示错误（文章不标 FAILED，可继续）
+      aiModifying.value = false
+      errorMsg.value = data.message || 'AI 修改大纲失败'
+      message.error(errorMsg.value)
+      break
     case 'ERROR':
       errorMsg.value = data.message || '生成失败，请稍后重试'
       message.error(errorMsg.value)
@@ -402,6 +419,32 @@ const confirmTitleSelection = async () => {
     message.error(errorMsg.value)
   } finally {
     confirmingTitle.value = false
+  }
+}
+
+// AI 修改大纲：fire-and-forget 注入 modify_suggestion，由 graph 节点跑 LLM + 落库 + SSE 回填
+const onAiModify = async (modifySuggestion: string) => {
+  if (aiModifying.value || !taskId.value) return
+  aiModifying.value = true
+  errorMsg.value = ''
+  // 确保此时 SSE 仍连着（大纲编辑阶段不关流，但断点续作场景下可能未连）
+  ensureSse()
+  try {
+    const res = await aiModifyOutline({
+      taskId: taskId.value,
+      modifySuggestion,
+    } as any)
+    if (res.data.code !== 0) {
+      // 路由层校验失败（如非 VIP / 阶段不符）：直接关 loading 并提示
+      aiModifying.value = false
+      errorMsg.value = res.data.message || 'AI 修改大纲失败'
+      message.error(errorMsg.value)
+    }
+    // 成功：应答只回 ack，大纲/成功提示由 SSE AI_MODIFY_OUTLINE_COMPLETE 回填
+  } catch (e: any) {
+    aiModifying.value = false
+    errorMsg.value = e?.message || 'AI 修改大纲失败'
+    message.error(errorMsg.value)
   }
 }
 
@@ -868,8 +911,11 @@ onBeforeUnmount(() => {
             v-else
             ref="outlineEditorRef"
             v-model:outline="outline"
+            v-model:aiModifying="aiModifying"
             :task-id="taskId"
             :is-vip="isVipUser"
+            :clear-input-signal="aiClearInputSignal"
+            @ai-modify="onAiModify"
             @confirm="onOutlineConfirm"
           />
         </div>

@@ -235,7 +235,7 @@ class ParallelImageGenerator:
 
 
 # 模块级单例：服务实例（含 httpx/AsyncOpenAI 客户端）全局复用，构造一次。
-# ArticleAgentService 不再每请求 new，直接复用此单例；article_service 的配图选项也依赖它。
+# 图节点编排器（app/graph/nodes/_orchestrator.py）与 article_service 的配图选项都依赖此单例。
 parallel_image_generator = ParallelImageGenerator(
     max_concurrency=settings.agent_image_max_concurrency,
     fail_fast=settings.agent_image_fail_fast,

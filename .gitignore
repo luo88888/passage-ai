@@ -135,6 +135,9 @@ __screenshots__/
 *.sqlite3
 *.db-journal
 
+# LangGraph SQLite checkpointer 本地数据目录
+backend/data/
+
 # =====================
 # Misc / temp
 # =====================

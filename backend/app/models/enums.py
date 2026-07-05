@@ -33,6 +33,8 @@ class SseMessageTypeEnum(str, Enum):
 
     TITLE_GENERATED = "TITLE_GENERATED"    # 标题生成完成，等待用户选择
     OUTLINE_GENERATED = "OUTLINE_GENERATED" # 大纲生成完成，等待用户编辑
+    AI_MODIFY_OUTLINE_COMPLETE = "AI_MODIFY_OUTLINE_COMPLETE"  # AI 修改大纲完成
+    AI_MODIFY_OUTLINE_FAILED = "AI_MODIFY_OUTLINE_FAILED"     # AI 修改大纲失败
 
     def get_streaming_prefix(self) -> str:
         """获取流式输出消息前缀"""

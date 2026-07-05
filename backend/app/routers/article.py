@@ -42,16 +42,16 @@ async def create_article(
         request.enabled_image_methods
     )
     
-    # 异步执行阶段1：生成标题方案
-    # FIXME: 未保存引用的 Task 可能被 GC，phase1/2/3 各一处
-    asyncio.create_task(
-        article_async_service.execute_phase1(
+    # 异步执行阶段1：生成标题方案（LangGraph 编排，跑到 confirm_title 后 interrupt）
+    task = asyncio.create_task(
+        article_async_service.start(
             task_id,
             request.topic,
             request.style,
         )
     )
-    
+    article_async_service.register_task(task_id, task)
+
     return BaseResponse.success(data=task_id, message="任务创建成功")
 
 
@@ -70,7 +70,18 @@ async def confirm_title(
         user_description=request.user_description,
         login_user=current_user,
     )
-    asyncio.create_task(article_async_service.execute_phase2(request.task_id))
+    # 用户已确认标题，续跑图：注入标题/描述 → 生成大纲
+    task = asyncio.create_task(article_async_service.resume(
+        request.task_id,
+        {
+            "title": {
+                "mainTitle": request.selected_main_title,
+                "subTitle": request.selected_sub_title,
+            },
+            "user_description": request.user_description,
+        },
+    ))
+    article_async_service.register_task(request.task_id, task)
     return BaseResponse.success(data=None)
 
 
@@ -87,24 +98,45 @@ async def confirm_outline(
         outline=request.outline,
         login_user=current_user,
     )
-    asyncio.create_task(article_async_service.execute_phase3(request.task_id))
+    # 用户已确认大纲，续跑图：注入编辑后大纲 → 生成正文/配图/全文
+    # 同时显式清空 modify_suggestion，兜底防止此前 AI 修改残留导致条件边再次路由进修改节点
+    task = asyncio.create_task(article_async_service.resume(
+        request.task_id,
+        {
+            "outline": {"sections": [s.model_dump() for s in request.outline]},
+            "modify_suggestion": None,
+        },
+    ))
+    article_async_service.register_task(request.task_id, task)
     return BaseResponse.success(data=None)
 
 
-@router.post("/ai-modify-outline", response_model=BaseResponse[list])
+@router.post("/ai-modify-outline", response_model=BaseResponse[dict])
 async def ai_modify_outline(
     request: ArticleAiModifyOutlineRequest,
     db: Database = Depends(get_db),
     current_user: LoginUserVO = Depends(require_login)
 ):
-    """AI 修改大纲"""
+    """AI 修改大纲（fire-and-forget）
+
+    路由层做前置校验（文章存在 / 归属 / 阶段为 OUTLINE_EDITING / 已有大纲 / VIP），
+    通过后异步续跑图：注入 modify_suggestion → 条件边路由进 ai_modify_outline 节点，
+    由节点跑 LLM + 落库 + 发 AI_MODIFY_OUTLINE_COMPLETE / FAILED SSE。
+    路由只回 ack（taskId），大纲由 SSE 回填前端。
+    """
     service = ArticleService(db)
-    modified_outline = await service.ai_modify_outline(
+    await service.assert_can_ai_modify_outline(
         task_id=request.task_id,
-        modify_suggestion=request.modify_suggestion,
         login_user=current_user,
     )
-    return BaseResponse.success(data=[section.model_dump() for section in modified_outline])
+    task = asyncio.create_task(
+        article_async_service.resume(
+            request.task_id,
+            {"modify_suggestion": request.modify_suggestion},
+        )
+    )
+    article_async_service.register_task(request.task_id, task)
+    return BaseResponse.success(data={"taskId": request.task_id})
 
 
 
