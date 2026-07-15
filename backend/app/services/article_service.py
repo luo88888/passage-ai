@@ -11,7 +11,7 @@ from sqlalchemy import and_, func, select
 from app.constants.user import UserConstant
 from app.exceptions import BusinessException, ErrorCode, throw_if, throw_if_not
 from app.models.article import Article
-from app.models.enums import ArticlePhaseEnum, ArticleStatusEnum, ArticleStyleEnum, ImageMethodEnum
+from app.models.enums import ArticleGenreEnum, ArticleLanguageStyleEnum, ArticlePhaseEnum, ArticleStatusEnum, ImageMethodEnum
 from app.schemas.article import ArticleQueryRequest, ArticleState, ArticleVO, CreationOptionsVO, OptionItem, OutlineSection, TitleOption
 from app.schemas.user import LoginUserVO
 from app.agent.image_generator import parallel_image_generator
@@ -76,6 +76,9 @@ class ArticleService:
             login_user: LoginUserVO,
             style: Optional[str] = None,
             enabled_image_methods: Optional[List[str]] = None,
+            genre: Optional[str] = None,
+            language_style: Optional[str] = None,
+            word_count: Optional[int] = None,
         ) -> str:
             """创建文章任务"""
             final_image_methods = self._process_image_methods(enabled_image_methods, login_user)
@@ -85,10 +88,12 @@ class ArticleService:
             now = datetime.now()
             query = """
                 INSERT INTO article (
-                    taskId, userId, topic, style, enabledImageMethods, status, phase, createTime
+                    taskId, userId, topic, style, enabledImageMethods, status, phase, createTime,
+                    genre, languageStyle, wordCount
                 )
                 VALUES (
-                    :taskId, :userId, :topic, :style, :enabledImageMethods, :status, :phase, :createTime
+                    :taskId, :userId, :topic, :style, :enabledImageMethods, :status, :phase, :createTime,
+                    :genre, :languageStyle, :wordCount
                 )
             """
             await self.db.execute(
@@ -104,6 +109,9 @@ class ArticleService:
                     "status": ArticleStatusEnum.PENDING.value,
                     "phase": ArticlePhaseEnum.PENDING.value,
                     "createTime": now,
+                    "genre": genre,
+                    "languageStyle": language_style,
+                    "wordCount": word_count,
                 },
             )
             logger.info("文章任务创建成功, taskId=%s, userId=%s", task_id, login_user.id)
@@ -115,6 +123,9 @@ class ArticleService:
         login_user: LoginUserVO,
         style: Optional[str] = None,
         enabled_image_methods: Optional[List[str]] = None,
+        genre: Optional[str] = None,
+        language_style: Optional[str] = None,
+        word_count: Optional[int] = None,
     ) -> str:
         """在同一事务中完成配额扣减和任务创建"""
         if self._is_vip_or_admin(login_user):
@@ -123,6 +134,9 @@ class ArticleService:
                 login_user=login_user,
                 style=style,
                 enabled_image_methods=enabled_image_methods,
+                genre=genre,
+                language_style=language_style,
+                word_count=word_count,
             )
 
         async with self.db.transaction():
@@ -152,19 +166,26 @@ class ArticleService:
                 login_user=login_user,
                 style=style,
                 enabled_image_methods=enabled_image_methods,
+                genre=genre,
+                language_style=language_style,
+                word_count=word_count,
             )
 
 
     def get_creation_options(self) -> CreationOptionsVO:
-        """获取创作页可选项：文章风格（全量枚举）+ 配图方式（仅已注册可用的方法）。
+        """获取创作页可选项：题材 / 语言风格 + 配图方式（仅已注册可用的方法）。
 
-        enums.ArticleStyleEnum / ImageMethodEnum 提供 label 与 description 中文文案，
-        而非在此处硬编码；配图方式直接取策略器 service_map 已注册集合，
-        保证与实际可用能力始终一致。
+        题材/语言风格枚举（ArticleGenreEnum / ArticleLanguageStyleEnum）提供 label 与
+        description 中文文案，而非在此处硬编码；旧文章风格（ArticleStyleEnum）已弃用，不再返回。
+        配图方式直接取策略器 service_map 已注册集合，保证与实际可用能力始终一致。
         """
-        styles = [
+        genres = [
+            OptionItem(value=g.value, label=g.label, description=g.description) # pyright: ignore[reportCallIssue]
+            for g in ArticleGenreEnum
+        ]
+        language_styles = [
             OptionItem(value=s.value, label=s.label, description=s.description) # pyright: ignore[reportCallIssue]
-            for s in ArticleStyleEnum
+            for s in ArticleLanguageStyleEnum
         ]
         image_methods = [
             OptionItem(
@@ -175,7 +196,11 @@ class ArticleService:
             )
             for m in self._get_enabled_image_methods()
         ]
-        return CreationOptionsVO(styles=styles, imageMethods=image_methods)
+        return CreationOptionsVO(
+            genres=genres,
+            languageStyles=language_styles,
+            imageMethods=image_methods,
+        )
 
 
     async def update_article_status(
@@ -276,7 +301,10 @@ class ArticleService:
             userId=article_dict["userId"],
             topic=article_dict["topic"],
             userDescription=article_dict.get("userDescription"),    # 后期新增
-            style=article_dict.get("style"),                        # 后期新增
+            style=article_dict.get("style"),                        # 已弃用，保留兼容
+            genre=article_dict.get("genre"),                        # 新增：题材
+            languageStyle=article_dict.get("languageStyle"),        # 新增：语言风格
+            wordCount=article_dict.get("wordCount"),                # 新增：目标字数
             mainTitle=article_dict.get("mainTitle"),
             subTitle=article_dict.get("subTitle"),
             titleOptions=title_options,                             # 后期新增

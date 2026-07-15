@@ -35,6 +35,7 @@ class SseMessageTypeEnum(str, Enum):
     OUTLINE_GENERATED = "OUTLINE_GENERATED" # 大纲生成完成，等待用户编辑
     AI_MODIFY_OUTLINE_COMPLETE = "AI_MODIFY_OUTLINE_COMPLETE"  # AI 修改大纲完成
     AI_MODIFY_OUTLINE_FAILED = "AI_MODIFY_OUTLINE_FAILED"     # AI 修改大纲失败
+    RESEARCH_COMPLETE = "RESEARCH_COMPLETE"   # 信息采集完成（新闻题材）
 
     def get_streaming_prefix(self) -> str:
         """获取流式输出消息前缀"""
@@ -93,8 +94,9 @@ class ImageMethodEnum(str, Enum):
 
 
 class ArticleStyleEnum(str, Enum):
-    """文章风格枚举
+    """文章风格枚举（已弃用，保留以兼容存量数据）
 
+    @deprecated 已被 ArticleGenreEnum + ArticleLanguageStyleEnum 取代，新流程不再写入/读取 style 列。
     每个成员形如 (value, label, description)，value 保持向后兼容。
     创作页"默认"项由前端写死，对应 style=null（后端走通用爆款风格），故此处不含"默认"。
     """
@@ -117,6 +119,75 @@ class ArticleStyleEnum(str, Enum):
     @classmethod
     def is_valid(cls, value: Optional[str]) -> bool:
         """校验是否为有效的风格值"""
+        if not value:
+            return True  # 允许为空
+        return value in [e.value for e in cls]
+
+
+class ArticleGenreEnum(str, Enum):
+    """文章题材枚举（决定全文基调、提示词，以及是否走信息采集）
+
+    每个成员形如 (value, label, description)，value 保持向后兼容。
+    创作页"默认"项由前端写死，对应 genre=null（后端走通用爆款基调），故此处不含"默认"。
+    仅 NEWS 题材在 bootstrap 后触发信息采集节点。
+    """
+
+    label: str
+    description: str
+
+    NEWS = "news", "新闻", "聚焦时事热点，强调时效与事实来源"
+    KNOWLEDGE = "knowledge", "知识科普", "讲解专业概念，深入浅出传播知识"
+    PRODUCT = "product", "产品介绍", "突出卖点与价值，引导用户理解产品"
+    TUTORIAL = "tutorial", "教程指南", "按步骤讲解操作方法，便于上手实操"
+    OPINION = "opinion", "观点评论", "表达独立观点，有论证有立场"
+    STORY = "story", "故事叙事", "以叙事打动读者，重情节与代入"
+
+    def __new__(cls, value: str, label: str = "", description: str = ""):
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj.label = label
+        obj.description = description
+        return obj
+
+    @classmethod
+    def is_valid(cls, value: Optional[str]) -> bool:
+        """校验是否为有效的题材值"""
+        if not value:
+            return True  # 允许为空
+        return value in [e.value for e in cls]
+
+    @classmethod
+    def is_news(cls, value: Optional[str]) -> bool:
+        """是否为新闻题材（触发信息采集）"""
+        return value == cls.NEWS.value
+
+
+class ArticleLanguageStyleEnum(str, Enum):
+    """语言风格枚举（附加到正文/大纲提示词的语气特质，取代旧文章风格 style）
+
+    每个成员形如 (value, label, description)，value 保持向后兼容。
+    创作页"默认"项由前端写死，对应 language_style=null（后端走通用语气），故此处不含"默认"。
+    """
+
+    label: str
+    description: str
+
+    PROFESSIONAL = "professional", "专业严谨", "用词规范、术语准确、逻辑严密"
+    ACCESSIBLE = "accessible", "通俗易懂", "口语化表达、少术语、贴近大众"
+    HUMOROUS = "humorous", "活泼幽默", "轻松风趣、善用比喻与网络梗"
+    LITERARY = "literary", "文艺抒情", "语言优美、重意境与情感渲染"
+    FORMAL = "formal", "正式客观", "中立克制、陈述事实、避免主观"
+
+    def __new__(cls, value: str, label: str = "", description: str = ""):
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj.label = label
+        obj.description = description
+        return obj
+
+    @classmethod
+    def is_valid(cls, value: Optional[str]) -> bool:
+        """校验是否为有效的语言风格值"""
         if not value:
             return True  # 允许为空
         return value in [e.value for e in cls]

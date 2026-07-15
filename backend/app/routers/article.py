@@ -33,20 +33,29 @@ async def create_article(
     )
     
     service = ArticleService(db)
-    
+
     # 检查并消耗配额 + 创建文章任务（在同一事务中）
     task_id = await service.create_article_task_with_quota_check(
         request.topic,
         current_user,
         request.style,
-        request.enabled_image_methods
+        request.enabled_image_methods,
+        request.genre,
+        request.language_style,
+        request.word_count,
     )
-    
+
     # 异步执行阶段1：生成标题方案（LangGraph 编排，跑到 confirm_title 后 interrupt）
+    # 字数兜底：用户未填走默认 2000；新闻题材由条件边走信息采集节点
+    word_count = request.word_count if request.word_count else 2000
     task = asyncio.create_task(
         article_async_service.start(
             task_id,
             request.topic,
+            request.genre,
+            request.language_style,
+            word_count,
+            request.enabled_image_methods,
             request.style,
         )
     )
@@ -145,7 +154,7 @@ async def get_creation_options(
     db: Database = Depends(get_db),
     current_user: LoginUserVO = Depends(require_login)
 ):
-    """获取创作页可选项（文章风格 / 配图方式），供前端动态渲染，避免硬编码"""
+    """获取创作页可选项（题材 / 语言风格 / 配图方式），供前端动态渲染，避免硬编码"""
     service = ArticleService(db)
     data = service.get_creation_options()
     return BaseResponse.success(data=data)

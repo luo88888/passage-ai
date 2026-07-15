@@ -41,7 +41,9 @@ from app.graph.constants import (
     NODE_IMAGE_ANALYZER,
     NODE_IMAGE_GENERATOR,
     NODE_MERGER,
+    NODE_RESEARCH,
 )
+from app.graph.edges.bootstrap_routing import route_after_bootstrap
 from app.graph.nodes import (
     ai_modify_outline_node,
     bootstrap_node,
@@ -53,6 +55,7 @@ from app.graph.nodes import (
     image_analyzer_node,
     image_generator_node,
     outline_node,
+    research_node,
     title_node,
 )
 from app.graph.state import ArticleState
@@ -86,6 +89,8 @@ def build_article_graph(checkpointer: "AsyncSqliteSaver | None") -> "CompiledSta
     workflow.add_node(NODE_CONFIRM_OUTLINE, confirm_outline_node)
     workflow.add_node(NODE_FINALIZE, finalize_node)
     workflow.add_node(NODE_AI_MODIFY_OUTLINE, ai_modify_outline_node)
+    # 信息采集节点（新闻题材专用，bootstrap 后由条件边路由进入，纯 agent + 写图状态 + 发 SSE）
+    workflow.add_node(NODE_RESEARCH, research_node)
     # 智能体节点（跑 agent + emit 完成 SSE）
     workflow.add_node(NODE_GENERATE_TITLE, title_node)
     workflow.add_node(NODE_GENERATE_OUTLINE, outline_node)
@@ -96,7 +101,13 @@ def build_article_graph(checkpointer: "AsyncSqliteSaver | None") -> "CompiledSta
 
     # ==================== 顺序边 ====================
     workflow.add_edge(START, NODE_BOOTSTRAP)
-    workflow.add_edge(NODE_BOOTSTRAP, NODE_GENERATE_TITLE)
+    # bootstrap 后按题材分流：新闻题材走信息采集，采集完再生标题；其余直接生成标题
+    workflow.add_conditional_edges(
+        NODE_BOOTSTRAP,
+        route_after_bootstrap,
+        {NODE_RESEARCH: NODE_RESEARCH, NODE_GENERATE_TITLE: NODE_GENERATE_TITLE},
+    )
+    workflow.add_edge(NODE_RESEARCH, NODE_GENERATE_TITLE)            # 信息采集后统一进标题生成
     workflow.add_edge(NODE_GENERATE_TITLE, NODE_CONFIRM_TITLE)          # confirm_title 后 interrupt
     workflow.add_edge(NODE_CONFIRM_TITLE, NODE_GENERATE_OUTLINE)
     workflow.add_edge(NODE_GENERATE_OUTLINE, NODE_CONFIRM_OUTLINE)      # confirm_outline 后 interrupt

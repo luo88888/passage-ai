@@ -106,6 +106,43 @@ class Settings(BaseSettings):
     agent_image_max_concurrency: int = 3
     agent_image_fail_fast: bool = True
 
+    # ===================== LLM 模型配置 ======================
+    default_llm_provider: str = "Xiaomi"
+    default_model: str = "mimo-v2.5"
+
+    # Serper 搜索 API（信息采集 Agent 用）
+    serper_api_key: str = ""
+
+    # ===================== Agent 配置 ========================
+
+    # ---------- 信息采集 Agent（information_collector） ----------
+    # 主 Agent（搜索规划 + 筛选），通常用较贵、带思考的模型
+    info_collector_main_provider: str = "Xiaomi"
+    info_collector_main_model: str = "mimo-v2.5-pro"
+    info_collector_main_temperature: float = 0.2
+    info_collector_main_thinking: bool = True
+    info_collector_main_reasoning_effort: str = "high"
+
+    # 子 Agent（单篇文章摘要），用轻量模型即可
+    info_collector_sub_provider: str = "Xiaomi"
+    info_collector_sub_model: str = "mimo-v2.5"
+    info_collector_sub_temperature: float = 0.1
+
+    # 工具调用次数限制（兜底防失控）
+    info_collector_serper_tool_limit: int = 5      # serper_search 单工具调用上限
+    info_collector_extract_tool_limit: int = 10     # extract_article_content 单工具调用上限
+    info_collector_global_tool_limit: int = 20     # 全局工具调用上限（兜底）
+    info_collector_thread_limit: int = 40           # 线程级步数上限
+
+    # 选文 / 返回数量范围
+    info_collector_article_count_min: int = 1       # 选文数量下限
+    info_collector_article_count_max: int = 10       # 选文数量上限
+    info_collector_relevant_news_count: int = 10     # 最终返回的相关新闻数上限
+
+    # 并行与上下文保护
+    info_collector_max_concurrency: int = 5         # batch_extract_articles 最大并行数
+    info_collector_max_content_chars: int = 30000   # 单篇文章抓取后截断长度
+    info_collector_serper_num: int = 10             # Serper 单次返回结果数
 
     @property
     def database_url(self) -> str:

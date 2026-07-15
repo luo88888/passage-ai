@@ -80,7 +80,8 @@ class ImageAnalyzerAgent(BaseAgent):
             content=state.content or "",
             imageMethodsGuide=methods_guide,
         )
-        prompt += self._get_style_prompt(state.style)
+        prompt += self._get_genre_prompt(state.genre)
+        prompt += self._get_language_style_prompt(state.language_style)
 
         async with self._agent_log_context(
             task_id=state.task_id,

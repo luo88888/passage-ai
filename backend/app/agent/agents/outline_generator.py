@@ -30,10 +30,13 @@ class OutlineGeneratorAgent(BaseAgent):
             PromptConstant.AGENT2_OUTLINE_PROMPT.format(
                 mainTitle=state.title.main_title,   # type: ignore
                 subTitle=state.title.sub_title,     # type: ignore
-                descriptionSection=description_section
+                descriptionSection=description_section,
+                targetWordCount=state.word_count or 2000,
             )
         )
-        prompt += self._get_style_prompt(state.style)
+        prompt += self._get_genre_prompt(state.genre)
+        prompt += self._get_language_style_prompt(state.language_style)
+        prompt += self._get_news_context_prompt(state.collected_news)
 
         async with self._agent_log_context(
             task_id=state.task_id,

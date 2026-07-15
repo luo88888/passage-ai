@@ -11,7 +11,12 @@ from typing import TYPE_CHECKING, Callable, Optional
 from openai import AsyncOpenAI
 
 from app.constants.prompt import PromptConstant
-from app.models.enums import ArticleStyleEnum, SseMessageTypeEnum
+from app.models.enums import (
+    ArticleGenreEnum,
+    ArticleLanguageStyleEnum,
+    ArticleStyleEnum,
+    SseMessageTypeEnum,
+)
 from app.utils.logger import logger
 
 if TYPE_CHECKING:
@@ -194,11 +199,14 @@ class BaseAgent:
             logger.error(f"{name}解析失败, content={content}, error={e}")
             raise RuntimeError(f"{name}解析失败")
 
-    # ==================== 风格 Prompt ====================
+    # ==================== 链路与风格 Prompt ====================
 
     @staticmethod
     def _get_style_prompt(style: Optional[str]) -> str:
-        """根据风格获取对应的 Prompt 附加内容"""
+        """根据（已弃用的）文章风格获取对应的 Prompt 附加内容
+
+        @deprecated 保留以兼容旧文章路径；新流程请用 _get_genre_prompt / _get_language_style_prompt。
+        """
         if not style:
             return ""
         try:
@@ -212,6 +220,59 @@ class BaseAgent:
             return style_map.get(style_enum, "")
         except ValueError:
             return ""
+
+    @staticmethod
+    def _get_genre_prompt(genre: Optional[str]) -> str:
+        """根据题材获取对应的 Prompt 附加内容（决定全文基调与结构）"""
+        if not genre:
+            return ""
+        try:
+            genre_enum = ArticleGenreEnum(genre)
+            genre_map = {
+                ArticleGenreEnum.NEWS: PromptConstant.GENRE_NEWS_PROMPT,
+                ArticleGenreEnum.KNOWLEDGE: PromptConstant.GENRE_KNOWLEDGE_PROMPT,
+                ArticleGenreEnum.PRODUCT: PromptConstant.GENRE_PRODUCT_PROMPT,
+                ArticleGenreEnum.TUTORIAL: PromptConstant.GENRE_TUTORIAL_PROMPT,
+                ArticleGenreEnum.OPINION: PromptConstant.GENRE_OPINION_PROMPT,
+                ArticleGenreEnum.STORY: PromptConstant.GENRE_STORY_PROMPT,
+            }
+            text = genre_map.get(genre_enum, "")
+            if text:
+                return f"========== 文章题材要求 ==========\n{text}\n\n"
+            return ""
+        except ValueError:
+            return ""
+
+    @staticmethod
+    def _get_language_style_prompt(language_style: Optional[str]) -> str:
+        """根据语言风格获取对应的 Prompt 附加内容（决定语气特质，取代旧文章风格）"""
+        if not language_style:
+            return ""
+        try:
+            style_enum = ArticleLanguageStyleEnum(language_style)
+            style_map = {
+                ArticleLanguageStyleEnum.PROFESSIONAL: PromptConstant.LANGUAGE_STYLE_PROFESSIONAL,
+                ArticleLanguageStyleEnum.ACCESSIBLE: PromptConstant.LANGUAGE_STYLE_ACCESSIBLE,
+                ArticleLanguageStyleEnum.HUMOROUS: PromptConstant.LANGUAGE_STYLE_HUMOROUS,
+                ArticleLanguageStyleEnum.LITERARY: PromptConstant.LANGUAGE_STYLE_LITERARY,
+                ArticleLanguageStyleEnum.FORMAL: PromptConstant.LANGUAGE_STYLE_FORMAL,
+            }
+            text = style_map.get(style_enum, "")
+            if text:
+                return f"========== 语言风格要求 ==========\n{text}\n\n"
+            return ""
+        except ValueError:
+            return ""
+
+    @staticmethod
+    def _get_news_context_prompt(collected_news: Optional[str]) -> str:
+        """新闻题材信息采集产物的注入片段（非空时追加，供标题/大纲/正文 Agent 参考）"""
+        if not collected_news or not collected_news.strip():
+            return ""
+        return (
+            "========== 参考新闻资料 ==========\n"
+            f"{collected_news.strip()}\n"
+        )
 
     # ==================== 日志上下文管理器（委托给模块级函数） ====================
 

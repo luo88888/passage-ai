@@ -56,12 +56,17 @@ const creating = ref(false)
 const completed = ref(false)
 const errorMsg = ref('')
 
-// 文章风格 / 配图方式 可选项（由后端 /article/options 动态返回，不在前端硬编码）
-// 文章风格为单选：'default' 表示"默认"项（前端写死，后端不返回，提交时映射为 style=null）。
-const styleOptions = ref<CreationOptionItem[]>([])
+// 题材 / 语言风格 / 配图方式 可选项（由后端 /article/options 动态返回，不在前端硬编码）
+// 题材 / 语言风格均为单选：'default' 表示"默认"项（前端写死，后端不返回，提交时映射为 null）。
+const genreOptions = ref<CreationOptionItem[]>([])
+const languageStyleOptions = ref<CreationOptionItem[]>([])
 const imageMethodOptions = ref<CreationOptionItem[]>([])
-const selectedStyle = ref<string>('default')
+const selectedGenre = ref<string>('default')
+const selectedLanguageStyle = ref<string>('default')
 const selectedImageMethods = ref<string[]>([])
+// 目标字数：默认 2000，范围 200~10000，为空走后端默认
+const DEFAULT_WORD_COUNT = 2000
+const targetWordCount = ref<number>(DEFAULT_WORD_COUNT)
 
 // 标题候选阶段数据
 const titleOptions = ref<TitleOption[]>([])
@@ -179,6 +184,8 @@ const resetAll = () => {
   imageUrls.value = []
   images.value = []
   fullContent.value = ''
+  // 重置新输入控件（保留用户已选题材/语言风格/字数，便于连续创作同类型）
+  // —— 这里不重置 selectedGenre/selectedLanguageStyle/wordCount，让用户改字段后点"再创作一篇"即可继续用
 }
 
 // 订阅 SSE（若尚未订阅）。跨阶段复用同一条连接，避免重复订阅。
@@ -208,6 +215,12 @@ const ensureSse = () => {
 const handleSse = (data: SseMessage) => {
   errorMsg.value = ''
   switch (data.type) {
+    case 'RESEARCH_COMPLETE':
+      // 信息采集完成（新闻题材）：仅作信息提示，不影响阶段（标题随后仍点火）
+      if (typeof data.count === 'number' && data.count > 0) {
+        message.info(`信息采集完成，已收集 ${data.count} 条相关新闻`)
+      }
+      break
     case 'AGENT1_COMPLETE':
       // 兼容性兜底：部分实现可能仅发 AGENT1_COMPLETE，提前拿到候选
       if (data.titleOptions?.length) titleOptions.value = data.titleOptions
@@ -323,13 +336,15 @@ const fetchCreationOptions = async () => {
     const res = await getCreationOptions()
     const data = res.data?.data
     if (res.data.code === 0 && data) {
-      styleOptions.value = data.styles || []
+      genreOptions.value = data.genres || []
+      languageStyleOptions.value = data.languageStyles || []
       imageMethodOptions.value = data.imageMethods || []
     }
   } catch (e) {
-    // 兜底：接口失败则不展示选项，提交时走后端默认（style=null、enabledImageMethods=null）
+    // 兜底：接口失败则不展示选项，提交时走后端默认（genre=null、languageStyle=null、enabledImageMethods=null）
     console.warn('拉取创作选项失败:', e)
-    styleOptions.value = []
+    genreOptions.value = []
+    languageStyleOptions.value = []
     imageMethodOptions.value = []
   }
 }
@@ -341,8 +356,10 @@ const startGenerate = async () => {
   creating.value = true
   errorMsg.value = ''
   try {
-    // style: 'default' 映射为 null（后端走通用爆款风格）；enabledImageMethods: 空数组映射为 null（全部可用）
-    const style = selectedStyle.value === 'default' ? null : selectedStyle.value
+    // 题材/语言风格: 'default' 映射为 null（走后端通用基调）；字数兜底到默认 2000；enabledImageMethods: 空数组映射为 null（全部可用）
+    const genre = selectedGenre.value === 'default' ? null : selectedGenre.value
+    const languageStyle = selectedLanguageStyle.value === 'default' ? null : selectedLanguageStyle.value
+    const wc = targetWordCount.value ? targetWordCount.value : undefined
     // 过滤掉对当前用户锁定的会员专属配图方式，避免误提交后被后端拦截
     const allowedMethods = selectedImageMethods.value.filter(
       (m) => !imageMethodOptions.value.find((o) => o.value === m)?.vipOnly || isVipUser.value
@@ -350,7 +367,9 @@ const startGenerate = async () => {
     const enabledImageMethods = allowedMethods.length > 0 ? allowedMethods : null
     const res = await createArticle({
       topic: topic.value.trim(),
-      style,
+      genre,
+      languageStyle,
+      wordCount: wc,
       enabledImageMethods,
     } as any)
     if (res.data.code !== 0 || !res.data.data) {
@@ -652,20 +671,53 @@ onBeforeUnmount(() => {
             :auto-size="{ minRows: 6 }"
             @pressEnter="startGenerate"
           />
-          <!-- 文章风格：单选（含"默认"，默认项提交时映射为 null） -->
-          <div v-if="styleOptions.length" class="option-group">
+          <!-- 题材：单选（含"默认"，默认项提交时映射为 null） -->
+          <div v-if="genreOptions.length" class="option-group">
             <div class="option-head">
-              <span class="option-title">文章风格</span>
-              <span class="option-hint">（可选风格，单选，默认走通用爆款风格）</span>
+              <span class="option-title">题材</span>
+              <span class="option-hint">（可选题材，单选，决定文章基调与结构；新闻题材将先采集相关资讯）</span>
             </div>
-            <a-radio-group v-model:value="selectedStyle" class="option-options">
+            <a-radio-group v-model:value="selectedGenre" class="option-options">
               <a-radio-button value="default">默认</a-radio-button>
               <a-radio-button
-                v-for="item in styleOptions"
+                v-for="item in genreOptions"
                 :key="item.value"
                 :value="item.value"
               >{{ item.label }}</a-radio-button>
             </a-radio-group>
+          </div>
+
+          <!-- 语言风格：单选（含"默认"，默认项提交时映射为 null） -->
+          <div v-if="languageStyleOptions.length" class="option-group">
+            <div class="option-head">
+              <span class="option-title">语言风格</span>
+              <span class="option-hint">（可选风格，单选，决定语言语气特质）</span>
+            </div>
+            <a-radio-group v-model:value="selectedLanguageStyle" class="option-options">
+              <a-radio-button value="default">默认</a-radio-button>
+              <a-radio-button
+                v-for="item in languageStyleOptions"
+                :key="item.value"
+                :value="item.value"
+              >{{ item.label }}</a-radio-button>
+            </a-radio-group>
+          </div>
+
+          <!-- 目标字数：数字输入（默认 2000，范围 200~10000） -->
+          <div class="option-group">
+            <div class="option-head">
+              <span class="option-title">目标字数</span>
+              <span class="option-hint">（决定大纲各章节字数分配，上限 10000）</span>
+            </div>
+            <a-input-number
+              v-model:value="targetWordCount"
+              class="option-wordcount"
+              :min="200"
+              :max="10000"
+              :step="100"
+              :precision="0"
+              placeholder="目标字数"
+            />
           </div>
 
           <!-- 配图方式：多选（不选则使用全部可用方式） -->
@@ -944,7 +996,10 @@ onBeforeUnmount(() => {
             <!-- 优先结构化大纲 -->
             <div v-if="outline.length" class="outline-struct">
               <div v-for="item in outline" :key="item.section" class="outline-block">
-                <div class="outline-block-title">{{ item.section }}. {{ item.title }}</div>
+                <div class="outline-block-title">
+                  {{ item.section }}. {{ item.title }}
+                  <span v-if="item.word_count" class="outline-block-word">约 {{ item.word_count }} 字</span>
+                </div>
                 <ul class="outline-points">
                   <li v-for="(p, i) in item.points" :key="i">{{ p }}</li>
                 </ul>
@@ -1257,6 +1312,10 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 10px;
 }
+.option-wordcount {
+  width: 200px;
+  border-radius: var(--radius-md);
+}
 .option-check {
   margin-inline-start: 0 !important;
 }
@@ -1461,6 +1520,15 @@ onBeforeUnmount(() => {
   font-weight: 600;
   color: var(--color-text);
   margin-bottom: 8px;
+}
+.outline-block-word {
+  margin-inline-start: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  background: var(--color-background-tertiary);
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
 }
 .outline-points {
   margin: 0;

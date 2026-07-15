@@ -1,6 +1,6 @@
 """Article ORM 模型"""
 
-from sqlalchemy import Column, BigInteger, String, DateTime, SmallInteger, Text
+from sqlalchemy import Column, BigInteger, String, DateTime, SmallInteger, Text, Integer
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -28,10 +28,13 @@ class Article(Base):
     completed_time = Column("completedTime", DateTime, nullable=True, comment="完成时间")
     update_time = Column("updateTime", DateTime, nullable=False, default=func.now(), onupdate=func.now(), comment="更新时间")
     is_delete = Column("isDelete", SmallInteger, nullable=False, default=0, comment="是否删除")
-    style = Column(String(20), nullable=True, comment="文章风格：tech/emotional/educational/humorous")
+    style = Column(String(20), nullable=True, comment="文章风格：tech/emotional/educational/humorous（已弃用，保留兼容存量数据）")
     user_description = Column("userDescription", Text, nullable=True, comment="用户补充描述")
     enabled_image_methods = Column("enabledImageMethods", Text, nullable=True, comment="允许的配图方式列表（JSON格式）")
     title_options = Column("titleOptions", Text, nullable=True, comment="标题方案列表（JSON格式）")
+    genre = Column("genre", String(20), nullable=True, comment="题材：news/knowledge/product/tutorial/opinion/story")
+    language_style = Column("languageStyle", String(20), nullable=True, comment="语言风格：professional/accessible/humorous/literary/formal")
+    word_count = Column("wordCount", Integer, nullable=True, comment="目标字数（<=10000）")
     phase = Column(
         String(40),
         nullable=False,

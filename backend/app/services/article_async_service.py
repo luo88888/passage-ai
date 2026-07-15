@@ -66,19 +66,30 @@ class ArticleAsyncService:
         self,
         task_id: str,
         topic: str,
+        genre: Optional[str] = None,
+        language_style: Optional[str] = None,
+        word_count: Optional[int] = None,
+        enabled_image_methods: Optional[list] = None,
         style: Optional[str] = None,
     ) -> None:
         """启动文章生成：建初始 state → ainvoke 跑到 confirm_title 后 interrupt
 
-        bootstrap 节点标记 PROCESSING + TITLE_GENERATING，generate_title 节点生成标题方案，
-        confirm_title 节点落库 + 发 TITLE_GENERATED，随后图暂停等用户确认标题。
+        bootstrap 节点标记 PROCESSING + TITLE_GENERATING（新闻题材经条件边先过信息采集），
+        generate_title 节点生成标题方案，confirm_title 节点落库 + 发 TITLE_GENERATED，随后图暂停等用户确认标题。
         本方法不做任何 DB/SSE 副作用（全在节点里），失败走 _handle_failure。
         """
-        logger.info("启动文章生成任务, taskId=%s, topic=%s, style=%s", task_id, topic, style)
+        logger.info(
+            "启动文章生成任务, taskId=%s, topic=%s, genre=%s, wordCount=%s",
+            task_id, topic, genre, word_count,
+        )
         try:
-            initial_state = {
+            initial_state: Dict[str, Any] = {
                 "task_id": task_id,
                 "topic": topic,
+                "genre": genre,
+                "language_style": language_style,
+                "word_count": word_count,
+                "enabled_image_methods": enabled_image_methods,
                 "style": style,
             }
             graph = self._get_graph()

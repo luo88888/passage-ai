@@ -24,6 +24,7 @@ export type SseMessageType =
   | 'ALL_COMPLETE'
   | 'AI_MODIFY_OUTLINE_COMPLETE' // AI 修改大纲完成（不关流）
   | 'AI_MODIFY_OUTLINE_FAILED' // AI 修改大纲失败（不关流）
+  | 'RESEARCH_COMPLETE' // 信息采集完成（新闻题材，不关流）
   | 'ERROR'
 
 /** 标题候选（AGENT1_COMPLETE / TITLE_GENERATED 携带） */
@@ -32,11 +33,15 @@ export interface TitleOption {
   subTitle: string
 }
 
-/** 大纲章节（AGENT2_COMPLETE / OUTLINE_GENERATED 携带，后端 OutlineSection 无 alias，字段为 snake_case） */
+/** 大纲章节（AGENT2_COMPLETE / OUTLINE_GENERATED 携带，后端 OutlineSection.model_dump() 无 alias，字段为 snake_case） */
 export interface OutlineSection {
   section: number
   title: string
   points: string[]
+  // 本章目标字数：后端落库/SSE 下发为 snake_case word_count（无 alias 的 model_dump()）
+  // —— 前端提交确认大纲时可回传 wordCount(camel)，Pydantic 经 populate_by_name 兼容双键。
+  word_count?: number
+  wordCount?: number
 }
 
 /** 配图结果（IMAGE_COMPLETE 的 content 经 JSON.parse / AGENT5_COMPLETE 携带，camelCase） */
@@ -69,6 +74,8 @@ export interface SseMessage {
   taskId?: string
   // ERROR / AI_MODIFY_OUTLINE_FAILED
   message?: string
+  // RESEARCH_COMPLETE：信息采集完成（新闻题材），携带采集到的相关新闻条数
+  count?: number
 }
 
 export interface SseHandlers {

@@ -116,7 +116,8 @@ export interface CreationOptionItem {
   vipOnly?: boolean
 }
 export interface CreationOptionsVO {
-  styles: CreationOptionItem[]
+  genres: CreationOptionItem[]
+  languageStyles: CreationOptionItem[]
   imageMethods: CreationOptionItem[]
 }
 

@@ -58,16 +58,20 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
         ensure_ascii=False,
     )
 
+    target_word_count = state.get("word_count") or 2000
     prompt = (
         PromptConstant.AI_MODIFY_OUTLINE_PROMPT
         .replace("{mainTitle}", main_title)
         .replace("{subTitle}", sub_title)
         .replace("{currentOutline}", current_outline_json)
         .replace("{modifySuggestion}", state.get("modify_suggestion") or "")
+        .replace("{targetWordCount}", str(target_word_count))
     )
 
     # 复用编排器单例持有的 title_agent（仅借用 BaseAgent 共享方法，非 title 语义）
     agent = get_orchestrator().title_agent
+    # 注入语言风格提示词（与 outline 节点保持一致），使修改后大纲同样贴合语气取向
+    prompt += agent._get_language_style_prompt(state.get("language_style"))
 
     try:
         with agent._agent_log_context_sync(

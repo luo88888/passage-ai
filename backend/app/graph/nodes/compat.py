@@ -39,6 +39,10 @@ def to_class_state(dict_state: DictArticleState) -> ClassArticleState:
     state.task_id = dict_state.get("task_id")
     state.topic = dict_state.get("topic")
     state.style = dict_state.get("style")
+    state.genre = dict_state.get("genre")
+    state.language_style = dict_state.get("language_style")
+    state.word_count = dict_state.get("word_count")
+    state.collected_news = dict_state.get("collected_news")
     state.user_description = dict_state.get("user_description")
     state.content = dict_state.get("content")
     state.full_content = dict_state.get("full_content")
@@ -86,6 +90,10 @@ def merge_to_dict_state(updated_class_state: ClassArticleState) -> dict:
         "task_id": updated_class_state.task_id,
         "topic": updated_class_state.topic,
         "style": updated_class_state.style,
+        "genre": updated_class_state.genre,
+        "language_style": updated_class_state.language_style,
+        "word_count": updated_class_state.word_count,
+        "collected_news": updated_class_state.collected_news,
         "user_description": updated_class_state.user_description,
         "title": (
             updated_class_state.title.model_dump(by_alias=True)

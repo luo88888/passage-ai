@@ -13,13 +13,19 @@ class TitleGeneratorAgent(BaseAgent):
     async def run(self, state: ArticleState):
         """生成 3-5 个标题方案，填充 state.title_options"""
         prompt = PromptConstant.AGENT1_TITLE_PROMPT.format(topic=state.topic)
-        prompt += self._get_style_prompt(state.style)
+        prompt += self._get_genre_prompt(state.genre)
+        prompt += self._get_language_style_prompt(state.language_style)
+        prompt += self._get_news_context_prompt(state.collected_news)
 
         async with self._agent_log_context(
             task_id=state.task_id,
             agent_name="agent1_generate_titles",
             prompt=prompt,
-            input_data={"topic": state.topic, "style": state.style},
+            input_data={
+                "topic": state.topic,
+                "genre": state.genre,
+                "hasCollectedNews": bool(state.collected_news and state.collected_news.strip()),
+            },
         ) as log_data:
             content = await self._call_llm(prompt)
             title_options_data = self._parse_json_list_response(content, "标题方案")

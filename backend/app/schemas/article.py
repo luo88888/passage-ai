@@ -13,7 +13,10 @@ class ArticleCreateRequest(BaseModel):
     """创建文章请求"""
 
     topic: str = Field(..., min_length=1, description="选题")
-    style: Optional[str] = Field(None, description="文章风格：tech/emotional/educational/humorous")
+    style: Optional[str] = Field(None, description="文章风格（已弃用，保留兼容前端旧请求）")
+    genre: Optional[str] = Field(None, description="题材：news/knowledge/product/tutorial/opinion/story")
+    language_style: Optional[str] = Field(None, alias="languageStyle", description="语言风格：professional/accessible/humorous/literary/formal")
+    word_count: Optional[int] = Field(None, alias="wordCount", ge=200, le=10000, description="目标字数（<=10000，为空走默认 2000）")
     enabled_image_methods: Optional[List[str]] = Field(None, alias="enabledImageMethods", description="允许使用的配图方式列表（为空表示可以使用全部方式）")
 
     class Config:
@@ -33,10 +36,11 @@ class OptionItem(BaseModel):
 
 
 class CreationOptionsVO(BaseModel):
-    """创作页可选项：文章风格 / 配图方式"""
+    """创作页可选项：题材 / 语言风格 / 配图方式"""
 
-    styles: List[OptionItem]
-    image_methods: List[OptionItem] = Field(..., alias="imageMethods")
+    genres: List[OptionItem] = Field(default_factory=list, description="题材可选项")
+    language_styles: List[OptionItem] = Field(..., alias="languageStyles", description="语言风格可选项")
+    image_methods: List[OptionItem] = Field(..., alias="imageMethods", description="配图方式可选项")
 
     class Config:
         populate_by_name = True
@@ -80,6 +84,10 @@ class OutlineSection(BaseModel):
     section: int
     title: str
     points: List[str]
+    word_count: Optional[int] = Field(None, alias="wordCount", description="本章目标字数（由大纲生成/用户编辑，驱动正文逐章字数）")
+
+    class Config:
+        populate_by_name = True
 
 
 class ArticleConfirmOutlineRequest(BaseModel):
@@ -114,6 +122,9 @@ class ArticleVO(BaseModel):
     topic: str
     user_description: Optional[str] = Field(None, alias="userDescription")
     style: Optional[str] = None
+    genre: Optional[str] = None
+    language_style: Optional[str] = Field(None, alias="languageStyle")
+    word_count: Optional[int] = Field(None, alias="wordCount")
     main_title: Optional[str] = Field(None, alias="mainTitle")
     sub_title: Optional[str] = Field(None, alias="subTitle")
     title_options: Optional[List[TitleOption]] = Field(None, alias="titleOptions")
@@ -206,6 +217,11 @@ class ArticleState:
         self.cover_image: Optional[str] = None
         self.full_content: Optional[str] = None                             # 图文合并的最终结果
         self.enabled_image_methods: Optional[List[str]] = None              # 可使用的配图方式
-        self.style: Optional[str] = None                                    # 文章风格
+        self.style: Optional[str] = None                                    # 文章风格（已弃用，保留兼容）
         self.title_options: Optional[List[TitleOption]] = None              # 标题方案
         self.user_description: Optional[str] = None                         # 用户补充描述
+        # 新增创作控制字段
+        self.genre: Optional[str] = None                                    # 题材（驱动提示词/是否采集）
+        self.language_style: Optional[str] = None                           # 语言风格（驱动提示词语气）
+        self.word_count: Optional[int] = None                               # 目标字数
+        self.collected_news: Optional[str] = None                           # 信息采集产物（供提示词注入的摘要文本）

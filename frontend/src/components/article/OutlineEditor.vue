@@ -7,8 +7,10 @@
  * 2. 拖拽排序：章节、要点均支持拖拽调整顺序（vuedraggable@4）
  * 3. AI 助手：用自然语言描述修改意图，后端 AI 返回新大纲整体替换
  *
- * 数据结构（与后端 OutlineSection 对齐，snake_case）：
- *   { section: number, title: string, points: string[] }
+ * 数据结构（与后端 OutlineSection 对齐）：
+ *   { section: number, title: string, points: string[], word_count?: number }
+ *   注：后端 OutlineSection.model_dump() 无 alias，落库/SSE 下发为 snake_case word_count；
+ *   提交确认时回传 wordCount(camel)，Pydantic 经 populate_by_name 兼容。
  *
  * 与父组件约定：
  *   - v-model:outline 双向同步大纲数据
@@ -64,7 +66,14 @@ watch(
 )
 
 function cloneOutline(list: OutlineSection[]): OutlineSection[] {
-  return (list || []).map((s) => ({ section: s.section, title: s.title, points: [...(s.points || [])] }))
+  // 保留 word_count（SSE 下发 snake_case）与 wordCount（前端编辑写入 camel）
+  return (list || []).map((s) => ({
+    section: s.section,
+    title: s.title,
+    points: [...(s.points || [])],
+    word_count: s.word_count ?? s.wordCount,
+    wordCount: s.wordCount ?? s.word_count,
+  }))
 }
 
 // 任何本地改动都同步回父组件（v-model 上行）
@@ -82,6 +91,7 @@ const addSection = () => {
     section: localOutline.value.length + 1,
     title: '',
     points: [''],
+    wordCount: undefined,
   })
   syncUp()
 }
@@ -207,6 +217,20 @@ defineExpose({
               placeholder="请输入章节标题"
               @change="onFieldChange"
             />
+            <!-- 本章目标字数（可选，驱动正文逐章篇幅） -->
+            <div class="section-word-count">
+              <span class="word-label">字数</span>
+              <a-input-number
+                v-model:value="element.wordCount"
+                class="word-input"
+                :min="50"
+                :max="10000"
+                :step="50"
+                :precision="0"
+                placeholder="目标字数"
+                @change="onFieldChange"
+              />
+            </div>
             <a-button
               type="text"
               danger
@@ -381,6 +405,20 @@ defineExpose({
 .section-title-input {
   flex: 1;
   font-weight: 600;
+}
+.section-word-count {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.section-word-count .word-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.section-word-count .word-input {
+  width: 96px;
 }
 .section-del {
   flex-shrink: 0;

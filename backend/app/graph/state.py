@@ -25,7 +25,13 @@ class ArticleState(TypedDict, total=False):
     # ==================== 基础元信息 ====================
     task_id: Optional[str]
     topic: Optional[str]                                     # 用户指定选题
-    style: Optional[str]                                     # 文章风格
+    style: Optional[str]                                     # 文章风格（已弃用，保留兼容）
+
+    # ==================== 创作控制输入（新版） ====================
+    genre: Optional[str]                                     # 题材：news/knowledge/product/tutorial/opinion/story
+    language_style: Optional[str]                            # 语言风格：professional/accessible/humorous/literary/formal
+    word_count: Optional[int]                               # 目标字数（<=10000，None 走默认 2000）
+    collected_news: Optional[str]                            # 新闻题材信息采集产物（供标题/大纲/正文提示词注入的摘要文本）
 
     # ==================== 交互式流程输入 ====================
     user_description: Optional[str]                         # 用户补充描述
