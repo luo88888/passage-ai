@@ -32,6 +32,7 @@ class OutlineGeneratorAgent(BaseAgent):
                 subTitle=state.title.sub_title,     # type: ignore
                 descriptionSection=description_section,
                 targetWordCount=state.word_count or 2000,
+                topic=state.topic
             )
         )
         prompt += self._get_genre_prompt(state.genre)

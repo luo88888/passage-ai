@@ -6,9 +6,9 @@ class PromptConstant:
     """Prompt 模板常量"""
     
     # 智能体1：生成标题
-    AGENT1_TITLE_PROMPT = """你是一位文章标题专家，擅长创作文章标题标题。
+    AGENT1_TITLE_PROMPT = """你是一位文章标题专家，擅长创作文章标题。
 
-根据以下选题，生成 3-5 个文章标题方案:
+根据以下选题，生成 3-8 个文章标题方案:
 选题：{topic}
 
 要求:
@@ -17,7 +17,7 @@ class PromptConstant:
 3. 标题要简洁有力，不超过30字
 4. 不同方案要有不同的切入角度
 
-请直接返回 JSON 格式,不要有其他内容:
+请直接返回 JSON 格式，不要有其他内容:
 [
     {{
         "mainTitle": "主标题1",
@@ -37,18 +37,20 @@ class PromptConstant:
 
     # 智能体2：生成大纲
     # 字数已参数化：由调用方传入 targetWordCount，各章节需给出 wordCount（合计约目标字数）
-    AGENT2_OUTLINE_PROMPT = """你是一位专业的文章策划师,擅长设计文章结构。
+    AGENT2_OUTLINE_PROMPT = """你是一位专业的文章策划师，擅长设计文章结构。
 
-根据以下标题,生成文章大纲:
+根据以下信息，生成文章大纲:
 主标题：{mainTitle}
 副标题：{subTitle}
 {descriptionSection}
+用户选题：{topic}
+
 
 要求:
 1. 大纲要有清晰的逻辑结构
-2. 包含开头引入、核心观点(3-5个)、结尾升华
-3. 每个章节要有明确的标题和核心要点(2-3个)
-4. 面向约 {targetWordCount} 字的文章，为每个章节给出 wordCount（本章目标字数），各章 wordCount 合计约等于 {targetWordCount}
+2. 每个章节要有明确的标题和核心要点，宜精不宜多
+3. 面向约 {targetWordCount} 字的文章，为每个章节给出 wordCount（本章目标字数），各章 wordCount 合计约等于 {targetWordCount}
+4. 转义处理：JSON 字段值内部如果包含半角双引号，必须使用反斜杠转义（即 " 替换为 \"），反斜杠替换为 \\。这是防止解析错误的关键，中文引号无需处理。
 
 请直接返回 JSON 格式,不要有其他内容:
 {{
@@ -106,30 +108,35 @@ class PromptConstant:
 """
 
 
-    # 智能体3：生成正文
-    AGENT3_CONTENT_PROMPT = """你是一位资深的内容创作者,擅长撰写优质文章。
+    # 智能体3：生成正文（配图前移：撰文时即插入 <imageN>描述</imageN> 图片标签）
+    AGENT3_CONTENT_PROMPT = """你是一位资深的内容创作者，擅长撰写优质文章。
 
-根据以下大纲,创作文章正文:
+根据以下大纲，创作文章正文:
 主标题：{mainTitle}
 副标题：{subTitle}
 大纲：
 {outline}
 
 要求:
-1. 按大纲各章节的 wordCount 要求撰写，保证达标；全文约 {targetWordCount} 字
-2. 语言流畅,富有感染力
-3. 适当使用金句,增强可读性
-4. 添加过渡句,确保逻辑连贯
-5. 使用 Markdown 格式,章节使用 ## 标题
+1. 按大纲各章节的 wordCount 要求撰写；全文约 {targetWordCount} 字
+2. 使用 Markdown 格式，章节使用 ## 标题
+3. 撰写正文时，按行文需要在合适位置插入图片标签，格式为 <imageN>描述</imageN>：N 为配图序号（1, 2, 3...）严格递增，标签内的"描述"为一句话简短说明该处需要什么图，便于后续据此配图
+4. 图片标签可放在章节标题后、段落之间、或行内任意需要图示的位置；可在标签前后用正文对图片进行讲解或承接，使图文衔接自然
+5. 只能参考下方"可用的配图方式"来撰写描述（例如有 MERMAID / SVG_DIAGRAM 等可画图表的方式时，可将描述写为流程图/示意图需求；有 PEXELS 时可写真实场景照片需求）；不要在标签里指定配图方式，只写需求描述
+6. 封面图不需要在正文里写标签
+7. 配图数量宜精不宜多，避免标签过密打断行文
 
-请直接返回 Markdown 格式的正文内容,不要有其他内容。
+可用的配图方式：
+{imageMethodsGuide}
+
+请直接返回 Markdown 格式的正文内容（含上述 <imageN>描述</imageN> 图片标签），不要有其他内容。
 """
 
 # NOTE: 修改工具时需同步更新提示词
-    # 智能体4：分析配图需求
-    AGENT4_IMAGE_REQUIREMENTS_PROMPT = """你是一位专业的新媒体编辑,擅长为文章配图。
+    # 智能体4：分析配图需求（正文已由 Agent 3 插入 <imageN>描述</imageN> 标签，本智能体据标签映射配图需求）
+    AGENT4_IMAGE_REQUIREMENTS_PROMPT = """你是一位专业的新媒体编辑，擅长为文章配图。
 
-根据以下文章内容,分析配图需求,并在正文中插入图片占位符:
+正文在撰写时已插入图片占位标签 <imageN>描述</imageN>，现需据此分析配图需求。
 主标题：{mainTitle}
 正文：
 {content}
@@ -138,20 +145,16 @@ class PromptConstant:
 {imageMethodsGuide}
 
 要求:
-1. 识别需要配图的位置(封面、关键章节、段落之间等)
-2. 根据文章内容和结构灵活决定配图数量，避免过多或过少
-3. **在正文中插入占位符**：使用以下两种格式
-   - 普通图片占位符：{{IMAGE_PLACEHOLDER_N}}，其中 N 为配图序号（1, 2, 3...），必须独占一行
-   - Icon 占位符：{{ICON_PLACEHOLDER_N}}，可以放在文字行内任意位置（用于 ICONIFY 类型）
-   - 注意：position=1 的封面图不需要占位符，不要放在正文中
-   - 配图占位符可以放在任意合适位置（章节标题后、段落之间、列表项中、文字行内等）
-4. **只能从上述可用的配图方式中选择** imageSource，并参考各方式的用法指南填写 keywords 或 prompt；具体可用的方式与说明见上方"可用的配图方式"列表
-9. placeholderId 必须与正文中插入的占位符完全一致
-10. position=1 为封面图
+1. 逐个识别正文中的 <imageN>描述</imageN> 标签，将其映射为一条配图需求；每条需求的 placeholderId 必须是该标签在正文中出现的**完整字面量**，（例如 <image1>城市夜景真实照片</image1>），后续据此定位替换点，可加入转义字符，以确保 JSON 解析
+2. 根据标签所在位置判定 type：章节标题后/段落之间为 section，文字行内为 inline；根据标签的描述和上下文生成最终的图片需求
+3. 封面图(position=1)不需要正文标签，若正文无封面标签，请主动补一条 position=1、type=cover、sectionTitle 为空、placeholderId 为空的需求
+4. position 按封面(1)→正文标签序号(2,3,...)顺延；**只能从上述可用的配图方式中选择** imageSource，并参考各方式的用法指南填写 keywords 或 prompt
+5. 配图数量宜精不宜多，避免标签过密打断行文
+6. 转义处理：JSON 字段值内部如果包含半角双引号，必须使用反斜杠转义（即 " 替换为 \"），反斜杠替换为 \\。这是防止解析错误的关键，中文引号无需处理。
+7. JSON 结果中所有键必须存在，keywords 或 prompt 为空时也要保留键
 
-请直接返回 JSON 格式,不要有其他内容:
+请直接返回 JSON 格式，不要有其他内容:
 {{
-  "contentWithPlaceholders": "## 章节标题1\\n\\n正文内容...\\n\\n{{IMAGE_PLACEHOLDER_1}}\\n\\n## 章节标题2\\n\\n更多正文内容... {{ICON_PLACEHOLDER_1}} 行内图标示例\\n\\n{{IMAGE_PLACEHOLDER_2}}\\n\\n...",
   "imageRequirements": [
     {{
       "position": 1,
@@ -160,16 +163,16 @@ class PromptConstant:
       "imageSource": "（从上述可用配图方式中选择）",
       "keywords": "",
       "prompt": "",
-      "placeholderId": ""
+      "placeholderId": "原文标签的完整字面量（可增加必要的转义字符），如：<image1>流程图：从输入到输出的完整链路</image1>"
     }},
     {{
       "position": 2,
       "type": "section",
       "sectionTitle": "章节标题1",
       "imageSource": "（从上述可用配图方式中选择）",
-      "keywords": "英文搜索关键词（如使用图库检索类方式）",
-      "prompt": "",
-      "placeholderId": "{{IMAGE_PLACEHOLDER_1}}"
+      "keywords": "",
+      "prompt": "（如使用 AI 生图类方式，在此生成完整代码或描述需求）",
+      "placeholderId": ""
     }},
     {{
       "position": 3,
@@ -178,23 +181,22 @@ class PromptConstant:
       "imageSource": "（从上述可用配图方式中选择）",
       "keywords": "check circle",
       "prompt": "",
-      "placeholderId": "{{ICON_PLACEHOLDER_1}}"
+      "placeholderId": "<image2>勾选确认的图标</image2>"
     }},
     {{
       "position": 4,
       "type": "section",
       "sectionTitle": "章节标题2",
       "imageSource": "（从上述可用配图方式中选择）",
-      "keywords": "",
-      "prompt": "（如使用 AI 生图类方式，在此生成完整代码或描述需求）",
-      "placeholderId": "{{IMAGE_PLACEHOLDER_2}}"
+      "keywords": "英文搜索关键词（如使用图库检索类方式）",
+      "prompt": "",
+      "placeholderId": "<image3>城市夜景真实照片</image3>"
     }}
   ]
 }}
 """
     SVG_DIAGRAM_GENERATION_PROMPT = """### 背景 ###
-你是一位资深的信息可视化设计师，擅长将抽象概念转化为直观易懂的 SVG 示意图。
-你的作品曾用于知名媒体和技术文档，风格简洁现代、逻辑清晰。
+你是一位资深的信息可视化设计师，擅长将抽象概念转化为直观易懂的 SVG 示意图，用于媒体和技术文档，风格简洁现代、逻辑清晰。
 
 ### 需求 ###
 {requirement}

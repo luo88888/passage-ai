@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from openai import AsyncOpenAI
+from langchain_core.language_models import BaseChatModel
 
 from app.agent.agents.content_generator import ContentGeneratorAgent
 from app.agent.agents.content_merger import ContentMergerAgent
@@ -26,16 +26,20 @@ class ArticleAgentOrchestrator:
 
     def __init__(
         self,
-        client: AsyncOpenAI,
-        model: str,
+        title_model: BaseChatModel,
+        outline_model: BaseChatModel,
+        content_model: BaseChatModel,
+        image_analyzer_model: BaseChatModel,
         agent_log_service: AgentLogService,
         parallel_image_generator: ParallelImageGenerator,
     ):
-        self.title_agent = TitleGeneratorAgent(client, model, agent_log_service)
-        self.outline_agent = OutlineGeneratorAgent(client, model, agent_log_service)
-        self.content_agent = ContentGeneratorAgent(client, model, agent_log_service)
+        self.title_agent = TitleGeneratorAgent(title_model, agent_log_service)
+        self.outline_agent = OutlineGeneratorAgent(outline_model, agent_log_service)
+        self.content_agent = ContentGeneratorAgent(
+            content_model, agent_log_service, parallel_image_generator
+        )
         self.image_analyzer_agent = ImageAnalyzerAgent(
-            client, model, agent_log_service, parallel_image_generator
+            image_analyzer_model, agent_log_service, parallel_image_generator
         )
         self.image_generator_agent = ImageGeneratorAgent(
             parallel_image_generator, agent_log_service

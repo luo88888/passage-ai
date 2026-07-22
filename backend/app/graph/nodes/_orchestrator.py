@@ -1,19 +1,16 @@
 """图节点共享的智能体编排器单例
 
-现有智能体（app/agent/agents/）实例由 ArticleAgentOrchestrator 持有。
-原 article_async_service 每个 phase 都 new 一个 ArticleAgentService（含新 OpenAI 客户端 + 新编排器），
-既浪费连接又导致状态分散。此处改为图节点共享一个编排器单例。
+图节点共享一个编排器单例。
 
 get_orchestrator() 首次调用时惰性构造（import 也放在函数体内，避免与 services 层形成循环导入）：
   - 复用 app.agent.image_generator.parallel_image_generator（图片服务单例）
-  - 建 AsyncOpenAI(DashScope) + AgentLogService
+  - 通过 llm_factory 为各 Agent 创建独立的 BaseChatModel（支持按 Agent 独立配置）
   - 构造 ArticleAgentOrchestrator 持有 6 个 agent
 """
 from __future__ import annotations
 
 from app.agent.orchestrator import ArticleAgentOrchestrator
 from app.config import settings
-from openai import AsyncOpenAI
 
 # database / parallel_image_generator 延迟到 get_orchestrator() 内 import，
 # 避免模块导入时触发 app.services.__init__ → article_async_service → graph 的循环。
@@ -32,15 +29,51 @@ def get_orchestrator() -> ArticleAgentOrchestrator:
         from app.services.agent_log_service import AgentLogService
         from app.database import database
         from app.agent.image_generator import parallel_image_generator
+        from app.llm_factory.factory import get_chat_model, resolve_agent_config
 
-        client = AsyncOpenAI(
-            api_key=settings.dashscope_api_key,
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-        )
         agent_log_service = AgentLogService(database)
+
+        # 解析各 Agent 专属配置（空值回退到全局默认）
+        title_cfg = resolve_agent_config(
+            agent_provider=settings.title_agent_provider,
+            agent_model=settings.title_agent_model,
+            agent_temperature=settings.title_agent_temperature,
+            agent_thinking=settings.title_agent_thinking,
+            agent_reasoning_effort=settings.title_agent_reasoning_effort,
+        )
+        outline_cfg = resolve_agent_config(
+            agent_provider=settings.outline_agent_provider,
+            agent_model=settings.outline_agent_model,
+            agent_temperature=settings.outline_agent_temperature,
+            agent_thinking=settings.outline_agent_thinking,
+            agent_reasoning_effort=settings.outline_agent_reasoning_effort,
+        )
+        content_cfg = resolve_agent_config(
+            agent_provider=settings.content_agent_provider,
+            agent_model=settings.content_agent_model,
+            agent_temperature=settings.content_agent_temperature,
+            agent_thinking=settings.content_agent_thinking,
+            agent_reasoning_effort=settings.content_agent_reasoning_effort,
+        )
+        image_analyzer_cfg = resolve_agent_config(
+            agent_provider=settings.image_analyzer_agent_provider,
+            agent_model=settings.image_analyzer_agent_model,
+            agent_temperature=settings.image_analyzer_agent_temperature,
+            agent_thinking=settings.image_analyzer_agent_thinking,
+            agent_reasoning_effort=settings.image_analyzer_agent_reasoning_effort,
+        )
+
+        # 通过 llm_factory 为各 Agent 创建独立的 BaseChatModel
+        title_model = get_chat_model(**title_cfg)
+        outline_model = get_chat_model(**outline_cfg)
+        content_model = get_chat_model(**content_cfg)
+        image_analyzer_model = get_chat_model(**image_analyzer_cfg)
+
         _orchestrator = ArticleAgentOrchestrator(
-            client=client,
-            model=settings.dashscope_model,
+            title_model=title_model,
+            outline_model=outline_model,
+            content_model=content_model,
+            image_analyzer_model=image_analyzer_model,
             agent_log_service=agent_log_service,
             parallel_image_generator=parallel_image_generator,
         )

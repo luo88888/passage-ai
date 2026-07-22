@@ -96,6 +96,14 @@ class Settings(BaseSettings):
     svg_diagram_default_height: int = 600
     svg_diagram_folder: str = "svg-diagrams"
 
+    # SVG 示意图生成 LLM 配置（用 llm_factory 路由，空值回退到全局默认）
+    # 默认 mimo-v2.5-pro，带思考模型更适合 SVG 代码生成
+    svg_diagram_agent_provider: str = "Xiaomi"
+    svg_diagram_agent_model: str = "mimo-v2.5-pro"
+    svg_diagram_agent_temperature: float = 0.2
+    svg_diagram_agent_thinking: bool = False
+    svg_diagram_agent_reasoning_effort: str = "high"
+
     # ==================== Stripe 支付配置 ====================
     stripe_api_key: str = ""
     stripe_webhook_secret: str = ""
@@ -143,6 +151,37 @@ class Settings(BaseSettings):
     info_collector_max_concurrency: int = 5         # batch_extract_articles 最大并行数
     info_collector_max_content_chars: int = 30000   # 单篇文章抓取后截断长度
     info_collector_serper_num: int = 10             # Serper 单次返回结果数
+
+    # ===================== 文章生成 Agent LLM 配置 =====================
+    # 空字符串 = 使用上方的 default_llm_provider / default_model
+
+    # ---------- 标题生成 Agent ----------
+    title_agent_provider: str = ""
+    title_agent_model: str = ""
+    title_agent_temperature: float = 0.6
+    title_agent_thinking: bool = False
+    title_agent_reasoning_effort: str = "high"
+
+    # ---------- 大纲生成 Agent ----------
+    outline_agent_provider: str = "Xiaomi"
+    outline_agent_model: str = "mimo-v2.5-pro"
+    outline_agent_temperature: float = 0.3
+    outline_agent_thinking: bool = True
+    outline_agent_reasoning_effort: str = "high"
+
+    # ---------- 正文生成 Agent ----------
+    content_agent_provider: str = "Xiaomi"
+    content_agent_model: str = "mimo-v2.5-pro"
+    content_agent_temperature: float = 0.3
+    content_agent_thinking: bool = False
+    content_agent_reasoning_effort: str = "high"
+
+    # ---------- 配图需求分析 Agent ----------
+    image_analyzer_agent_provider: str = "Xiaomi"
+    image_analyzer_agent_model: str = "mimo-v2.5-pro"
+    image_analyzer_agent_temperature: float = 0.1
+    image_analyzer_agent_thinking: bool = False
+    image_analyzer_agent_reasoning_effort: str = "high"
 
     @property
     def database_url(self) -> str:

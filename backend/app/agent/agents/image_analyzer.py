@@ -11,7 +11,7 @@ from app.schemas.article import Agent4Result, ArticleState, ImageRequirement
 from app.utils.logger import logger
 
 if TYPE_CHECKING:
-    from openai import AsyncOpenAI
+    from langchain_core.language_models import BaseChatModel
 
     from app.agent.image_generator import ParallelImageGenerator
     from app.services.agent_log_service import AgentLogService
@@ -22,12 +22,11 @@ class ImageAnalyzerAgent(BaseAgent):
 
     def __init__(
         self,
-        client: AsyncOpenAI,
-        model: str,
+        model: BaseChatModel,
         agent_log_service: AgentLogService,
         parallel_image_generator: ParallelImageGenerator,
     ):
-        super().__init__(client, model, agent_log_service)
+        super().__init__(model, agent_log_service)
         # 配图方式说明由 ParallelImageGenerator 从已注册服务的 name/description/usage
         # 元数据动态构建（Markdown 表格），本智能体不再硬编码方式列表。
         self.parallel_image_generator = parallel_image_generator
@@ -90,10 +89,12 @@ class ImageAnalyzerAgent(BaseAgent):
             input_data={"enabledImageMethods": state.enabled_image_methods},
         ) as log_data:
             content = await self._call_llm(prompt)
+            print("Agent4 content")
+            print(content)
             agent4_result = Agent4Result(
                 **self._parse_json_response(content, "配图需求")
             )
-            state.content = agent4_result.content_with_placeholders
+            # state.content = agent4_result.content_with_placeholders
 
             state.image_requirements = self._validate_and_filter_image_requirements(
                 agent4_result.image_requirements,

@@ -2,7 +2,7 @@
 统一 LLM 工厂，根据配置或参数路由到不同的模型提供商
 
 用法:
-    from app.llm_factory.factory import get_chat_model, get_structured_model
+    from app.llm_factory.factory import get_chat_model, get_structured_model, resolve_agent_config
 
     model = get_chat_model()  # 使用默认 provider/model
     model = get_chat_model("deepseek", "deepseek-v4-flash")
@@ -56,6 +56,34 @@ def _resolve_provider(provider: str | None = None) -> str:
             f"支持的提供商: {list(_PROVIDER_MAP.keys())}"
         )
     return key
+
+
+def resolve_agent_config(
+    agent_provider: str,
+    agent_model: str,
+    agent_temperature: float,
+    agent_thinking: bool,
+    agent_reasoning_effort: str = "high",
+) -> dict:
+    """解析 Agent 专属配置，空值回退到全局默认值
+
+    Args:
+        agent_provider: Agent 专属提供商（空字符串则使用 default_llm_provider）
+        agent_model: Agent 专属模型名（空字符串则使用 default_model）
+        agent_temperature: 温度参数
+        agent_thinking: 是否启用思考模式
+        agent_reasoning_effort: 推理力度（high/max）
+
+    Returns:
+        可直接传给 get_chat_model(**result) 的配置字典
+    """
+    return {
+        "provider": agent_provider or settings.default_llm_provider,
+        "model_name": agent_model or settings.default_model,
+        "temperature": agent_temperature,
+        "thinking": agent_thinking,
+        "reasoning_effort": agent_reasoning_effort,
+    }
 
 
 def get_chat_model(
@@ -129,3 +157,14 @@ def get_structured_model(
         reasoning_effort=reasoning_effort,
         extra_body=extra_body or {},
     )
+
+
+if __name__ == '__main__':
+    import asyncio
+
+    async def text():
+        model = get_chat_model()
+        async for chunk in model.astream("9.11和9.9那个大？"):
+            print(chunk.content, end="", flush=True)
+
+    asyncio.run(text())

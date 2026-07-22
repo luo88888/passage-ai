@@ -8,7 +8,8 @@ from datetime import datetime
 import json
 from typing import TYPE_CHECKING, Callable, Optional
 
-from openai import AsyncOpenAI
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import HumanMessage
 
 from app.constants.prompt import PromptConstant
 from app.models.enums import (
@@ -110,11 +111,15 @@ class BaseAgent:
 
     def __init__(
         self,
-        client: AsyncOpenAI,
-        model: str,
+        model: BaseChatModel,
         agent_log_service: AgentLogService,
     ):
-        self.client = client
+        """初始化基础智能体
+
+        Args:
+            model: 已配置好的 LangChain BaseChatModel 实例（由 llm_factory 创建）
+            agent_log_service: 日志服务
+        """
         self.model = model
         self.agent_log_service = agent_log_service
 
@@ -124,11 +129,8 @@ class BaseAgent:
         """调用 LLM（非流式）"""
         logger.debug(f"即将调用 LLM，prompt: {prompt}")
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            return response.choices[0].message.content  # type: ignore
+            response = await self.model.ainvoke([HumanMessage(content=prompt)])
+            return response.content  # type: ignore
         except Exception as e:
             logger.error(
                 "LLM 调用失败(非流式) model=%s, error=%s",
@@ -149,15 +151,9 @@ class BaseAgent:
         content_builder = []
 
         try:
-            stream = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                stream=True,
-            )
-
-            async for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
+            async for chunk in self.model.astream([HumanMessage(content=prompt)]):
+                if chunk.content:
+                    content = chunk.content
                     content_builder.append(content)
                     stream_handler(message_type.get_streaming_prefix() + content)
         except Exception as e:
@@ -177,7 +173,10 @@ class BaseAgent:
     def _parse_json_response(content: str, name: str) -> dict:
         """解析 JSON 响应"""
         try:
-            return json.loads(content)
+            content2 = content.strip()
+            if content2.startswith("```json") or content2.startswith("```JSON"):
+                content2 = content2[7:-3].strip()
+            return json.loads(content2)
         except json.JSONDecodeError as e:
             logger.error(
                 "%s解析失败, content=%s, error=%s", name, content, str(e)
@@ -188,12 +187,15 @@ class BaseAgent:
     def _parse_json_list_response(content: str, name: str) -> list:
         """解析 JSON 数组响应"""
         try:
-            result = json.loads(content)
+            content2 = content.strip()
+            if content2.startswith("```json") or content2.startswith("```JSON"):
+                content2 = content2[7:-3].strip()
+            result = json.loads(content2)
             if not isinstance(result, list):
                 raise ValueError("响应不是 JSON 数组")
             return result
         except json.JSONDecodeError as e:
-            logger.error(f"{name}解析失败, content={content}, error={e}")
+            logger.error(f"{name}解析失败, content={content2}, error={e}")
             raise RuntimeError(f"{name}解析失败")
         except ValueError as e:
             logger.error(f"{name}解析失败, content={content}, error={e}")

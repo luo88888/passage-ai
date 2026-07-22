@@ -33,7 +33,7 @@ class ImageResult:
 
 
 class ParallelImageGenerator:
-    """并行配图生成器 + 图片服务策略（二者已合并为一个类）。
+    """并行配图生成器
 
     职责：
     1. 注册并持有各图片获取服务（service_map），按 ImageMethodEnum 分发；

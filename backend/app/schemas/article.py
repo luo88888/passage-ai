@@ -167,7 +167,7 @@ class ImageRequirement(BaseModel):
     position: int   # 图片在文章中的序号
     type: str       # cover/section/inline
     section_title: str = Field(..., alias="sectionTitle")
-    keywords: str   # 图库搜索关键词
+    keywords: str = Field(..., description="图库搜索关键词") # 图库搜索关键词
     # ImageMethodEnum
     image_source: str = Field(..., alias="imageSource", description="图片来源")
     prompt: str = Field(..., description="AI 生图提示词")
@@ -181,7 +181,7 @@ class ImageRequirement(BaseModel):
 class Agent4Result(BaseModel):
     """智能体4返回结果"""
 
-    content_with_placeholders: str = Field(..., alias="contentWithPlaceholders")
+    # content_with_placeholders: str = Field(..., alias="contentWithPlaceholders")
     image_requirements: List[ImageRequirement] = Field(..., alias="imageRequirements")
 
     class Config:
