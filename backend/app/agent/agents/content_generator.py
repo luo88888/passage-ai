@@ -42,6 +42,7 @@ class ContentGeneratorAgent(BaseAgent):
         prompt = PromptConstant.AGENT3_CONTENT_PROMPT.format(
             mainTitle=state.title.main_title,   # type: ignore
             subTitle=state.title.sub_title,     # type: ignore
+            topic=state.topic,
             outline=outline_text,
             targetWordCount=state.word_count or 2000,
             imageMethodsGuide=methods_guide,

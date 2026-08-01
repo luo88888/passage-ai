@@ -73,6 +73,17 @@ class Settings(BaseSettings):
     nano_banana_image_size: str = "1K"
     nano_banana_output_mime_type: str = "image/png"
 
+    # 智谱 GLM-Image AI 生图（提供 key 后即启用，空则注册时跳过）
+    zhipu_api_key: str = ""
+    # cogview-3-flash:  1024x1024、768x1344、864x1152、1344x768、1152x864、1440x720、720x1440
+    # glm-image: 1568x1056
+    zhipu_image_model: str = "cogview-3-flash"
+    zhipu_image_size: str = "1152x864"
+    # 智谱开放平台生图并发上限为 1，超出会限流失败；此为单服务最大并发
+    zhipu_image_max_concurrency: int = 1
+    # 生成接口超时（秒）：AI 生图耗时可能较长，过短会 ReadTimeout
+    zhipu_image_timeout: int = 120
+
     # Mermaid 配置
     mermaid_cli_command: str = "mmdc"
     mermaid_background_color: str = "transparent"

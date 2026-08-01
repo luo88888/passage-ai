@@ -17,15 +17,17 @@ from app.services.mermaid_service import MermaidService
 from app.services.iconify_service import IconifyService
 from app.services.emoji_pack_service import EmojiPackService
 from app.services.svg_diagram_service import SvgDiagramService
+from app.services.zhipu_image_service import ZhipuImageService
 from app.utils.logger import logger
 
 
 class ImageResult:
     """图片获取结果"""
 
-    def __init__(self, url: str, method: ImageMethodEnum):
+    def __init__(self, url: str, method: ImageMethodEnum, is_fallback: bool=False):
         self.url = url
         self.method = method
+        self.is_fallback: bool = is_fallback
 
     def is_success(self) -> bool:
         """判断是否成功"""
@@ -54,11 +56,15 @@ class ParallelImageGenerator:
         """注册所有图片服务"""
         # NanoBananaService 暂不注册：Gemini 免费额度耗尽（429 RESOURCE_EXHAUSTED），
         # 注册后每次调用都会失败再降级，徒增延迟。待额度/付费到位后再加回此列表。
-        services = [
+        services: List[BaseImageSearchService] = [
             PexelsService(),
             MermaidService(), IconifyService(),
             EmojiPackService(), SvgDiagramService(),
         ]
+        # 智谱 GLM-Image：仅在配置了 API key 时才注册，避免空 key 时每次调用失败再降级
+        if settings.zhipu_api_key:
+            services.append(ZhipuImageService())
+
         for service in services:
             method = service.get_method()
             self.service_map[service.get_method()] = service
@@ -107,7 +113,11 @@ class ParallelImageGenerator:
         fallback_data = ImageData.from_url(fallback_url)
         cos_url = await self.local_file_service.upload_image_data(fallback_data, "fallback")   # type: ignore
         final_url = cos_url if cos_url else fallback_url
-        return ImageResult(final_url, ImageMethodEnum.get_fallback_method())
+        return ImageResult(
+            url=final_url,
+            method=ImageMethodEnum.get_fallback_method(),
+            is_fallback=True
+        )
 
     def _resolve_method(self, image_source: str) -> ImageMethodEnum:
         """解析图片来源，处理未知值，str 应该是 ImageMethodEnum 中的值"""
@@ -126,6 +136,7 @@ class ParallelImageGenerator:
         folder_map = {
             ImageMethodEnum.PEXELS: "pexels",
             ImageMethodEnum.NANO_BANANA: "nano-banana",
+            ImageMethodEnum.ZHIPU: "zhipu",
             ImageMethodEnum.MERMAID: "mermaid",
             ImageMethodEnum.ICONIFY: "iconify",
             ImageMethodEnum.EMOJI_PACK: "emoji-pack",
@@ -140,7 +151,13 @@ class ParallelImageGenerator:
         与 service_map 保持一致——注册/取消某服务（如 NanoBanana 额度恢复）后，
         创作页"配图方式"选项会自动同步，无需改接口代码。
         """
-        return list(self.service_map.keys())
+        # return list(self.service_map.keys())
+        # method: service
+        result = []
+        for method, service in self.service_map.items():
+            if service.is_available():
+                result.append(method)
+        return result
 
     def get_registered_services(self) -> List[BaseImageSearchService]:
         """返回已注册的服务列表，供外部读取 name/description/usage 等元数据。"""
@@ -162,10 +179,10 @@ class ParallelImageGenerator:
         """
         services = list(self.service_map.values())
 
-        # 按启用列表过滤；None 表示全部已注册服务
+        # 按启用列表和 is_available() 过滤；None 表示全部已注册服务
         if enabled_image_methods is not None:
             enabled_set = set(enabled_image_methods)
-            services = [s for s in services if s.name in enabled_set]
+            services = [s for s in services if s.name in enabled_set and s.is_available()]
 
         # 排除兜底方式（PICSUM 不应作为创作选项暴露给 LLM）
         services = [

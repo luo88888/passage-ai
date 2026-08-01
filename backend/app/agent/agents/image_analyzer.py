@@ -89,8 +89,8 @@ class ImageAnalyzerAgent(BaseAgent):
             input_data={"enabledImageMethods": state.enabled_image_methods},
         ) as log_data:
             content = await self._call_llm(prompt)
-            print("Agent4 content")
-            print(content)
+            # print("Agent4 content")
+            # print(content)
             agent4_result = Agent4Result(
                 **self._parse_json_response(content, "配图需求")
             )

@@ -111,9 +111,10 @@ class PromptConstant:
     # 智能体3：生成正文（配图前移：撰文时即插入 <imageN>描述</imageN> 图片标签）
     AGENT3_CONTENT_PROMPT = """你是一位资深的内容创作者，擅长撰写优质文章。
 
-根据以下大纲，创作文章正文:
+根据以下信息，创作文章正文:
 主标题：{mainTitle}
 副标题：{subTitle}
+用户选题：{topic}
 大纲：
 {outline}
 

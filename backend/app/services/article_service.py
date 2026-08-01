@@ -61,6 +61,7 @@ class ArticleService:
         ]
         self._vip_only_image_methods = {
             ImageMethodEnum.NANO_BANANA.value,
+            ImageMethodEnum.ZHIPU.value,
             ImageMethodEnum.SVG_DIAGRAM.value,
         }
 

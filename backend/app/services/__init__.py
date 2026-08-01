@@ -10,6 +10,7 @@ from app.services.mermaid_service import MermaidService
 from app.services.iconify_service import IconifyService
 from app.services.emoji_pack_service import EmojiPackService
 from app.services.svg_diagram_service import SvgDiagramService
+from app.services.zhipu_image_service import ZhipuImageService
 
 __all__ = [
     # 文章相关服务
@@ -26,4 +27,5 @@ __all__ = [
     "IconifyService",
     "EmojiPackService",
     "SvgDiagramService",
+    "ZImageService",
 ]
