@@ -256,10 +256,11 @@ defineExpose({
                 <div class="point-row">
                   <span class="point-handle" title="拖拽调整要点顺序"><HolderOutlined /></span>
                   <span class="point-dot">•</span>
-                  <a-input
+                  <a-textarea
                     v-model:value="element.points[pIdx]"
                     class="point-input"
                     placeholder="请输入要点"
+                    :auto-size="{ minRows: 1, maxRows: 6 }"
                     @change="onFieldChange"
                   />
                   <a-button
@@ -456,6 +457,10 @@ defineExpose({
 }
 .point-input {
   flex: 1;
+}
+.point-input :deep(textarea) {
+  /* 多行要点：左侧对齐基线与单行一致，自适应高度时保持紧凑行高 */
+  resize: none;
 }
 .point-del {
   flex-shrink: 0;

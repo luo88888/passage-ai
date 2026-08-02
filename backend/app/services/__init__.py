@@ -27,5 +27,5 @@ __all__ = [
     "IconifyService",
     "EmojiPackService",
     "SvgDiagramService",
-    "ZImageService",
+    "ZhipuImageService",
 ]

@@ -295,8 +295,11 @@ onBeforeUnmount(() => {
   padding-bottom: 60px;
 }
 
-/* 次级操作栏：浅绿条 */
+/* 次级操作栏：浅绿条，吸附固定不随正文滚动 */
 .sub-bar {
+  position: sticky;
+  top: 64px; /* 64px 全局顶部导航栏高度 */
+  z-index: 50;
   background: var(--gradient-hero);
   padding: 16px 20px;
   border-bottom: 1px solid var(--color-border-light);

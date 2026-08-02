@@ -954,10 +954,9 @@ onBeforeUnmount(() => {
             <a-alert :message="errorMsg" type="error" show-icon />
           </div>
           <!-- 大纲生成中占位；OUTLINE_GENERATED 到来后展示编辑器 -->
-          <div v-if="!outline.length" class="empty-streaming">
-            <a-spin tip="AI 正在生成大纲…">
-              <div v-if="outlineRaw" class="markdown-body streaming" v-html="outlineHtml"></div>
-            </a-spin>
+          <div v-if="!outline.length" class="empty-streaming empty-streaming--outline">
+            <a-spin tip="AI 正在生成大纲…" />
+            <div v-if="outlineRaw" class="markdown-body streaming outline-streaming" v-html="outlineHtml"></div>
           </div>
           <OutlineEditor
             v-else
@@ -1121,7 +1120,17 @@ onBeforeUnmount(() => {
   grid-template-columns: 0 1fr 300px;
 }
 .generating-layout {
-  grid-template-columns: 240px 1fr 260px;
+  grid-template-columns: 240px minmax(0, 1fr) 260px;
+}
+/* 生成/编辑阶段：左右栏吸附固定，不随中间大纲区域滚动 */
+.generating-layout .side-panel {
+  position: sticky;
+  top: 88px; /* 64px 顶栏 + 24px 页面 padding */
+  align-self: start;
+}
+/* 中栏宽度固定，不随长文本扩展（minmax(0,1fr) + min-width:0 抑制 grid 列被内容撑宽） */
+.generating-layout .main-panel {
+  min-width: 0;
 }
 
 @media (max-width: 992px) {
@@ -1574,6 +1583,27 @@ onBeforeUnmount(() => {
   justify-content: center;
   align-items: center;
   min-height: 200px;
+}
+/* 大纲生成中的流式预览：纵向排列，约束子项宽度并强制换行，避免长行撑破容器 */
+.empty-streaming--outline {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 16px;
+  padding: 16px 0;
+}
+.outline-streaming {
+  width: 100%;
+  min-width: 0;
+  /* 兜底换行：长单词/URL/代码不撑破容器，超出按字符断行 */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+.outline-streaming :deep(pre) {
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 /* 快捷操作 */

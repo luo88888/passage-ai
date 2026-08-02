@@ -117,7 +117,7 @@ onMounted(() => {
           <ThunderboltOutlined />
           <span>AI 驱动的内容创作平台</span>
         </div>
-        <h1 class="hero-title">AI 爆款文章创作器</h1>
+        <h1 class="hero-title">AI 文章创作平台</h1>
         <p class="hero-subtitle">让每个人都能写出 10万+ 文章</p>
 
         <!-- 核心输入框 -->
