@@ -36,6 +36,7 @@
 
 ### 重要不紧急
 
+- [ ] 非 vip 可使用 vip 配图
 - [ ] 腾讯云 COS 图片无法访问
 - [ ] confirm 绕过 update_phase
 - [ ] asyncio.create_task GC 风险

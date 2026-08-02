@@ -23,7 +23,7 @@ from app.routers import (
     statistics_router
 )
 from app.exceptions import BusinessException, ErrorCode
-from app.utils.session import init_redis, close_redis
+from app.redis import init_redis, close_redis
 from app.utils.logger import logger
 
 

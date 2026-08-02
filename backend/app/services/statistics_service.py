@@ -8,7 +8,7 @@ from app.constants.user import UserConstant
 from app.schemas.statistic import StatisticsVO
 
 from app.utils.logger import logger
-from app.utils.session import redis_client
+from app.redis import get_client
 
 
 STATISTICS_CACHE_KEY = "statistics:overview"
@@ -157,6 +157,7 @@ class StatisticsService:
         return int(value or 0)
 
     async def _get_cached_statistics(self) -> Optional[StatisticsVO]:
+        redis_client = get_client()
         if redis_client is None:
             return None
         try:
@@ -169,6 +170,7 @@ class StatisticsService:
             return None
 
     async def _set_cached_statistics(self, stats: StatisticsVO):
+        redis_client = get_client()
         if redis_client is None:
             return
         try:

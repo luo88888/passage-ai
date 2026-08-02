@@ -2,32 +2,12 @@
 Session 管理工具
 """
 
-import redis.asyncio as redis
 import json
 from typing import Optional, Any
+
 from app.config import settings
-
-
-# Redis 连接池
-redis_client: Optional[redis.Redis] = None
-
-
-async def init_redis():
-    """初始化 Redis 连接"""
-    global redis_client
-
-    redis_client = redis.from_url(
-        settings.redis_url,
-        encoding="utf-8",
-        decode_responses=True   # 让 Redis 返回的数据自动从 bytes 解码成 str
-    )
-
-
-async def close_redis():
-    """关闭 Redis 连接"""
-    global redis_client
-    if redis_client:
-        await redis_client.close()
+from app.redis import get_client
+from app.utils.logger import logger
 
 
 def _get_session_key(session_id: str) -> str:
@@ -39,7 +19,9 @@ def _get_session_key(session_id: str) -> str:
 
 async def get_session(session_id: str) -> Optional[dict]:
     """获取 Session 数据"""
+    redis_client = get_client()
     if not redis_client:
+        logger.error("redis_client 未初始化")
         return None
 
     key = _get_session_key(session_id)
@@ -52,7 +34,9 @@ async def get_session(session_id: str) -> Optional[dict]:
 
 async def set_session(session_id: str, data: dict, expire: Optional[int] = None):
     """设置 Session 数据"""
+    redis_client = get_client()
     if not redis_client:
+        logger.error("redis_client 未初始化")
         return
 
     key = _get_session_key(session_id)
@@ -66,8 +50,9 @@ async def set_session(session_id: str, data: dict, expire: Optional[int] = None)
 
 async def remove_session(session_id: str):
     """删除 Session"""
-
+    redis_client = get_client()
     if not redis_client:
+        logger.error("redis_client 未初始化")
         return
 
     key = _get_session_key(session_id)
