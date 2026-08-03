@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
 
 # 创建 FastAPI 应用
 app = FastAPI(
-    title="AI 爆款文章创作器",
+    title="AI 文章创作平台",
     description="基于多智能体编排的 AI 文章生成平台",
     version="0.0.1",
     lifespan=lifespan

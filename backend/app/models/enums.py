@@ -100,7 +100,7 @@ class ArticleStyleEnum(str, Enum):
 
     @deprecated 已被 ArticleGenreEnum + ArticleLanguageStyleEnum 取代，新流程不再写入/读取 style 列。
     每个成员形如 (value, label, description)，value 保持向后兼容。
-    创作页"默认"项由前端写死，对应 style=null（后端走通用爆款风格），故此处不含"默认"。
+    创作页"默认"项由前端写死，对应 style=null（后端走通用风格），故此处不含"默认"。
     """
 
     label: str

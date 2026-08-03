@@ -1,7 +1,7 @@
 [project]
 name = "ai-passage-creator-backend"
 version = "0.0.1"
-description = "AI 爆款文章创作器 - Python 后端"
+description = "AI 文章创作平台 - Python 后端"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
