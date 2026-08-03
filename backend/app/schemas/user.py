@@ -68,6 +68,7 @@ class UserVO(BaseModel):
     user_profile: Optional[str] = Field(None, alias="userProfile")
     user_role: str = Field(..., alias="userRole")
     quota: Optional[int] = Field(None, description="剩余配额")
+    points: Optional[int] = Field(None, description="积分余额")
     vip_time: Optional[str] = Field(None, alias="vipTime", description="成为会员时间")
     create_time: str = Field(..., alias="createTime")
     
@@ -85,6 +86,7 @@ class LoginUserVO(BaseModel):
     user_profile: Optional[str] = Field(None, alias="userProfile")
     user_role: str = Field(..., alias="userRole")
     quota: Optional[int] = Field(None, description="剩余配额")
+    points: Optional[int] = Field(None, description="积分余额")
     vip_time: Optional[str] = Field(None, alias="vipTime", description="成为会员时间")
     create_time: str = Field(..., alias="createTime")
     update_time: str = Field(..., alias="updateTime")   # 展示登录用户自己的信息

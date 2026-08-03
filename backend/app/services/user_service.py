@@ -14,8 +14,10 @@ from app.schemas.user import (
     UserVO,
     LoginUserVO
 )
+from app.constants.points import PointsConstant
 from app.constants.user import UserConstant
 from app.exceptions import ErrorCode, throw_if, throw_if_not, BusinessException
+from app.services.points_service import PointsService
 from app.utils.password import encrypt_password
 from app.utils.logger import logger
 
@@ -55,21 +57,28 @@ class UserService:
         # 加密密码
         encrypted_password = encrypt_password(request.user_password)
         
-        # 插入用户
-        query = """
-            INSERT INTO user (userAccount, userPassword, userName, userRole, quota)
-            VALUES (:userAccount, :userPassword, :userName, :userRole, :quota)
-        """
-        user_id = await self.db.execute(
-            query=query,
-            values={
-                "userAccount": request.user_account,
-                "userPassword": encrypted_password,
-                "userName": f"用户{request.user_account}",
-                "userRole": UserConstant.DEFAULT_ROLE,
-                "quota": UserConstant.DEFAULT_QUOTA,
-            }
-        )
+        # 插入用户 + 初始化积分账户（同一事务：注册赠送 100 积分）
+        async with self.db.transaction():
+            query = """
+                INSERT INTO user (userAccount, userPassword, userName, userRole, quota)
+                VALUES (:userAccount, :userPassword, :userName, :userRole, :quota)
+            """
+            user_id = await self.db.execute(
+                query=query,
+                values={
+                    "userAccount": request.user_account,
+                    "userPassword": encrypted_password,
+                    "userName": f"用户{request.user_account}",
+                    "userRole": UserConstant.DEFAULT_ROLE,
+                    "quota": UserConstant.DEFAULT_QUOTA,
+                }
+            )
+            await PointsService(self.db).grant_points(
+                user_id=user_id,
+                amount=PointsConstant.DEFAULT_POINTS,
+                tx_type=PointsConstant.TX_REGISTER,
+                description="注册赠送积分",
+            )
 
         logger.info("用户注册成功 userAccount=%s, userId=%s", request.user_account, user_id)
         return user_id
@@ -119,6 +128,7 @@ class UserService:
             userProfile=user_dict["userProfile"],
             userRole=user_dict["userRole"],
             quota=user_dict.get("quota"),
+            points=user_dict.get("points"),
             vipTime=user_dict["vipTime"].isoformat() if user_dict.get("vipTime") else None,
             createTime=user_dict["createTime"].isoformat(),
             updateTime=user_dict["updateTime"].isoformat()
@@ -142,6 +152,7 @@ class UserService:
             userProfile=user_dict["userProfile"],
             userRole=user_dict["userRole"],
             quota=user_dict.get("quota"),
+            points=user_dict.get("points"),
             vipTime=user_dict["vipTime"].isoformat() if user_dict.get("vipTime") else None,
             createTime=user_dict["createTime"].isoformat()
         )
@@ -198,6 +209,7 @@ class UserService:
                     userProfile=user_dict["userProfile"],
                     userRole=user_dict["userRole"],
                     quota=user_dict.get("quota"),
+                    points=user_dict.get("points"),
                     vipTime=user_dict["vipTime"].isoformat() if user_dict.get("vipTime") else None,
                     createTime=user_dict["createTime"].isoformat()
                 )
@@ -217,23 +229,30 @@ class UserService:
         # 加密密码
         encrypted_password = encrypt_password(request.user_password)
         
-        # 插入用户
-        query = """
-            INSERT INTO user (userAccount, userPassword, userName, userAvatar, userProfile, userRole, quota)
-            VALUES (:userAccount, :userPassword, :userName, :userAvatar, :userProfile, :userRole, :quota)
-        """
-        user_id = await self.db.execute(
-            query=query,
-            values={
-                "userAccount": request.user_account,
-                "userPassword": encrypted_password,
-                "userName": request.user_name or f"用户{request.user_account}",
-                "userAvatar": request.user_avatar,
-                "userProfile": request.user_profile,
-                "userRole": request.user_role,
-                "quota": UserConstant.DEFAULT_QUOTA,
-            }
-        )
+        # 插入用户 + 初始化积分账户（同一事务：管理员新增默认赠送积分）
+        async with self.db.transaction():
+            query = """
+                INSERT INTO user (userAccount, userPassword, userName, userAvatar, userProfile, userRole, quota)
+                VALUES (:userAccount, :userPassword, :userName, :userAvatar, :userProfile, :userRole, :quota)
+            """
+            user_id = await self.db.execute(
+                query=query,
+                values={
+                    "userAccount": request.user_account,
+                    "userPassword": encrypted_password,
+                    "userName": request.user_name or f"用户{request.user_account}",
+                    "userAvatar": request.user_avatar,
+                    "userProfile": request.user_profile,
+                    "userRole": request.user_role,
+                    "quota": UserConstant.DEFAULT_QUOTA,
+                }
+            )
+            await PointsService(self.db).grant_points(
+                user_id=user_id,
+                amount=PointsConstant.DEFAULT_POINTS,
+                tx_type=PointsConstant.TX_ADMIN_ADJUST,
+                description="管理员新增用户赠送积分",
+            )
 
         logger.info("管理员新增用户 userAccount=%s, userId=%s, userRole=%s", request.user_account, user_id, request.user_role)
         return user_id

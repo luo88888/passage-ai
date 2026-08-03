@@ -13,6 +13,8 @@ class AgentLogVO(BaseModel):
 
     id: int
     task_id: str = Field(..., alias="taskId")
+    user_id: Optional[int] = Field(None, alias="userId")
+    model: Optional[str] = Field(None, description="模型名")
     agent_name: str = Field(..., alias="agentName")
     start_time: str = Field(..., alias="startTime")
     end_time: Optional[str] = Field(None, alias="endTime")
@@ -33,6 +35,8 @@ class AgentExecutionStatsVO(BaseModel):
     """任务执行统计"""
 
     task_id: str = Field(..., alias="taskId")
+    user_id: Optional[int] = Field(None, alias="userId")
+    model: Optional[str] = Field(None, description="模型名")
     total_duration_ms: int = Field(..., alias="totalDurationMs")
     agent_count: int = Field(..., alias="agentCount")
     agent_durations: Dict[str, int] = Field(default_factory=dict, alias="agentDurations")

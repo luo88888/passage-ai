@@ -26,4 +26,5 @@ class User(Base):
     is_delete = Column("isDelete", SmallInteger, nullable=False, default=0, comment="是否删除")
 
     quota = Column("quota", Integer, nullable=False, default=5, comment="剩余配额")
+    points = Column("points", Integer, nullable=False, default=0, comment="积分余额（冗余展示字段，权威以 user_points 为准）")
     vip_time = Column("vipTime", DateTime, nullable=True, comment="成为会员时间")

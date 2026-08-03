@@ -31,3 +31,5 @@ class AgentLog(Base):
         comment="更新时间",
     )
     is_delete = Column("isDelete", SmallInteger, nullable=False, default=0, comment="是否删除")
+    user_id = Column("userId", BigInteger, nullable=True, comment="用户ID")
+    model = Column("model", String(64), nullable=True, comment="模型名")

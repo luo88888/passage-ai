@@ -28,17 +28,19 @@ class AgentLogService:
             await self.db.execute(
                 query="""
                     INSERT INTO agent_log (
-                        taskId, agentName, startTime, endTime, durationMs, status,
+                        taskId, userId, agentName, model, startTime, endTime, durationMs, status,
                         errorMessage, prompt, inputData, outputData
                     )
                     VALUES (
-                        :taskId, :agentName, :startTime, :endTime, :durationMs, :status,
+                        :taskId, :userId, :agentName, :model, :startTime, :endTime, :durationMs, :status,
                         :errorMessage, :prompt, :inputData, :outputData
                     )
                 """,
                 values={
                     "taskId": log_data.get("taskId"),
+                    "userId": log_data.get("userId"),
                     "agentName": log_data.get("agentName"),
+                    "model": log_data.get("model"),
                     "startTime": log_data.get("startTime"),
                     "endTime": log_data.get("endTime"),
                     "durationMs": log_data.get("durationMs"),
@@ -60,7 +62,7 @@ class AgentLogService:
         """查询任务下的执行日志"""
         rows = await self.db.fetch_all(
             query="""
-                SELECT id, taskId, agentName, startTime, endTime, durationMs, status,
+                SELECT id, taskId, userId, agentName, model, startTime, endTime, durationMs, status,
                        errorMessage, prompt, inputData, outputData, createTime, updateTime
                 FROM agent_log
                 WHERE taskId = :taskId AND isDelete = 0
@@ -110,6 +112,8 @@ class AgentLogService:
         return AgentLogVO(
             id=row["id"],
             taskId=row["taskId"],
+            userId=row.get("userId"),
+            model=row.get("model"),
             agentName=row["agentName"],
             startTime=self._to_iso(row.get("startTime")),
             endTime=self._to_iso(row.get("endTime")),
