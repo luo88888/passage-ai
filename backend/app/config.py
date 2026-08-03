@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     session_secret_key: str
     session_max_age: int = 2592000  # 30天
 
+    # 文章创建去重窗口（秒）：同一用户 + 相同参数在此窗口内不可重复提交
+    dedup_window_seconds: int = 60
+
     # 密码加密盐值
     password_salt: str
    

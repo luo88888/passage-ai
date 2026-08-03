@@ -1,11 +1,14 @@
 import asyncio
+import hashlib
 
 from databases import Database
 from fastapi import APIRouter, Depends
 
+from app.config import settings
 from app.database import get_db
 from app.deps import require_login
-from app.exceptions import ErrorCode, throw_if
+from app.exceptions import ErrorCode, throw_if, throw_if_not
+from app.redis import get_client
 from app.schemas.article import ArticleAiModifyOutlineRequest, ArticleConfirmOutlineRequest, ArticleConfirmTitleRequest, ArticleCreateRequest, ArticleQueryRequest, ArticleVO, CreationOptionsVO
 from app.schemas.common import BaseResponse, DeleteRequest
 from app.schemas.statistic import AgentExecutionStatsVO
@@ -14,6 +17,7 @@ from app.services.agent_log_service import AgentLogService
 from app.services.article_async_service import article_async_service
 from app.services.article_service import ArticleService
 from app.managers.sse_manager import sse_emitter_manager
+from app.utils.logger import logger
 
 
 router = APIRouter(prefix="/article", tags=["文章管理"])
@@ -31,7 +35,25 @@ async def create_article(
         ErrorCode.PARAMS_ERROR,
         "选题不能为空"
     )
+
+    fingerprint = hashlib.sha256(
+        f"{request.topic.strip()}|{request.word_count or 2000}|{request.genre or ''}|{request.language_style or ''}|{sorted(request.enabled_image_methods or [])}".encode()
+    ).hexdigest()
+    dedup_key = f"dedup:article:{current_user.id}:{fingerprint}"
+    redis = get_client()
+    if not redis:
+        logger.error("redis 为 None")
+        throw_if(True, ErrorCode.SYSTEM_ERROR, "系统内部错误")
+        
+    assert redis is not None
+    acquired = await redis.set(dedup_key, "1", nx=True, ex=settings.dedup_window_seconds)
+    throw_if_not(
+        acquired,
+        ErrorCode.OPERATION_ERROR,
+        f"请勿重复提交，{settings.dedup_window_seconds} 秒内已提交过相同参数的任务",
+    )
     
+
     service = ArticleService(db)
 
     # 检查并消耗配额 + 创建文章任务（在同一事务中）

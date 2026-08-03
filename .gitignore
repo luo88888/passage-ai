@@ -24,6 +24,7 @@ $RECYCLE.BIN/
 .trae
 .cursor
 .claude
+.codex
 CLAUDE.local.md
 .mcp.json
 
@@ -40,6 +41,7 @@ note.md
 个人笔记.md
 设计图/
 passage/
+个人笔记/
 
 # =====================
 # Environment & secrets
