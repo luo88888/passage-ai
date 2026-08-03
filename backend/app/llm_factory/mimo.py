@@ -10,6 +10,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessageChunk
 from langchain_core.outputs import ChatGenerationChunk, ChatResult
+from app.llm_factory.token_usage_handler import TokenUsageCallbackHandler
 
 
 # class ChatMiMo(ChatOpenAI):
@@ -141,6 +142,8 @@ def create_chat_model(
         extra_body=extra_body,
         reasoning_effort=reasoning_effort,
         base_url=_get_base_url(),
+        stream_usage=True,
+        callbacks=[TokenUsageCallbackHandler("Xiaomi", model_name)],
     )
 
 

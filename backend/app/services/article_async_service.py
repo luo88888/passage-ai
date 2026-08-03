@@ -24,6 +24,7 @@ from app.graph.sse_bridge import send_sse_message
 from app.managers.sse_manager import sse_emitter_manager
 from app.models.enums import ArticleStatusEnum, SseMessageTypeEnum
 from app.services.article_service import ArticleService
+from app.services.model_usage_service import usage_context, usage_recorder
 from app.utils.logger import logger
 
 
@@ -71,6 +72,7 @@ class ArticleAsyncService:
         word_count: Optional[int] = None,
         enabled_image_methods: Optional[list] = None,
         style: Optional[str] = None,
+        user_id: Optional[int] = None,
     ) -> None:
         """启动文章生成：建初始 state → ainvoke 跑到 confirm_title 后 interrupt
 
@@ -93,14 +95,15 @@ class ArticleAsyncService:
                 "style": style,
             }
             graph = self._get_graph()
-            await graph.ainvoke(initial_state, self._config(task_id))
+            with usage_context(task_id=task_id, user_id=user_id):
+                await graph.ainvoke(initial_state, self._config(task_id))
             # 跑到 confirm_title 后暂停：标题已落库 + TITLE_GENERATED 已发，无需在此做事
         except Exception as e:
             await self._handle_failure(task_id, e)
 
     # ==================== 恢复：注入人工输入续跑到下一个 interrupt 或 END ====================
 
-    async def resume(self, task_id: str, inject: Optional[dict] = None) -> None:
+    async def resume(self, task_id: str, inject: Optional[dict] = None, user_id: Optional[int] = None) -> None:
         """恢复文章生成：注入人工输入 → 续跑到下一个 interrupt 或 END
 
         典型两次调用：
@@ -115,7 +118,8 @@ class ArticleAsyncService:
             if inject:
                 await graph.aupdate_state(config, inject)
             # None=续跑：从当前 checkpoint 接着跑到下一个 interrupt 或 END
-            await graph.ainvoke(None, config)
+            with usage_context(task_id=task_id, user_id=user_id):
+                await graph.ainvoke(None, config)
         except Exception as e:
             await self._handle_failure(task_id, e)
 
@@ -132,7 +136,8 @@ class ArticleAsyncService:
         await article_service.update_article_status(task_id, ArticleStatusEnum.FAILED, str(e))
         send_sse_message(task_id, SseMessageTypeEnum.ERROR, {"message": str(e)})
         sse_emitter_manager.complete(task_id)
-
+        # 失败兜底：把已发生的模型用量一次性落库（M2 埋点）
+        await usage_recorder.flush(task_id)
 
 # 全局单例
 article_async_service = ArticleAsyncService()

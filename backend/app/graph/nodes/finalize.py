@@ -41,4 +41,8 @@ async def finalize_node(state: ArticleState) -> dict:
         {"taskId": task_id},
     )
     sse_emitter_manager.complete(task_id)
+
+    # 任务成功：一次性落库模型用量（M2 埋点）
+    from app.services.model_usage_service import usage_recorder
+    await usage_recorder.flush(task_id)
     return {}

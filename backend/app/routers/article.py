@@ -79,6 +79,7 @@ async def create_article(
             word_count,
             request.enabled_image_methods,
             request.style,
+            user_id=current_user.id,
         )
     )
     article_async_service.register_task(task_id, task)
@@ -111,6 +112,7 @@ async def confirm_title(
             },
             "user_description": request.user_description,
         },
+        user_id=current_user.id,
     ))
     article_async_service.register_task(request.task_id, task)
     return BaseResponse.success(data=None)
@@ -137,6 +139,7 @@ async def confirm_outline(
             "outline": {"sections": [s.model_dump() for s in request.outline]},
             "modify_suggestion": None,
         },
+        user_id=current_user.id,
     ))
     article_async_service.register_task(request.task_id, task)
     return BaseResponse.success(data=None)
@@ -164,6 +167,7 @@ async def ai_modify_outline(
         article_async_service.resume(
             request.task_id,
             {"modify_suggestion": request.modify_suggestion},
+            user_id=current_user.id,
         )
     )
     article_async_service.register_task(request.task_id, task)

@@ -84,7 +84,7 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
                 "currentSectionsCount": len(current_outline),
             },
         ) as log_data:
-            content = await agent._call_llm(prompt)
+            content = await agent._call_llm(prompt, agent_name="ai_modify_outline")
             outline_data = agent._parse_json_response(content, "修改后的大纲")
             sections = [OutlineSection(**s) for s in outline_data["sections"]]
             log_data["outputData"] = agent._safe_json_dumps(

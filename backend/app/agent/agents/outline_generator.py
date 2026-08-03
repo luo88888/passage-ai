@@ -52,7 +52,8 @@ class OutlineGeneratorAgent(BaseAgent):
             },
         ) as log_data:
             content = await self._call_llm_with_streaming(
-                prompt, stream_handler, SseMessageTypeEnum.AGENT2_STREAMING
+                prompt, stream_handler, SseMessageTypeEnum.AGENT2_STREAMING,
+                agent_name="agent2_generate_outline",
             )
             outline_data = self._parse_json_response(content, "大纲")
             sections = [

@@ -28,6 +28,7 @@ from app.utils.logger import logger
 from app.config import settings
 from app.agent.information_collector.schemas import NewsArticleSummary
 from app.llm_factory.factory import get_structured_model
+from app.services.model_usage_service import usage_context
 
 
 # ==================== serper_search 工具 ====================
@@ -202,7 +203,8 @@ async def extract_article_content(
             f"========== 网页内容（Markdown格式）==========：\n{content}"
         )
 
-        result: NewsArticleSummary = await summary_model.ainvoke(prompt)
+        with usage_context(agent_name="info_collector_sub"):
+            result: NewsArticleSummary = await summary_model.ainvoke(prompt)
         result.url = url    # 直接使用原始 url
         logger.info(f"摘要完成: {url}, 标签: {result.tags}, 原始长度：{len(content)}, 结构化结果长度：{len(str(result.model_json_schema()))}")
 

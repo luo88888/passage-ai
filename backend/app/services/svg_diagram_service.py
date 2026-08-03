@@ -6,6 +6,7 @@ from langchain_core.messages import HumanMessage
 from app.constants.article import ArticleConstant
 from app.constants.prompt import PromptConstant
 from app.llm_factory.factory import get_chat_model
+from app.services.model_usage_service import usage_context
 from app.models.enums import ImageMethodEnum
 from app.schemas.image import ImageData, ImageRequest
 from app.services.image_search_service import BaseImageSearchService
@@ -41,7 +42,8 @@ class SvgDiagramService(BaseImageSearchService):
         """生成 SVG 概念示意图数据"""
         try:
             prompt = PromptConstant.SVG_DIAGRAM_GENERATION_PROMPT.format(requirement=requirement)
-            response = await self.model.ainvoke([HumanMessage(content=prompt)])
+            with usage_context(agent_name="svg_diagram"):
+                response = await self.model.ainvoke([HumanMessage(content=prompt)])
             svg_code = str(response.content).strip()
 
             # 移除 markdown 代码块标记（如 ```svg ... ```）
