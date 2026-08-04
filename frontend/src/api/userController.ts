@@ -79,6 +79,26 @@ export async function listUserVoByPage(
   })
 }
 
+/** 此处后端没有提供注释 GET /user/profile */
+export async function getUserProfile(options?: { [key: string]: any }) {
+  return request<API.BaseResponseUserProfileVO>('/user/profile', {
+    method: 'GET',
+    ...(options || {}),
+  })
+}
+
+/** 此处后端没有提供注释 POST /user/list/page（分页查询用户列表，管理员） */
+export async function listUsersByPage(body: API.UserQueryRequest, options?: { [key: string]: any }) {
+  return request<API.BaseResponseUserListPageVO>('/user/list/page', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  })
+}
+
 /** 此处后端没有提供注释 POST /user/login */
 export async function userLogin(body: API.UserLoginRequest, options?: { [key: string]: any }) {
   return request<API.BaseResponseLoginUserVO>('/user/login', {

@@ -21,6 +21,12 @@ const router = createRouter({
       name: '用户注册',
       component: UserRegisterPage,
     },
+
+    {
+      path: '/user/profile',
+      name: '个人主页',
+      component: () => import('@/pages/user/UserProfilePage.vue'),
+    },
     {
       path: '/admin/userManage',
       name: '用户管理',
@@ -30,6 +36,22 @@ const router = createRouter({
       path: '/admin/statistics',
       name: '数据分析',
       component: () => import('@/pages/admin/StatisticsPage.vue'),
+    },
+
+    {
+      path: '/admin/points',
+      name: '积分管理',
+      component: () => import('@/pages/admin/PointsAdminPage.vue'),
+    },
+    {
+      path: '/admin/model-pricing',
+      name: '模型计价',
+      component: () => import('@/pages/admin/ModelPricingPage.vue'),
+    },
+    {
+      path: '/points',
+      name: '积分中心',
+      component: () => import('@/pages/points/PointsPage.vue'),
     },
     {
       path: '/create',

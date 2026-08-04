@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import {
   EditOutlined,
   ThunderboltFilled,
@@ -19,6 +19,8 @@ import {
   ThunderboltOutlined,
   CheckOutlined,
   CrownOutlined,
+  WalletOutlined,
+  WarningOutlined,
 } from '@ant-design/icons-vue'
 
 import { useLoginUserStore } from '@/stores/loginUser'
@@ -33,6 +35,7 @@ import {
   type CreationOptionItem,
 } from '@/api/articleController'
 import { subscribeArticleProgress, type SseMessage, type OutlineSection, type TitleOption } from '@/utils/sse'
+import { getPointsBalance, checkin as pointsCheckin } from '@/api/pointsController.ts'
 import { renderMarkdown } from '@/utils/markdown'
 import { exportMarkdown, exportHtml } from '@/utils/export'
 import OutlineEditor from '@/components/article/OutlineEditor.vue'
@@ -133,6 +136,69 @@ const isVipUser = computed(() => isVip(loginUserStore.loginUser))
 
 // 判断某配图方式是否对该用户锁定：vipOnly 且非会员时为不可选
 const isImageMethodLocked = (item: CreationOptionItem) => !!item.vipOnly && !isVipUser.value
+
+// ==================== 积分卡（M5） ====================
+// 积分余额（/points/balance；后端创建闸门：balance >= 0，admin 豁免）
+const pointsBalance = ref<number | null>(null)
+const pointsLoading = ref(false)
+
+// 进行中任务数（登录用户信息已带）
+const activeTaskCount = computed(() => loginUserStore.loginUser.activeTaskCount ?? 0)
+
+// 本单预计消耗：按目标字数粗略估算（约 6 积分/千字，含标题/大纲/正文输入+输出），实际以后端用量结算为准
+const estimateCost = computed(() => {
+  const wc = targetWordCount.value || DEFAULT_WORD_COUNT
+  return Math.max(1, Math.ceil((wc * 6) / 1000))
+})
+
+// 是否欠费（admin 豁免）
+const isDebt = computed(() => {
+  if (isAdminUser.value) return false
+  return (pointsBalance.value ?? 0) < 0
+})
+
+// 是否允许创建（后端口径 balance >= 0；admin 豁免）
+const hasPoints = computed(() => isAdminUser.value || (pointsBalance.value ?? 0) >= 0)
+
+// 拉取积分余额
+const fetchPointsBalance = async () => {
+  if (!loginUserStore.loginUser.id) return
+  pointsLoading.value = true
+  try {
+    const res = await getPointsBalance()
+    if (res.data.code === 0 && res.data.data) {
+      pointsBalance.value = res.data.data.balance ?? 0
+    }
+  } catch (e) {
+    // 未登录/网络异常静默处理
+  } finally {
+    pointsLoading.value = false
+  }
+}
+
+// 积分不足/欠费引导签到弹窗
+const showPointsGuide = (debt: number) => {
+  Modal.confirm({
+    title: '积分不足',
+    content: `当前欠费 ${debt} 积分，请先签到（每日 +10 积分）还清欠款后再创作。`,
+    okText: '立即签到',
+    cancelText: '稍后再说',
+    onOk: async () => {
+      try {
+        const res = await pointsCheckin()
+        if (res.data.code === 0 && res.data.data) {
+          message.success(`签到成功，+${res.data.data.gained} 积分`)
+          await fetchPointsBalance()
+          await loginUserStore.fetchLoginUser()
+        } else {
+          message.error(res.data.message || '签到失败')
+        }
+      } catch (e: any) {
+        message.error(e?.message || '签到失败')
+      }
+    },
+  })
+}
 
 // 文章正文 markdown HTML
 const contentHtml = computed(() => renderMarkdown(contentRaw.value))
@@ -303,6 +369,10 @@ const handleSse = (data: SseMessage) => {
     case 'ERROR':
       errorMsg.value = data.message || '生成失败，请稍后重试'
       message.error(errorMsg.value)
+      // 积分相关错误（透支/欠费）→ 引导签到
+      if (/(积分|欠费|透支)/.test(errorMsg.value)) {
+        showPointsGuide(-(pointsBalance.value ?? 0))
+      }
       break
   }
 }
@@ -352,6 +422,10 @@ const fetchCreationOptions = async () => {
 // 开始创作
 const startGenerate = async () => {
   if (!topic.value.trim()) return
+  if (!hasPoints.value) {
+    showPointsGuide(-(pointsBalance.value ?? 0))
+    return
+  }
   resetAll()
   creating.value = true
   errorMsg.value = ''
@@ -375,6 +449,9 @@ const startGenerate = async () => {
     if (res.data.code !== 0 || !res.data.data) {
       errorMsg.value = res.data.message || '创建任务失败'
       message.error(errorMsg.value)
+      if (/(积分|欠费|透支)/.test(errorMsg.value)) {
+        showPointsGuide(-(pointsBalance.value ?? 0))
+      }
       return
     }
     taskId.value = res.data.data
@@ -636,6 +713,8 @@ onMounted(() => {
   }
   // 拉取文章风格 / 配图方式可选项
   fetchCreationOptions()
+  // 拉取积分余额（积分卡）
+  fetchPointsBalance()
 })
 
 onBeforeUnmount(() => {
@@ -757,7 +836,7 @@ onBeforeUnmount(() => {
             size="large"
             block
             class="start-btn"
-            :disabled="!canSubmit"
+            :disabled="!canSubmit || isDebt"
             @click="startGenerate"
           >
             <ThunderboltFilled />
@@ -769,15 +848,37 @@ onBeforeUnmount(() => {
 
       <!-- 右栏：配额 + 热门选题 + 爆款技巧 -->
       <aside class="side-panel right-panel">
-        <!-- 创作配额 -->
-        <div class="quota-card">
+        <!-- 积分卡（M5） -->
+        <div class="quota-card points-card">
           <div class="panel-head">
-            <SettingOutlined />
-            <span>创作配额</span>
+            <WalletOutlined />
+            <span>积分余额</span>
+            <a-spin v-if="pointsLoading" :spinning="pointsLoading" size="small" class="points-loading" />
           </div>
-          <div class="quota-body">
-            <a-tag v-if="isAdminUser" color="gold" class="role-tag">管理员</a-tag>
-            <span class="quota-text">暂不限制</span>
+          <div class="points-body">
+            <div class="points-balance-row">
+              <span class="points-num" :class="{ 'is-debt': isDebt }">{{ pointsBalance ?? '--' }}</span>
+              <span class="points-unit">积分</span>
+              <a-tag v-if="isAdminUser" color="gold" class="role-tag">管理员</a-tag>
+            </div>
+            <div class="points-estimate">
+              本单预计消耗 <b>{{ estimateCost }}</b> 积分
+              <div class="points-estimate-sub">按 {{ targetWordCount || DEFAULT_WORD_COUNT }} 字估算，实际按用量结算</div>
+            </div>
+            <div class="points-active">进行中任务 <b>{{ activeTaskCount }}</b> 个</div>
+            <div v-if="isDebt" class="points-debt-warning">
+              <WarningOutlined />
+              <span>当前欠费 {{ -(pointsBalance ?? 0) }} 积分，请先签到还清后再创作</span>
+              <a-button type="link" size="small" class="points-checkin-link" @click="showPointsGuide(-(pointsBalance ?? 0))">
+                去签到
+              </a-button>
+            </div>
+            <div
+              v-else-if="!isAdminUser && (pointsBalance ?? 0) >= 0 && (pointsBalance ?? 0) < estimateCost"
+              class="points-hint"
+            >
+              余额低于本单估算，将按实际用量结算（后付费，可小额透支）
+            </div>
           </div>
         </div>
 
@@ -1195,6 +1296,77 @@ onBeforeUnmount(() => {
   font-size: 18px;
   font-weight: 700;
   color: var(--color-primary-dark);
+}
+
+/* 积分卡（M5） */
+.points-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.points-balance-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.points-num {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--color-primary-dark);
+  line-height: 1;
+}
+.points-num.is-debt {
+  color: var(--color-error);
+}
+.points-unit {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.points-loading {
+  margin-left: auto;
+}
+.points-estimate {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.points-estimate b {
+  color: var(--color-primary-dark);
+}
+.points-estimate-sub {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.points-active {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.points-active b {
+  color: var(--color-text);
+}
+.points-debt-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-error);
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  flex-wrap: wrap;
+}
+.points-checkin-link {
+  padding: 0 !important;
+  height: auto !important;
+  line-height: inherit !important;
+}
+.points-hint {
+  font-size: 12px;
+  color: var(--color-warning);
+  background: rgba(234, 179, 8, 0.08);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
 }
 
 /* 热门选题标签云 */

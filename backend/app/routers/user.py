@@ -15,9 +15,11 @@ from app.schemas.user import (
     UserUpdateRequest,
     UserQueryRequest,
     UserVO,
+    UserProfileVO,
     LoginUserVO
 )
 from app.services.user_service import UserService
+from app.exceptions import ErrorCode, throw_if_not
 from app.deps import (
     get_current_user,
     require_login,
@@ -98,6 +100,18 @@ async def get_user_by_id(
     service = UserService(db)
     user = await service.get_by_id(id)
     return BaseResponse.success(data=user)
+
+
+@router.get("/profile", response_model=BaseResponse[UserProfileVO])
+async def get_user_profile(
+    db: Database = Depends(get_db),
+    current_user: LoginUserVO = Depends(require_login),
+):
+    """获取当前登录用户的主页信息（个人详情页：基本信息 + 积分/配额 + 创作数量等统计）"""
+    service = UserService(db)
+    profile = await service.get_profile(current_user.id)
+    throw_if_not(profile, ErrorCode.NOT_FOUND_ERROR, "用户不存在")
+    return BaseResponse.success(data=profile)
 
 
 @router.post("/list/page", response_model=BaseResponse[dict])

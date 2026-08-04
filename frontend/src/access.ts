@@ -27,6 +27,13 @@ router.beforeEach(async (to, from, next) => {
   }
   
   const toUrl = to.fullPath
+  // 积分中心/个人主页需要登录
+  if (toUrl.startsWith('/points') || toUrl.startsWith('/user/profile')) {
+    if (!loginUser || !loginUser.id) {
+      next(`/user/login?redirect=${to.fullPath}`)
+      return
+    }
+  }
   // 管理员页面权限校验
   if (toUrl.startsWith('/admin')) {
     if (!loginUser || loginUser.userRole !== USER_ROLE_ADMIN) {

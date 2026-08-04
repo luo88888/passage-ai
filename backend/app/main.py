@@ -20,7 +20,10 @@ from app.routers import (
     article_router,
     payment_router,
     webhook_router,
-    statistics_router
+    statistics_router,
+    points_router,
+    admin_points_router,
+    model_pricing_router,
 )
 from app.exceptions import BusinessException, ErrorCode
 from app.redis import init_redis, close_redis
@@ -131,6 +134,9 @@ app.include_router(article_router, prefix="/api")
 app.include_router(payment_router, prefix="/api")
 app.include_router(webhook_router, prefix="/api")
 app.include_router(statistics_router, prefix="/api")
+app.include_router(points_router, prefix="/api")
+app.include_router(admin_points_router, prefix="/api")
+app.include_router(model_pricing_router, prefix="/api")
 
 # 挂载静态文件目录（本地图片存储）
 app.mount("/static", StaticFiles(directory="static"), name="static")
