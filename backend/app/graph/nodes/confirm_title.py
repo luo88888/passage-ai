@@ -40,4 +40,12 @@ async def confirm_title_node(state: ArticleState) -> dict:
         SseMessageTypeEnum.TITLE_GENERATED,
         {"titleOptions": title_options_dict},
     )
+
+    # 段A 结算：标题生成（含新闻信息采集）用量即时结算（M3 后付费段级结算）。
+    # best-effort：结算失败记日志、不阻断流程，未结算用量由下个段边界补结（结算水位幂等防重复扣费）。
+    try:
+        from app.services.settlement_service import SettlementService
+        await SettlementService(database).settle_current_segment(task_id)
+    except Exception:
+        logger.exception("[graph] 标题段结算失败, taskId=%s", task_id)
     return {}

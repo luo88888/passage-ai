@@ -27,4 +27,7 @@ class User(Base):
 
     quota = Column("quota", Integer, nullable=False, default=5, comment="剩余配额")
     points = Column("points", Integer, nullable=False, default=0, comment="积分余额（冗余展示字段，权威以 user_points 为准）")
+
+    active_task_count = Column("activeTaskCount", Integer, nullable=False, default=0, comment="进行中创作任务数（含挂起，并发限制计数，MySQL 权威原子计数）")
+
     vip_time = Column("vipTime", DateTime, nullable=True, comment="成为会员时间")

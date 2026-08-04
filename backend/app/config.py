@@ -124,9 +124,18 @@ class Settings(BaseSettings):
     stripe_success_url: str = "http://localhost:5173/payment/success"
     stripe_cancel_url: str = "http://localhost:5173/payment/cancel"
 
+    # ===================== 积分与并发限制（M3：后付费段级结算） =====================
+    # 积分透支护栏：余额允许为负，最多透支 max_debt_points（100 积分 = 1 元）
+    max_debt_points: int = 10
+    # 单用户「进行中（含挂起）」创作任务上限（activeTaskCount 原子计数，仅 admin 豁免）
+    max_active_tasks: int = 5
+    # 僵尸任务判定阈值（小时）：用于对账/清理识别长时间未完成的任务（本期仅对账计数，不强制清理）
+    task_stale_hours: int = 24
+
     # 多智能体并行编排配置
     agent_image_max_concurrency: int = 3
     agent_image_fail_fast: bool = True
+    deepseek_api_key: str = ""
 
     # ===================== LLM 模型配置 ======================
     default_llm_provider: str = "Xiaomi"
@@ -139,15 +148,15 @@ class Settings(BaseSettings):
 
     # ---------- 信息采集 Agent（information_collector） ----------
     # 主 Agent（搜索规划 + 筛选），通常用较贵、带思考的模型
-    info_collector_main_provider: str = "Xiaomi"
-    info_collector_main_model: str = "mimo-v2.5-pro"
+    info_collector_main_provider: str = "deepseek"
+    info_collector_main_model: str = "deepseek-v4-flash"
     info_collector_main_temperature: float = 0.2
-    info_collector_main_thinking: bool = True
+    info_collector_main_thinking: bool = False
     info_collector_main_reasoning_effort: str = "high"
 
     # 子 Agent（单篇文章摘要），用轻量模型即可
-    info_collector_sub_provider: str = "Xiaomi"
-    info_collector_sub_model: str = "mimo-v2.5"
+    info_collector_sub_provider: str = "deepseek"
+    info_collector_sub_model: str = "deepseek-v4-flash"
     info_collector_sub_temperature: float = 0.1
 
     # 工具调用次数限制（兜底防失控）
@@ -177,22 +186,22 @@ class Settings(BaseSettings):
     title_agent_reasoning_effort: str = "high"
 
     # ---------- 大纲生成 Agent ----------
-    outline_agent_provider: str = "Xiaomi"
-    outline_agent_model: str = "mimo-v2.5-pro"
+    outline_agent_provider: str = ""
+    outline_agent_model: str = ""
     outline_agent_temperature: float = 0.3
-    outline_agent_thinking: bool = True
+    outline_agent_thinking: bool = False
     outline_agent_reasoning_effort: str = "high"
 
     # ---------- 正文生成 Agent ----------
-    content_agent_provider: str = "Xiaomi"
-    content_agent_model: str = "mimo-v2.5-pro"
+    content_agent_provider: str = ""
+    content_agent_model: str = ""
     content_agent_temperature: float = 0.3
     content_agent_thinking: bool = False
     content_agent_reasoning_effort: str = "high"
 
     # ---------- 配图需求分析 Agent ----------
-    image_analyzer_agent_provider: str = "Xiaomi"
-    image_analyzer_agent_model: str = "mimo-v2.5-pro"
+    image_analyzer_agent_provider: str = ""
+    image_analyzer_agent_model: str = ""
     image_analyzer_agent_temperature: float = 0.1
     image_analyzer_agent_thinking: bool = False
     image_analyzer_agent_reasoning_effort: str = "high"

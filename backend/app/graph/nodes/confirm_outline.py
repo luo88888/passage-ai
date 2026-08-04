@@ -40,4 +40,11 @@ async def confirm_outline_node(state: ArticleState) -> dict:
         SseMessageTypeEnum.OUTLINE_GENERATED,
         {"outline": [s.model_dump() for s in sections]},
     )
+
+    # 段B 结算：大纲生成用量即时结算（M3 后付费段级结算，best-effort，水位幂等）。
+    try:
+        from app.services.settlement_service import SettlementService
+        await SettlementService(database).settle_current_segment(task_id)
+    except Exception:
+        logger.exception("[graph] 大纲段结算失败, taskId=%s", task_id)
     return {}

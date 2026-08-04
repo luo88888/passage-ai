@@ -8,6 +8,7 @@ dotenv.load_dotenv(override=True)
 from langchain_deepseek import ChatDeepSeek
 from langchain_core.language_models import BaseChatModel
 from app.llm_factory.token_usage_handler import TokenUsageCallbackHandler
+from app.config import settings
 
 
 def create_chat_model(
@@ -23,7 +24,7 @@ def create_chat_model(
         extra_body["thinking"] = {"type": "disabled"}
     return ChatDeepSeek(
         model=model_name,
-        api_key=os.environ.get("DEEPSEEK_API_KEY"), # type: ignore
+        api_key=settings.deepseek_api_key, # type: ignore
         temperature=temperature,
         extra_body=extra_body,
         reasoning_effort=reasoning_effort,
@@ -36,6 +37,9 @@ def create_structured_model(
         structured: type[BaseModel],
         model_name: str,
         temperature: float = 0.0,
+        thinking: bool = False,
+        reasoning_effort: str = "high",
+        extra_body: dict[str, Any] = {},
     ):
     """创建结构化输出模型。
 
@@ -44,7 +48,7 @@ def create_structured_model(
     """
     chat_model = ChatDeepSeek(
         model=model_name,
-        api_key=os.environ.get("DEEPSEEK_API_KEY"),  # type: ignore
+        api_key=settings.deepseek_api_key,  # type: ignore
         temperature=temperature,
         extra_body={"thinking": {"type": "disabled"}},
         stream_usage=True,

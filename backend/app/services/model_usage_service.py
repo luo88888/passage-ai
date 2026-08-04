@@ -1,16 +1,20 @@
-"""模型用量统计服务（M2：用量埋点）。
+"""模型用量统计服务（M2 埋点 + M3 结算水位）。
 
-负责在内存中按任务聚合各 LLM / AI 生图模型的调用用量，并在任务结束时
-一次性落库到 model_usage_record，避免每条调用都写库。
+负责在内存中按任务聚合各 LLM / AI 生图模型的调用用量，并按「计费段」增量结算落库：
 
-统计点（与 docs/积分系统开发计划.md v1.2 的 5.1 一致）：
-    - 文本类 LLM：由 llm_factory 各 provider 统一挂载的 TokenUsageCallbackHandler
-      自动上报（BaseAgent / 信息采集主/子 Agent / SVG 示意图均覆盖）；
-    - 图片类：智谱 / Nano Banana 服务在每次生成后按张上报 imageCount。
+  - 文本类 LLM：由 llm_factory 各 provider 统一挂载的 TokenUsageCallbackHandler
+    自动上报（BaseAgent / 信息采集主/子 Agent / SVG 示意图均覆盖）；
+  - 图片类：智谱 / Nano Banana 服务在每次生成后按张上报 imageCount。
 
 调用上下文：通过 ContextVar 传递 task_id / user_id / agent_name。
 article_async_service.start/resume 设置 task_id + user_id，
 各统计点再以 usage_context 覆盖 agent_name（未提供的字段继承外层）。
+
+结算水位（M3）：
+  - _aggregates 保存任务累计用量，_settled 保存「已结算水位」快照；
+  - compute_unsettled() 返回「上次结算点之后」的新增用量（当前累计 - 水位）；
+  - 段级结算成功后 mark_settled() 推进水位；结算事务失败则水位不动，下次结算重试，天然幂等；
+  - 任务终态（finalize / _handle_failure / delete）由结算服务 settle 剩余用量后 drop() 清理内存。
 """
 
 from __future__ import annotations
@@ -123,19 +127,23 @@ class UsageAccumulator:
     end_time: Optional[datetime] = None
 
 
-class UsageRecorder:
-    """任务级用量聚合器。
+# 结算水位：每个统计键已结算的 (callCount, inputTokens, outputTokens, imageCount)
+SettledKey = Tuple[str, str, str, str]
+SettledSnapshot = Tuple[int, int, int, int]
 
-    内存中按 task_id →（统计键 → 聚合结果）维护本次任务的全部模型用量，
-    任务结束（finalize 成功 / _handle_failure 失败兜底）时调用 flush 一次性落库。
+
+class UsageRecorder:
+    """任务级用量聚合器 + 结算水位。
 
     Attributes:
-        _aggregates: taskId → {(category, provider, model, agentName): UsageAccumulator}
+        _aggregates: taskId → {(category, provider, model, agentName): UsageAccumulator}。
+        _settled: taskId → {统计键: 已结算水位快照}。
     """
 
     def __init__(self) -> None:
-        """初始化空聚合字典。"""
-        self._aggregates: Dict[str, Dict[Tuple[str, str, str, str], UsageAccumulator]] = {}
+        """初始化空聚合字典与空结算水位。"""
+        self._aggregates: Dict[str, Dict[SettledKey, UsageAccumulator]] = {}
+        self._settled: Dict[str, Dict[SettledKey, SettledSnapshot]] = {}
 
     # ---------------- 上报入口 ----------------
 
@@ -245,7 +253,7 @@ class UsageRecorder:
             acc.start_time = now
         acc.end_time = now
 
-    # ---------------- 查询 / 落库 ----------------
+    # ---------------- 查询 / 结算水位 ----------------
 
     def get_usage(self, task_id: str) -> List[UsageAccumulator]:
         """查看某任务当前聚合结果（调试/测试用，不弹出）。
@@ -258,44 +266,82 @@ class UsageRecorder:
         """
         return list((self._aggregates.get(task_id) or {}).values())
 
-    async def flush(self, task_id: str) -> int:
-        """弹出任务聚合结果并一次性落库，返回写入条数。
+    def compute_unsettled(self, task_id: str) -> List[UsageAccumulator]:
+        """计算某任务「上次结算点之后」的新增用量（不弹出、不推进水位）。
 
         Args:
             task_id: 任务 ID。
 
         Returns:
-            写入 model_usage_record 的记录条数（无数据返回 0）。
+            新增用量聚合列表（仅含有用量的统计键）；无新增返回空列表。
         """
-        bucket = self._aggregates.pop(task_id, None)
+        bucket = self._aggregates.get(task_id)
         if not bucket:
+            return []
+        settled = self._settled.get(task_id) or {}
+        result: List[UsageAccumulator] = []
+        for key, acc in bucket.items():
+            base = settled.get(key, (0, 0, 0, 0))
+            delta_call = acc.call_count - base[0]
+            delta_input = acc.input_tokens - base[1]
+            delta_output = acc.output_tokens - base[2]
+            delta_image = acc.image_count - base[3]
+            if delta_call <= 0 and delta_input <= 0 and delta_output <= 0 and delta_image <= 0:
+                continue
+            result.append(
+                UsageAccumulator(
+                    category=acc.category,
+                    provider=acc.provider,
+                    model=acc.model,
+                    agent_name=acc.agent_name,
+                    call_count=delta_call,
+                    input_tokens=delta_input,
+                    output_tokens=delta_output,
+                    image_count=delta_image,
+                    status=acc.status,
+                    user_id=acc.user_id,
+                    start_time=acc.start_time,
+                    end_time=acc.end_time,
+                )
+            )
+        return result
+
+    def mark_settled(self, task_id: str) -> None:
+        """把当前累计推进为结算水位（结算事务成功后调用）。
+
+        Args:
+            task_id: 任务 ID。
+        """
+        bucket = self._aggregates.get(task_id)
+        if not bucket:
+            return
+        self._settled[task_id] = {
+            key: (acc.call_count, acc.input_tokens, acc.output_tokens, acc.image_count)
+            for key, acc in bucket.items()
+        }
+
+    async def write_rows(self, task_id: str, rows: List[Dict[str, Any]]) -> int:
+        """把「本次结算的增量用量行」落库到 model_usage_record。
+
+        在调用方事务内执行（与扣积分同一事务，保证用量记录与积分扣减原子一致）。
+
+        Args:
+            task_id: 任务 ID。
+            rows: PricingService.calculate_cost 返回的行字典（含 costPoints，缺 userId/taskId）。
+
+        Returns:
+            写入条数。
+        """
+        if not rows:
             return 0
 
         fallback_user_id: Optional[int] = None
-        rows: List[Dict[str, Any]] = []
-        for acc in bucket.values():
-            if acc.user_id is None:
+        for row in rows:
+            if not row.get("userId"):
                 if fallback_user_id is None:
                     fallback_user_id = await self._resolve_user_id(task_id)
-                acc.user_id = fallback_user_id
-            rows.append(
-                {
-                    "userId": acc.user_id,
-                    "taskId": task_id,
-                    "category": acc.category,
-                    "provider": acc.provider,
-                    "model": acc.model,
-                    "agentName": acc.agent_name,
-                    "callCount": acc.call_count,
-                    "inputTokens": acc.input_tokens,
-                    "outputTokens": acc.output_tokens,
-                    "imageCount": acc.image_count,
-                    "costPoints": 0,  # M3 结算时按计价回写
-                    "status": acc.status,
-                    "startTime": acc.start_time,
-                    "endTime": acc.end_time,
-                }
-            )
+                row["userId"] = fallback_user_id
+            row["taskId"] = task_id
 
         try:
             await database.execute_many(
@@ -316,8 +362,17 @@ class UsageRecorder:
         except Exception:
             logger.exception("模型用量落库失败 taskId=%s, rows=%s", task_id, len(rows))
             raise
-        logger.info("模型用量落库完成 taskId=%s, records=%s", task_id, len(rows))
+        logger.info("模型用量增量落库完成 taskId=%s, records=%s", task_id, len(rows))
         return len(rows)
+
+    def drop(self, task_id: str) -> None:
+        """任务终态清理：清空内存聚合与结算水位（结算完成后调用）。
+
+        Args:
+            task_id: 任务 ID。
+        """
+        self._aggregates.pop(task_id, None)
+        self._settled.pop(task_id, None)
 
     async def _resolve_user_id(self, task_id: str) -> Optional[int]:
         """任务缺失 userId 时回查 article 表补齐。"""
@@ -332,5 +387,5 @@ class UsageRecorder:
             return None
 
 
-# 全局单例：任务级聚合 + 落库
+# 全局单例：任务级聚合 + 结算水位
 usage_recorder = UsageRecorder()

@@ -87,6 +87,8 @@ class LoginUserVO(BaseModel):
     user_role: str = Field(..., alias="userRole")
     quota: Optional[int] = Field(None, description="剩余配额")
     points: Optional[int] = Field(None, description="积分余额")
+    points_version: Optional[int] = Field(None, alias="pointsVersion", description="积分账户乐观锁版本（前端实时刷新余额用）")
+    active_task_count: Optional[int] = Field(None, alias="activeTaskCount", description="进行中创作任务数（含挂起，并发限制计数）")
     vip_time: Optional[str] = Field(None, alias="vipTime", description="成为会员时间")
     create_time: str = Field(..., alias="createTime")
     update_time: str = Field(..., alias="updateTime")   # 展示登录用户自己的信息

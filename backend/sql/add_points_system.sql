@@ -139,6 +139,14 @@ WHERE u.isDelete = 0 AND u.quota > 0
       WHERE t.userId = u.id AND t.type = 'ADMIN_ADJUST' AND t.description LIKE '历史配额折算%'
   );
 
+-- ==================== 10.5 user 表新增 activeTaskCount（进行中创作任务数，并发限制计数，M3） ====================
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
+                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'activeTaskCount');
+SET @ddl = IF(@col_exists = 0,
+    'ALTER TABLE user ADD COLUMN activeTaskCount INT NOT NULL DEFAULT 0 COMMENT ''''进行中创作任务数（含挂起，并发限制计数）'''' AFTER points',
+    'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- ==================== 11. 同步 user.points 冗余字段 ====================
 UPDATE user u
 JOIN user_points up ON up.userId = u.id

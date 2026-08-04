@@ -53,6 +53,11 @@ async def lifespan(app: FastAPI):
     await init_checkpointer()
     logger.info("SQLite checkpointer 初始化成功")
 
+    # 启动对账（M3 并发限制）：纠正 user.activeTaskCount 与 article 表「进行中（含挂起）」任务数一致，
+    # 修复历史漂移/僵尸任务计数，保证服务重启后并发计数依然准确
+    from app.services.settlement_service import reconcile_active_task_counts
+    await reconcile_active_task_counts()
+
     yield   # 分隔启动和关闭逻辑
 
     # 关闭时执行

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 
 from app.config import settings
 from app.database import get_db
-from app.deps import require_login
+from app.deps import require_create_slot, require_login
 from app.exceptions import ErrorCode, throw_if, throw_if_not
 from app.redis import get_client
 from app.schemas.article import ArticleAiModifyOutlineRequest, ArticleConfirmOutlineRequest, ArticleConfirmTitleRequest, ArticleCreateRequest, ArticleQueryRequest, ArticleVO, CreationOptionsVO
@@ -27,9 +27,9 @@ router = APIRouter(prefix="/article", tags=["文章管理"])
 async def create_article(
     request: ArticleCreateRequest,
     db: Database = Depends(get_db),
-    current_user: LoginUserVO = Depends(require_login)
+    current_user: LoginUserVO = Depends(require_create_slot)
 ):
-    """创建文章任务"""
+    """创建文章任务（M3 后付费闸门：余额 >= 0 + 并发名额快速失败）"""
     throw_if(
         not request.topic or not request.topic.strip(),
         ErrorCode.PARAMS_ERROR,
@@ -56,8 +56,8 @@ async def create_article(
 
     service = ArticleService(db)
 
-    # 检查并消耗配额 + 创建文章任务（在同一事务中）
-    task_id = await service.create_article_task_with_quota_check(
+    # 占用并发名额（activeTaskCount+1）+ 创建文章任务（在同一事务中，M3 后付费闸门）
+    task_id = await service.create_article_task_with_slot_check(
         request.topic,
         current_user,
         request.style,
@@ -95,6 +95,8 @@ async def confirm_title(
 ):
     """确认标题并输入补充描述"""
     service = ArticleService(db)
+    # M3 续跑前余额复查：balance + max_debt_points >= 0（透支护栏，admin 豁免）
+    await service.assert_sufficient_points_for_resume(request.task_id, current_user)
     await service.confirm_title(
         task_id=request.task_id,
         selected_main_title=request.selected_main_title,
@@ -126,6 +128,8 @@ async def confirm_outline(
 ):
     """确认大纲"""
     service = ArticleService(db)
+    # M3 续跑前余额复查：balance + max_debt_points >= 0（透支护栏，admin 豁免）
+    await service.assert_sufficient_points_for_resume(request.task_id, current_user)
     await service.confirm_outline(
         task_id=request.task_id,
         outline=request.outline,
@@ -159,6 +163,8 @@ async def ai_modify_outline(
     路由只回 ack（taskId），大纲由 SSE 回填前端。
     """
     service = ArticleService(db)
+    # M3 续跑前余额复查：AI 修改大纲每轮都要即时结算，透支超限拒绝修改
+    await service.assert_sufficient_points_for_resume(request.task_id, current_user)
     await service.assert_can_ai_modify_outline(
         task_id=request.task_id,
         login_user=current_user,

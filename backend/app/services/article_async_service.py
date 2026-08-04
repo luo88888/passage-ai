@@ -7,7 +7,8 @@
   - resume(task_id, inject): 注入人工输入（确认标题后的 title/description、确认大纲后的 outline）
        → aupdate_state + ainvoke(None) 续跑到下一个 interrupt 或 END
   - register_task: 保存 asyncio.Task 引用，避免被 GC 中断（修复原 # FIXME）
-  - _handle_failure: 节点异常冒泡到此 → 标记 FAILED + 推 ERROR + 关闭 SSE（容错边界）
+  - _handle_failure: 节点异常冒泡到此 → 结算已发生用量 + 标记 FAILED + 释放并发名额
+    + 推 ERROR + 关闭 SSE（容错边界）
 
 成功路径的全部副作用（update_article_status / update_phase / save_title_options /
 save_outline / save_article_content / send_sse_message / sse complete）均已收入图节点
@@ -133,11 +134,21 @@ class ArticleAsyncService:
         """
         logger.error("文章生成任务失败, taskId=%s, error=%s", task_id, e, exc_info=True)
         article_service = ArticleService(database)
-        await article_service.update_article_status(task_id, ArticleStatusEnum.FAILED, str(e))
+
+        # 失败兜底：按已发生用量结算（M3 后付费段级结算，best-effort；结算水位幂等防重复扣费）
+        try:
+            from app.services.settlement_service import SettlementService
+            await SettlementService(database).settle_current_segment(task_id)
+        except Exception:
+            logger.exception("失败结算失败 taskId=%s", task_id)
+
+        # 失败终态：标记 FAILED + 释放并发名额（同一事务，终态一致性）
+        await article_service.fail_task_and_release_slot(task_id, str(e))
+
         send_sse_message(task_id, SseMessageTypeEnum.ERROR, {"message": str(e)})
         sse_emitter_manager.complete(task_id)
-        # 失败兜底：把已发生的模型用量一次性落库（M2 埋点）
-        await usage_recorder.flush(task_id)
+        # 清理任务用量内存（已按段结算落库）
+        usage_recorder.drop(task_id)
 
 # 全局单例
 article_async_service = ArticleAsyncService()

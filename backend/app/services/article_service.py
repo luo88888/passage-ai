@@ -10,6 +10,8 @@ from sqlalchemy import and_, func, select
 
 from app.constants.user import UserConstant
 from app.exceptions import BusinessException, ErrorCode, throw_if, throw_if_not
+from app.config import settings
+from app.services.points_service import PointsService
 from app.models.article import Article
 from app.models.enums import ArticleGenreEnum, ArticleLanguageStyleEnum, ArticlePhaseEnum, ArticleStatusEnum, ImageMethodEnum
 from app.schemas.article import ArticleQueryRequest, ArticleState, ArticleVO, CreationOptionsVO, OptionItem, OutlineSection, TitleOption
@@ -22,7 +24,7 @@ class ArticleService:
     """文章服务类，提供下述服务：
     1. 创建文章任务，返回 task_id（写进数据库）
         - create_article_task -> str
-        - create_article_task_with_quota_check -> str
+        - create_article_task_with_slot_check -> str
     2. 获取创作页可选项：文章风格 + 配图方式
         - get_creation_options(self) -> CreationOptionsVO
     3. 更新文章状态
@@ -118,7 +120,7 @@ class ArticleService:
             logger.info("文章任务创建成功, taskId=%s, userId=%s", task_id, login_user.id)
             return task_id
 
-    async def create_article_task_with_quota_check(
+    async def create_article_task_with_slot_check(
         self,
         topic: str,
         login_user: LoginUserVO,
@@ -128,8 +130,14 @@ class ArticleService:
         language_style: Optional[str] = None,
         word_count: Optional[int] = None,
     ) -> str:
-        """在同一事务中完成配额扣减和任务创建"""
-        if self._is_vip_or_admin(login_user):
+        """在同一事务中完成并发名额占用（activeTaskCount+1）和任务创建（后付费闸门）。
+
+        M3 起以「积分 + 并发名额」取代历史 quota 门槛：
+          - 仅 admin 豁免（不计数、不限并发）；VIP 与普通用户同样按积分结算并受并发限制；
+          - 创建不预扣、不估算，仅原子占用「进行中」任务名额；
+          - 余额 >= 0 的快速失败在路由层 require_create_slot 完成，此处做权威原子校验。
+        """
+        if self._is_admin(login_user):
             return await self.create_article_task(
                 topic=topic,
                 login_user=login_user,
@@ -141,27 +149,12 @@ class ArticleService:
             )
 
         async with self.db.transaction():
-            quota_row = await self.db.fetch_one(
-                query="""
-                    SELECT quota
-                    FROM user
-                    WHERE id = :userId AND isDelete = 0
-                    FOR UPDATE
-                """,
-                values={"userId": login_user.id},
+            acquired = await self.acquire_task_slot(login_user.id)
+            throw_if_not(
+                acquired,
+                ErrorCode.OPERATION_ERROR,
+                f"进行中创作任务数已达上限（最多 {settings.max_active_tasks} 个），请先完成或删除后再创建",
             )
-            throw_if_not(quota_row, ErrorCode.NOT_FOUND_ERROR, "用户不存在")
-            throw_if(quota_row["quota"] <= 0, ErrorCode.OPERATION_ERROR, "配额不足") # pyright: ignore[reportOptionalSubscript]
-
-            await self.db.execute(
-                query="""
-                    UPDATE user
-                    SET quota = quota - 1
-                    WHERE id = :userId
-                """,
-                values={"userId": login_user.id},
-            )
-
             return await self.create_article_task(
                 topic=topic,
                 login_user=login_user,
@@ -172,6 +165,49 @@ class ArticleService:
                 word_count=word_count,
             )
 
+    async def acquire_task_slot(self, user_id: int) -> bool:
+        """原子占用任务名额：activeTaskCount + 1（< max_active_tasks 才成功）。
+
+        Args:
+            user_id: 用户 ID。
+
+        Returns:
+            True=占用成功；False=已超并发上限（原子 UPDATE 校验，无竞态）。
+        """
+        result = await self.db.execute(
+            query="""
+                UPDATE user
+                SET activeTaskCount = activeTaskCount + 1
+                WHERE id = :userId AND isDelete = 0 AND activeTaskCount < :maxActiveTasks
+            """,
+            values={"userId": user_id, "maxActiveTasks": settings.max_active_tasks},
+        )
+        return result > 0
+
+    async def release_task_slot(self, user_id: int) -> None:
+        """幂等释放任务名额：activeTaskCount - 1（GREATEST 防负数）。
+
+        Args:
+            user_id: 用户 ID。
+        """
+        await self.db.execute(
+            query="""
+                UPDATE user
+                SET activeTaskCount = GREATEST(activeTaskCount - 1, 0)
+                WHERE id = :userId AND activeTaskCount > 0
+            """,
+            values={"userId": user_id},
+        )
+
+    async def release_task_slot_for_task(self, task_id: str) -> None:
+        """按任务释放名额：从 article 回查 userId 后幂等释放（终态事务内调用）。
+
+        Args:
+            task_id: 任务 ID。
+        """
+        article = await self.get_by_task_id(task_id)
+        if article and article["userId"]:
+            await self.release_task_slot(int(article["userId"]))
 
     def get_creation_options(self) -> CreationOptionsVO:
         """获取创作页可选项：题材 / 语言风格 + 配图方式（仅已注册可用的方法）。
@@ -323,14 +359,89 @@ class ArticleService:
         )
 
     async def delete_article(self, article_id: int, login_user: LoginUserVO) -> bool:
-        """删除文章"""
+        """删除文章（进行中任务删除时释放并发名额 + 结算已发生用量）"""
         query = select(Article).where(and_(Article.id == article_id, Article.is_delete == 0))
         article = await self.db.fetch_one(query)
         throw_if_not(article, ErrorCode.NOT_FOUND_ERROR, "文章不存在")
         self._check_article_permission(article, login_user)
-        await self.db.execute(query="UPDATE article SET isDelete = 1 WHERE id = :id", values={"id": article_id})
+
+        was_active = article["status"] in (
+            ArticleStatusEnum.PENDING.value,
+            ArticleStatusEnum.PROCESSING.value,
+        )
+
+        async with self.db.transaction():
+            await self.db.execute(query="UPDATE article SET isDelete = 1 WHERE id = :id", values={"id": article_id})
+            if was_active:
+                # 与 isDelete 同一事务释放名额（终态一致性）
+                await self.release_task_slot(int(article["userId"]))
+
+        # 删除进行中任务：结算剩余未结算用量（best-effort，结算水位幂等）
+        if was_active:
+            # 函数体内 import，避免启动期/路由层循环导入
+            from app.services.settlement_service import SettlementService
+            from app.services.model_usage_service import usage_recorder
+            try:
+                await SettlementService(self.db).settle_current_segment(article["taskId"])
+            except Exception:
+                logger.exception("删除任务结算失败 articleId=%s", article_id)
+            usage_recorder.drop(article["taskId"])
+
         logger.info("删除文章 articleId=%s, operatorId=%s", article_id, login_user.id)
         return True
+
+    async def complete_task_and_release_slot(self, task_id: str, state: ArticleState) -> None:
+        """任务成功终态：保存内容 + 标记完成 + 释放并发名额（同一事务）。
+
+        Args:
+            task_id: 任务 ID。
+            state: 智能体 class 形态的完整文章状态（含正文/配图/全文）。
+        """
+        async with self.db.transaction():
+            await self.save_article_content(task_id, state)
+            await self.update_article_status(task_id, ArticleStatusEnum.COMPLETED)
+            await self.release_task_slot_for_task(task_id)
+
+    async def fail_task_and_release_slot(self, task_id: str, error_message: Optional[str]) -> None:
+        """任务失败终态：标记 FAILED + 释放并发名额（同一事务）。
+
+        Args:
+            task_id: 任务 ID。
+            error_message: 失败原因。
+        """
+        async with self.db.transaction():
+            await self.update_article_status(task_id, ArticleStatusEnum.FAILED, error_message)
+            await self.release_task_slot_for_task(task_id)
+
+    async def assert_sufficient_points_for_resume(
+        self,
+        task_id: str,
+        login_user: LoginUserVO,
+    ) -> None:
+        """续跑/修改前余额复查：balance + max_debt_points >= 0（admin 豁免）。
+
+        用于 confirm-title / confirm-outline / ai-modify-outline 路由层拦截：
+        透支护栏 -MAX_DEBT_POINTS，透支超限拒绝续跑/修改，欠费用户签到/充值还清后再创作。
+
+        Args:
+            task_id: 任务 ID。
+            login_user: 当前登录用户。
+
+        Raises:
+            BusinessException: 文章不存在 / 无权限 / 透支超限（INSUFFICIENT_POINTS）。
+        """
+        article = await self.get_by_task_id(task_id)
+        throw_if_not(article, ErrorCode.NOT_FOUND_ERROR, "文章不存在")
+        self._check_article_permission(article, login_user)
+        if self._is_admin(login_user):
+            return
+        points_service = PointsService(self.db)
+        balance = await points_service.get_balance(login_user.id)
+        throw_if(
+            balance + settings.max_debt_points < 0,
+            ErrorCode.INSUFFICIENT_POINTS,
+            f"当前透支已达上限（最多可透支 {settings.max_debt_points} 积分），请先签到/充值后再继续",
+        )
 
     async def list_article_by_page(
         self,
@@ -530,6 +641,10 @@ class ArticleService:
                     "高级配图功能（AI 生图、SVG 图表）仅限 VIP 会员使用",
                 )
 
+    def _is_admin(self, login_user: LoginUserVO) -> bool:
+        """是否为管理员（M3 起仅 admin 豁免积分与并发限制，VIP 与普通用户同价）"""
+        return login_user.user_role == UserConstant.ADMIN_ROLE
+
     def _is_vip_or_admin(self, login_user: LoginUserVO) -> bool:
-        """是否为 VIP 或管理员"""
+        """是否为 VIP 或管理员（历史配图权限判断仍按 VIP/admin 放行）"""
         return login_user.user_role in {UserConstant.ADMIN_ROLE, UserConstant.VIP_ROLE}
