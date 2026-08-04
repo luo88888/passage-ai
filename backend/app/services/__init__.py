@@ -2,6 +2,7 @@ from app.services.article_service import ArticleService
 from app.services.article_async_service import ArticleAsyncService
 from app.services.user_service import UserService
 from app.services.points_service import PointsService
+from app.services.model_usage_service import UsageRecorder, usage_recorder
 
 from app.services.image_search_service import BaseImageSearchService
 from app.services.local_file_service import LocalFileService
@@ -21,6 +22,9 @@ __all__ = [
     "UserService",
     # 积分相关服务
     "PointsService",
+    # 模型用量埋点相关
+    "UsageRecorder",
+    "usage_recorder",
     # 图片相关服务
     "BaseImageSearchService",
     "LocalFileService",

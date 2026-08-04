@@ -7,7 +7,8 @@
   - resume(task_id, inject): 注入人工输入（确认标题后的 title/description、确认大纲后的 outline）
        → aupdate_state + ainvoke(None) 续跑到下一个 interrupt 或 END
   - register_task: 保存 asyncio.Task 引用，避免被 GC 中断（修复原 # FIXME）
-  - _handle_failure: 节点异常冒泡到此 → 标记 FAILED + 推 ERROR + 关闭 SSE（容错边界）
+  - _handle_failure: 节点异常冒泡到此 → 结算已发生用量 + 标记 FAILED + 释放并发名额
+    + 推 ERROR + 关闭 SSE（容错边界）
 
 成功路径的全部副作用（update_article_status / update_phase / save_title_options /
 save_outline / save_article_content / send_sse_message / sse complete）均已收入图节点
@@ -24,6 +25,7 @@ from app.graph.sse_bridge import send_sse_message
 from app.managers.sse_manager import sse_emitter_manager
 from app.models.enums import ArticleStatusEnum, SseMessageTypeEnum
 from app.services.article_service import ArticleService
+from app.services.model_usage_service import usage_context, usage_recorder
 from app.utils.logger import logger
 
 
@@ -71,6 +73,7 @@ class ArticleAsyncService:
         word_count: Optional[int] = None,
         enabled_image_methods: Optional[list] = None,
         style: Optional[str] = None,
+        user_id: Optional[int] = None,
     ) -> None:
         """启动文章生成：建初始 state → ainvoke 跑到 confirm_title 后 interrupt
 
@@ -93,14 +96,15 @@ class ArticleAsyncService:
                 "style": style,
             }
             graph = self._get_graph()
-            await graph.ainvoke(initial_state, self._config(task_id))
+            with usage_context(task_id=task_id, user_id=user_id):
+                await graph.ainvoke(initial_state, self._config(task_id))
             # 跑到 confirm_title 后暂停：标题已落库 + TITLE_GENERATED 已发，无需在此做事
         except Exception as e:
             await self._handle_failure(task_id, e)
 
     # ==================== 恢复：注入人工输入续跑到下一个 interrupt 或 END ====================
 
-    async def resume(self, task_id: str, inject: Optional[dict] = None) -> None:
+    async def resume(self, task_id: str, inject: Optional[dict] = None, user_id: Optional[int] = None) -> None:
         """恢复文章生成：注入人工输入 → 续跑到下一个 interrupt 或 END
 
         典型两次调用：
@@ -115,7 +119,8 @@ class ArticleAsyncService:
             if inject:
                 await graph.aupdate_state(config, inject)
             # None=续跑：从当前 checkpoint 接着跑到下一个 interrupt 或 END
-            await graph.ainvoke(None, config)
+            with usage_context(task_id=task_id, user_id=user_id):
+                await graph.ainvoke(None, config)
         except Exception as e:
             await self._handle_failure(task_id, e)
 
@@ -129,10 +134,21 @@ class ArticleAsyncService:
         """
         logger.error("文章生成任务失败, taskId=%s, error=%s", task_id, e, exc_info=True)
         article_service = ArticleService(database)
-        await article_service.update_article_status(task_id, ArticleStatusEnum.FAILED, str(e))
+
+        # 失败兜底：按已发生用量结算（M3 后付费段级结算，best-effort；结算水位幂等防重复扣费）
+        try:
+            from app.services.settlement_service import SettlementService
+            await SettlementService(database).settle_current_segment(task_id)
+        except Exception:
+            logger.exception("失败结算失败 taskId=%s", task_id)
+
+        # 失败终态：标记 FAILED + 释放并发名额（同一事务，终态一致性）
+        await article_service.fail_task_and_release_slot(task_id, str(e))
+
         send_sse_message(task_id, SseMessageTypeEnum.ERROR, {"message": str(e)})
         sse_emitter_manager.complete(task_id)
-
+        # 清理任务用量内存（已按段结算落库）
+        usage_recorder.drop(task_id)
 
 # 全局单例
 article_async_service = ArticleAsyncService()

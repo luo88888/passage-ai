@@ -27,7 +27,7 @@ class TitleGeneratorAgent(BaseAgent):
                 "hasCollectedNews": bool(state.collected_news and state.collected_news.strip()),
             },
         ) as log_data:
-            content = await self._call_llm(prompt)
+            content = await self._call_llm(prompt, agent_name="agent1_generate_titles")
             title_options_data = self._parse_json_list_response(content, "标题方案")
             state.title_options = [
                 TitleOption(**item) for item in title_options_data

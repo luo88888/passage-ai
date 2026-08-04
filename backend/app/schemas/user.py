@@ -76,6 +76,26 @@ class UserVO(BaseModel):
         populate_by_name = True
 
 
+class UserProfileVO(BaseModel):
+    """用户主页视图对象（个人详情页展示：基本信息 + 积分/配额 + 创作统计）"""
+
+    id: int
+    user_account: str = Field(..., alias="userAccount")
+    user_name: Optional[str] = Field(None, alias="userName")
+    user_avatar: Optional[str] = Field(None, alias="userAvatar")
+    user_profile: Optional[str] = Field(None, alias="userProfile")
+    user_role: str = Field(..., alias="userRole")
+    quota: Optional[int] = Field(None, description="剩余配额（历史兼容，不再作为创作门槛）")
+    points: Optional[int] = Field(None, description="积分余额（权威 user_points）")
+    active_task_count: Optional[int] = Field(None, alias="activeTaskCount", description="进行中创作任务数（含挂起）")
+    vip_time: Optional[str] = Field(None, alias="vipTime", description="成为会员时间")
+    create_time: str = Field(..., alias="createTime", description="注册时间")
+    article_count: int = Field(default=0, alias="articleCount", description="创作文章总数（未删除）")
+
+    class Config:
+        populate_by_name = True
+
+
 class LoginUserVO(BaseModel):
     """登录用户视图对象"""
     
@@ -87,6 +107,8 @@ class LoginUserVO(BaseModel):
     user_role: str = Field(..., alias="userRole")
     quota: Optional[int] = Field(None, description="剩余配额")
     points: Optional[int] = Field(None, description="积分余额")
+    points_version: Optional[int] = Field(None, alias="pointsVersion", description="积分账户乐观锁版本（前端实时刷新余额用）")
+    active_task_count: Optional[int] = Field(None, alias="activeTaskCount", description="进行中创作任务数（含挂起，并发限制计数）")
     vip_time: Optional[str] = Field(None, alias="vipTime", description="成为会员时间")
     create_time: str = Field(..., alias="createTime")
     update_time: str = Field(..., alias="updateTime")   # 展示登录用户自己的信息

@@ -84,7 +84,7 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
                 "currentSectionsCount": len(current_outline),
             },
         ) as log_data:
-            content = await agent._call_llm(prompt)
+            content = await agent._call_llm(prompt, agent_name="ai_modify_outline")
             outline_data = agent._parse_json_response(content, "修改后的大纲")
             sections = [OutlineSection(**s) for s in outline_data["sections"]]
             log_data["outputData"] = agent._safe_json_dumps(
@@ -98,6 +98,12 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
             SseMessageTypeEnum.AI_MODIFY_OUTLINE_FAILED,
             {"message": str(e)},
         )
+        # M3：AI 修改失败本轮也即时结算（失败调用 0 积分，仅把 FAILED 用量落库，防内存累积）
+        try:
+            from app.services.settlement_service import SettlementService
+            await SettlementService(database).settle_current_segment(task_id)
+        except Exception:
+            logger.exception("[graph] AI 修改失败段结算失败, taskId=%s", task_id)
         return {"modify_suggestion": None}
 
     # 成功：持久化 + 发完成 SSE + 回写图状态大纲 / 清空建议
@@ -108,6 +114,12 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
         SseMessageTypeEnum.AI_MODIFY_OUTLINE_COMPLETE,
         {"outline": [s.model_dump() for s in sections]},
     )
+    # M3：AI 修改大纲每轮结束即时结算（点一次收一次，best-effort，水位幂等）
+    try:
+        from app.services.settlement_service import SettlementService
+        await SettlementService(database).settle_current_segment(task_id)
+    except Exception:
+        logger.exception("[graph] AI 修改段结算失败, taskId=%s", task_id)
     return {
         "outline": {"sections": [s.model_dump() for s in sections]},
         "modify_suggestion": None,

@@ -13,6 +13,7 @@ from app.count_semaphore import AsyncCountingSemaphore
 from app.models.enums import ImageMethodEnum
 from app.schemas.image import ImageRequest, ImageData
 from app.services.image_search_service import BaseImageSearchService
+from app.services.model_usage_service import usage_recorder
 from app.utils.logger import logger
 
 
@@ -45,6 +46,7 @@ class ZhipuImageService(BaseImageSearchService):
 
         智谱接口返回的是图片临时 URL（有效期 30 天），这里下载为 bytes 后返回，
         与 NanoBanana 等 AI 生图服务保持一致的 BYTES 数据流，便于后续统一上传转存。
+        成功/失败均按张上报模型用量（智谱免费，仅统计不计分）。
         """
         prompt = request.get_effective_param(True)
         if not prompt:
@@ -52,6 +54,8 @@ class ZhipuImageService(BaseImageSearchService):
 
         # 智谱生图并发=1：等待限流槽位（waiting 为当前排队数，便于观测）
         logger.info(f"智谱 GLM-Image 等待限流槽位, waiting={self._semaphore.waiting_count}")
+        image_url: Optional[str] = None
+        succeeded = False
         async with self._semaphore:
             try:
                 headers = {
@@ -68,30 +72,51 @@ class ZhipuImageService(BaseImageSearchService):
                     logger.error(
                         f"智谱 GLM-Image 生成失败: status={response.status_code}, body={response.text[:500]}"
                     )
-                    return None
-
-                error = response.json().get("error") or {}
-                if error:
-                    logger.error(
-                        f"智谱 GLM-Image 生成图片异常: {str(error)}"
-                    )
-                    return None
-
-                data = response.json().get("data") or []
-                if not data:
-                    return None
-                image_url = data[0].get("url")
-                if not image_url:
-                    return None
+                else:
+                    error = response.json().get("error") or {}
+                    if error:
+                        logger.error(
+                            f"智谱 GLM-Image 生成图片异常: {str(error)}"
+                        )
+                    else:
+                        data = response.json().get("data") or []
+                        if not data:
+                            logger.error("智谱 GLM-Image 生成图片异常: 响应 data 为空")
+                        else:
+                            image_url = data[0].get("url")
+                            succeeded = bool(image_url)
+                            if not image_url:
+                                logger.error("智谱 GLM-Image 生成图片异常: 响应缺少 url")
             except Exception as e:
                 logger.error(
                     f"智谱 GLM-Image 生成图片异常, type={type(e).__name__}, error={str(e)}"
                 )
-                return None
+
+        self._record_usage(
+            status="SUCCESS" if succeeded else "FAILED",
+            image_count=1 if succeeded else 0,
+        )
+        if not succeeded:
+            return None
 
         # 下载临时图片为 bytes 转存到本地/COS，避免链接过期失效。
         # 放在信号量之外：限流约束的是「智谱生图调用」，下载转存不受其约束。
         return await self._download_image(image_url)
+
+    def _record_usage(self, status: str, image_count: int) -> None:
+        """上报智谱生图用量（成功 1 张 / 失败 0 张）。
+
+        Args:
+            status: SUCCESS / FAILED。
+            image_count: 成功生成张数。
+        """
+        usage_recorder.record_image(
+            provider="Zhipu",
+            model=self.model or "glm-image",
+            agent_name="agent5_generate_images",
+            image_count=image_count,
+            status=status,
+        )
 
     async def _download_image(self, image_url: str) -> Optional[ImageData]:
         """下载智谱返回的临时图片 URL 为 bytes。"""

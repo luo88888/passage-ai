@@ -64,7 +64,8 @@ class ContentGeneratorAgent(BaseAgent):
             },
         ) as log_data:
             content = await self._call_llm_with_streaming(
-                prompt, stream_handler, SseMessageTypeEnum.AGENT3_STREAMING
+                prompt, stream_handler, SseMessageTypeEnum.AGENT3_STREAMING,
+                agent_name="agent3_generate_content",
             )
             state.content = content
             log_data["outputData"] = self._safe_json_dumps(

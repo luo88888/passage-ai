@@ -67,7 +67,7 @@ const features = [
   {
     icon: FileTextOutlined,
     title: '智能生成标题',
-    description: 'AI 自动分析选题，生成吸引眼球的爆款标题',
+    description: 'AI 自动分析选题，生成吸引眼球的标题',
     color: '#22C55E'
   },
   {

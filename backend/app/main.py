@@ -20,7 +20,10 @@ from app.routers import (
     article_router,
     payment_router,
     webhook_router,
-    statistics_router
+    statistics_router,
+    points_router,
+    admin_points_router,
+    model_pricing_router,
 )
 from app.exceptions import BusinessException, ErrorCode
 from app.redis import init_redis, close_redis
@@ -53,6 +56,11 @@ async def lifespan(app: FastAPI):
     await init_checkpointer()
     logger.info("SQLite checkpointer 初始化成功")
 
+    # 启动对账（M3 并发限制）：纠正 user.activeTaskCount 与 article 表「进行中（含挂起）」任务数一致，
+    # 修复历史漂移/僵尸任务计数，保证服务重启后并发计数依然准确
+    from app.services.settlement_service import reconcile_active_task_counts
+    await reconcile_active_task_counts()
+
     yield   # 分隔启动和关闭逻辑
 
     # 关闭时执行
@@ -64,7 +72,7 @@ async def lifespan(app: FastAPI):
 
 # 创建 FastAPI 应用
 app = FastAPI(
-    title="AI 爆款文章创作器",
+    title="AI 文章创作平台",
     description="基于多智能体编排的 AI 文章生成平台",
     version="0.0.1",
     lifespan=lifespan
@@ -126,6 +134,9 @@ app.include_router(article_router, prefix="/api")
 app.include_router(payment_router, prefix="/api")
 app.include_router(webhook_router, prefix="/api")
 app.include_router(statistics_router, prefix="/api")
+app.include_router(points_router, prefix="/api")
+app.include_router(admin_points_router, prefix="/api")
+app.include_router(model_pricing_router, prefix="/api")
 
 # 挂载静态文件目录（本地图片存储）
 app.mount("/static", StaticFiles(directory="static"), name="static")

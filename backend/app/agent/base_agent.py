@@ -12,6 +12,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
 from app.constants.prompt import PromptConstant
+from app.services.model_usage_service import usage_context
 from app.models.enums import (
     ArticleGenreEnum,
     ArticleLanguageStyleEnum,
@@ -125,11 +126,17 @@ class BaseAgent:
 
     # ==================== LLM 调用 ====================
 
-    async def _call_llm(self, prompt: str) -> str:
-        """调用 LLM（非流式）"""
+    async def _call_llm(self, prompt: str, agent_name: Optional[str] = None) -> str:
+        """调用 LLM（非流式）
+
+        Args:
+            prompt: 用户提示词。
+            agent_name: 统计点名称（用于模型用量埋点），由调用方传入。
+        """
         logger.debug(f"即将调用 LLM，prompt: {prompt}")
         try:
-            response = await self.model.ainvoke([HumanMessage(content=prompt)])
+            with usage_context(agent_name=agent_name):
+                response = await self.model.ainvoke([HumanMessage(content=prompt)])
             return response.content  # type: ignore
         except Exception as e:
             logger.error(
@@ -145,17 +152,26 @@ class BaseAgent:
         prompt: str,
         stream_handler: Callable[[str], None],
         message_type: SseMessageTypeEnum,
+        agent_name: Optional[str] = None,
     ) -> str:
-        """调用 LLM（流式输出）"""
+        """调用 LLM（流式输出）
+
+        Args:
+            prompt: 用户提示词。
+            stream_handler: SSE 流式回调。
+            message_type: SSE 消息类型。
+            agent_name: 统计点名称（用于模型用量埋点），由调用方传入。
+        """
         logger.debug(f"即将调用 LLM，prompt: {prompt}")
         content_builder = []
 
         try:
-            async for chunk in self.model.astream([HumanMessage(content=prompt)]):
-                if chunk.content:
-                    content = chunk.content
-                    content_builder.append(content)
-                    stream_handler(message_type.get_streaming_prefix() + content)
+            with usage_context(agent_name=agent_name):
+                async for chunk in self.model.astream([HumanMessage(content=prompt)]):
+                    if chunk.content:
+                        content = chunk.content
+                        content_builder.append(content)
+                        stream_handler(message_type.get_streaming_prefix() + content)
         except Exception as e:
             logger.error(
                 "LLM 调用失败(流式) model=%s, error=%s",

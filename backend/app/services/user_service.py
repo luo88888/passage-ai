@@ -12,6 +12,7 @@ from app.schemas.user import (
     UserUpdateRequest,
     UserQueryRequest,
     UserVO,
+    UserProfileVO,
     LoginUserVO
 )
 from app.constants.points import PointsConstant
@@ -129,11 +130,32 @@ class UserService:
             userRole=user_dict["userRole"],
             quota=user_dict.get("quota"),
             points=user_dict.get("points"),
+            pointsVersion=await self._get_points_version(user_dict["id"]),
+            activeTaskCount=user_dict.get("activeTaskCount"),
             vipTime=user_dict["vipTime"].isoformat() if user_dict.get("vipTime") else None,
             createTime=user_dict["createTime"].isoformat(),
             updateTime=user_dict["updateTime"].isoformat()
         )
     
+    async def _get_points_version(self, user_id: int) -> Optional[int]:
+        """查询用户积分账户乐观锁版本（登录/当前用户接口带回，前端实时刷新余额用）。
+
+        Args:
+            user_id: 用户 ID。
+
+        Returns:
+            user_points.version；无账户（未初始化）返回 None。
+        """
+        try:
+            row = await self.db.fetch_one(
+                query="SELECT version FROM user_points WHERE userId = :userId",
+                values={"userId": user_id},
+            )
+            return int(row["version"]) if row else None
+        except Exception:
+            logger.exception("积分版本查询失败 userId=%s", user_id)
+            return None
+
     async def get_by_id(self, user_id: int) -> Optional[UserVO]:
         """根据 ID 获取用户"""
         query = select(User).where(and_(User.id == user_id, User.is_delete == 0))
@@ -157,6 +179,55 @@ class UserService:
             createTime=user_dict["createTime"].isoformat()
         )
     
+    async def get_profile(self, user_id: int) -> Optional[UserProfileVO]:
+        """获取用户主页信息（基本信息 + 积分/配额 + 创作统计）。
+
+        Args:
+            user_id: 用户 ID。
+
+        Returns:
+            UserProfileVO；用户不存在返回 None。
+        """
+        query = select(User).where(and_(User.id == user_id, User.is_delete == 0))
+        user = await self.db.fetch_one(query)
+        if not user:
+            return None
+
+        user_dict = dict(user)
+
+        # 创作文章总数（未删除）
+        article_count = await self.db.fetch_val(
+            query="SELECT COUNT(*) FROM article WHERE userId = :userId AND isDelete = 0",
+            values={"userId": user_id},
+        )
+
+        # 积分余额（权威以 user_points 为准，缺失回退 user.points 冗余字段）
+        points = user_dict.get("points")
+        try:
+            points_row = await self.db.fetch_one(
+                query="SELECT balance FROM user_points WHERE userId = :userId",
+                values={"userId": user_id},
+            )
+            if points_row:
+                points = int(points_row["balance"])
+        except Exception:
+            logger.exception("用户积分查询失败 userId=%s", user_id)
+
+        return UserProfileVO(
+            id=user_dict["id"],
+            userAccount=user_dict["userAccount"],
+            userName=user_dict["userName"],
+            userAvatar=user_dict["userAvatar"],
+            userProfile=user_dict["userProfile"],
+            userRole=user_dict["userRole"],
+            quota=user_dict.get("quota"),
+            points=points,
+            activeTaskCount=user_dict.get("activeTaskCount"),
+            vipTime=user_dict["vipTime"].isoformat() if user_dict.get("vipTime") else None,
+            createTime=user_dict["createTime"].isoformat(),
+            articleCount=article_count or 0,
+        )
+
     async def list_by_page(self, request: UserQueryRequest) -> Tuple[List[UserVO], int]:
         """分页查询用户列表"""
         # 构建查询条件

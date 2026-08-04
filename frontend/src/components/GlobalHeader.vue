@@ -26,6 +26,17 @@
       <!-- 右侧：用户操作区域 -->
       <div class="header-right">
         <div v-if="loginUserStore.loginUser.id" class="user-dropdown">
+          <!-- 每日签到 -->
+          <a-button
+            class="checkin-btn"
+            :loading="checkingIn"
+            :disabled="checkedInToday"
+            @click="doCheckin"
+          >
+            <CheckCircleOutlined v-if="checkedInToday" />
+            <GiftOutlined v-else />
+            <span>{{ checkedInToday ? '今日已签到' : '签到 +10' }}</span>
+          </a-button>
           <!-- VIP 标识 -->
           <RouterLink v-if="!isVip" to="/vip" class="upgrade-vip-btn">
             <CrownOutlined />
@@ -38,13 +49,28 @@
 
           <a-dropdown>
             <a-space class="user-info">
-              <a-avatar :src="loginUserStore.loginUser.userAvatar" :size="36" class="user-avatar" />
+              <a-avatar
+                :src="loginUserStore.loginUser.userAvatar"
+                :size="36"
+                class="user-avatar"
+                title="个人主页"
+                @click.stop="router.push('/user/profile')"
+              />
               <span class="user-name">
                 {{ loginUserStore.loginUser.userName ?? '无名' }}
               </span>
             </a-space>
             <template #overlay>
               <a-menu class="dropdown-menu">
+                <a-menu-item key="profile" class="dropdown-item" @click="router.push('/user/profile')">
+                  <UserOutlined />
+                  <span>个人主页</span>
+                </a-menu-item>
+                <a-menu-item key="points" class="dropdown-item" @click="router.push('/points')">
+                  <WalletOutlined />
+                  <span>积分中心</span>
+                </a-menu-item>
+                <a-menu-divider />
                 <a-menu-item v-if="isVip" key="vip-info" class="vip-info-item" @click="router.push('/vip')">
                   <CrownOutlined />
                   <span>永久会员权益</span>
@@ -67,19 +93,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, h } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import { userLogout } from '@/api/userController.ts'
+import { getPointsBalance, checkin as pointsCheckin } from '@/api/pointsController.ts'
 import {
   LogoutOutlined,
+  UserOutlined,
   HomeOutlined,
   EditOutlined,
   UnorderedListOutlined,
   SettingOutlined,
   CrownOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  GiftOutlined,
+  CheckCircleOutlined,
+  WalletOutlined
 } from '@ant-design/icons-vue'
 import { isVip as checkIsVip } from '@/utils/permission'
 
@@ -94,6 +125,49 @@ router.afterEach((to) => {
 
 // 判断是否为 VIP（管理员也视为 VIP）
 const isVip = computed(() => checkIsVip(loginUserStore.loginUser))
+
+// 签到状态
+const checkedInToday = ref(false)
+const checkingIn = ref(false)
+
+// 刷新今日签到状态
+const refreshCheckinStatus = async () => {
+  try {
+    const res = await getPointsBalance()
+    if (res.data.code === 0 && res.data.data) {
+      checkedInToday.value = !!res.data.data.checkedInToday
+    }
+  } catch (e) {
+    // 未登录等场景静默处理
+  }
+}
+
+// 每日签到：+10 积分，成功后刷新余额
+const doCheckin = async () => {
+  if (checkedInToday.value) return
+  checkingIn.value = true
+  try {
+    const res = await pointsCheckin()
+    if (res.data.code === 0 && res.data.data) {
+      checkedInToday.value = true
+      message.success(`签到成功，+${res.data.data.gained} 积分`)
+      await loginUserStore.fetchLoginUser()
+    } else {
+      message.error(res.data.message || '签到失败')
+      await refreshCheckinStatus()
+    }
+  } catch (e: any) {
+    message.error(e?.message || '签到失败，请稍后再试')
+  } finally {
+    checkingIn.value = false
+  }
+}
+
+onMounted(() => {
+  if (loginUserStore.loginUser.id) {
+    refreshCheckinStatus()
+  }
+})
 
 // 菜单配置项
 const originItems = [
@@ -122,6 +196,18 @@ const originItems = [
     key: '/admin/statistics',
     icon: BarChartOutlined,
     label: '数据',
+    admin: true,
+  },
+  {
+    key: '/admin/points',
+    icon: WalletOutlined,
+    label: '积分管理',
+    admin: true,
+  },
+  {
+    key: '/admin/model-pricing',
+    icon: SettingOutlined,
+    label: '计价',
     admin: true,
   },
 ]
@@ -262,6 +348,39 @@ const doLogout = async () => {
   gap: 16px;
 }
 
+.checkin-btn.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  box-shadow: none;
+  transition: all var(--transition-fast);
+
+  &:hover:not(:disabled) {
+    background: rgba(34, 197, 94, 0.16);
+    border-color: var(--color-primary);
+    color: var(--color-primary-dark);
+  }
+
+  &:disabled {
+    background: var(--color-background-tertiary);
+    border-color: var(--color-border);
+    color: var(--color-text-muted);
+    box-shadow: none;
+  }
+
+  .anticon {
+    font-size: 13px;
+  }
+}
+
 .upgrade-vip-btn {
   display: inline-flex;
   align-items: center;
@@ -319,6 +438,13 @@ const doLogout = async () => {
 
 .user-avatar {
   border: 2px solid var(--color-border);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.user-avatar:hover {
+  border-color: var(--color-primary);
+  transform: scale(1.04);
 }
 
 .user-name {

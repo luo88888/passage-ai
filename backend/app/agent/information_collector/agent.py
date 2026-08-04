@@ -51,6 +51,7 @@ from app.agent.information_collector.tools import (
 )
 from app.config import settings
 from app.llm_factory.factory import get_chat_model
+from app.services.model_usage_service import usage_context
 from app.utils.logger import logger
 
 
@@ -238,9 +239,10 @@ class InformationCollectorAgent:
         """
         logger.info(f"信息采集开始: {requirement}")
 
-        result_state = await self.agent.ainvoke(
-            {"messages": [HumanMessage(content=requirement)]}
-        )
+        with usage_context(agent_name="info_collector_main"):
+            result_state = await self.agent.ainvoke(
+                {"messages": [HumanMessage(content=requirement)]}
+            )
         messages = result_state.get("messages", [])
         structured_response = result_state.get("structured_response")
 

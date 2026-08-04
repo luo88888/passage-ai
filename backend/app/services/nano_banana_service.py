@@ -1,5 +1,5 @@
 """
-Nano banana 生图服务 / Gemini AI
+Nano banana 生图服务 / Gemini AI（暂时停用该服务）
 """
 
 import logging
@@ -12,6 +12,7 @@ from app.constants.article import ArticleConstant
 from app.models.enums import ImageMethodEnum
 from app.schemas.image import ImageRequest, ImageData
 from app.services.image_search_service import BaseImageSearchService
+from app.services.model_usage_service import usage_recorder
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -58,16 +59,32 @@ class NanoBananaService(BaseImageSearchService):
                     if part.inline_data:
                         image_bytes = part.inline_data.data
                         mime_type = part.inline_data.mime_type or "image/png"
+                        self._record_usage(status="SUCCESS", image_count=1)
                         return ImageData.from_bytes(image_bytes, mime_type) # type: ignore
-            
+            self._record_usage(status="FAILED", image_count=0)
             return None
         except Exception as e:
             logger.error(
                 "Nano Banana 生成图片异常, type=%s, error=%r",
                 type(e).__name__, e,
             )
+            self._record_usage(status="FAILED", image_count=0)
             return None
 
+    def _record_usage(self, status: str, image_count: int) -> None:
+        """上报 Nano Banana 生图用量（成功 1 张 / 失败 0 张）。
+
+        Args:
+            status: SUCCESS / FAILED。
+            image_count: 成功生成张数。
+        """
+        usage_recorder.record_image(
+            provider="NanoBanana",
+            model=self.model or "gemini-2.5-flash-image",
+            agent_name="agent5_generate_images",
+            image_count=image_count,
+            status=status,
+        )
 
     def get_method(self) -> ImageMethodEnum:
         return ImageMethodEnum.NANO_BANANA
