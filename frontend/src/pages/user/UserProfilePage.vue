@@ -97,10 +97,11 @@ const vipTimeText = computed(() => formatDate(profile.value?.vipTime))
 
 // 统计卡片
 const statItems = computed(() => [
-  { key: 'points', label: '积分余额', value: profile.value?.points ?? 0, icon: FireOutlined, unit: '积分' },
+  // to：点击卡片跳转目标（points→积分中心；article/active→历史记录，active 带筛选参数自动设置“进行中”）
+  { key: 'points', label: '积分余额', value: profile.value?.points ?? 0, icon: FireOutlined, unit: '积分', to: '/points' },
   { key: 'quota', label: '剩余配额', value: profile.value?.quota ?? 0, icon: SafetyCertificateOutlined, unit: '次' },
-  { key: 'article', label: '创作文章', value: profile.value?.articleCount ?? 0, icon: FileTextOutlined, unit: '篇' },
-  { key: 'active', label: '进行中任务', value: profile.value?.activeTaskCount ?? 0, icon: LoadingOutlined, unit: '个' },
+  { key: 'article', label: '创作文章', value: profile.value?.articleCount ?? 0, icon: FileTextOutlined, unit: '篇', to: '/article/list' },
+  { key: 'active', label: '进行中任务', value: profile.value?.activeTaskCount ?? 0, icon: LoadingOutlined, unit: '个', to: '/article/list?status=ACTIVE' },
 ])
 
 // 快捷入口
@@ -143,7 +144,13 @@ const quickActions = [
 
           <!-- 数据统计卡 -->
           <div class="stats-grid">
-            <div v-for="item in statItems" :key="item.key" class="stat-card">
+            <div
+              v-for="item in statItems"
+              :key="item.key"
+              class="stat-card"
+              :class="{ 'stat-card-link': !!item.to }"
+              @click="item.to && router.push(item.to)"
+            >
               <div class="stat-icon" :class="`stat-icon-${item.key}`">
                 <component :is="item.icon" />
               </div>
@@ -340,6 +347,14 @@ const quickActions = [
 .stat-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(34, 197, 94, 0.12);
+}
+
+/* 可点击卡片 */
+.stat-card-link {
+  cursor: pointer;
+}
+.stat-card-link:hover .stat-label {
+  color: var(--color-primary-dark, #16a34a);
 }
 
 .stat-icon {

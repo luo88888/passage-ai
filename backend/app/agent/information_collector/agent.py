@@ -109,6 +109,8 @@ class InformationCollectorAgent:
             "4. **提取内容**：对选中的文章，推荐使用 batch_extract_articles 批量并行提取\n"
             f"   - 并行度 max_concurrency 不超过 {s.info_collector_max_concurrency}\n"
             "   - 也可逐篇调用 extract_article_content\n"
+            "   - 对于内容可能高度相似的文章，不需要全部提取"
+            "   - 信息足够即可，不需要提取所有文章内容"
             "5. **综合整理**：基于提取的内容，筛选出最终要纳入结果的相关文章\n"
             f"   - 最终输出 {s.info_collector_relevant_news_count} 篇以内相关文章\n\n"
             "## 注意事项\n"

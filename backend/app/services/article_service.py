@@ -461,7 +461,10 @@ class ArticleService:
             conditions.append(Article.user_id == request.user_id)
         if request.topic:
             conditions.append(Article.topic.like(f"%{request.topic}%"))
-        if request.status:
+        if request.statuses:
+            # 多状态筛选（如“进行中”过滤 PENDING + PROCESSING）
+            conditions.append(Article.status.in_(request.statuses))
+        elif request.status:
             conditions.append(Article.status == request.status)
 
         count_query = select(func.count(Article.id)).where(and_(*conditions))

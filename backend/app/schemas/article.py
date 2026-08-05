@@ -53,7 +53,8 @@ class ArticleQueryRequest(PageRequest):
     task_id: Optional[str] = Field(None, alias="taskId", description="任务 ID")
     user_id: Optional[int] = Field(None, alias="userId", description="用户 ID")
     topic: Optional[str] = Field(None, description="选题")
-    status: Optional[str] = Field(None, description="状态")
+    status: Optional[str] = Field(None, description="状态（单状态，与 statuses 二选一）")
+    statuses: Optional[List[str]] = Field(None, description="状态列表（多状态筛选，例如“进行中”=过滤 PENDING+PROCESSING，与 status 二选一）")
 
 
 class TitleOption(BaseModel):

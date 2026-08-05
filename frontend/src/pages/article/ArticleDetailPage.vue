@@ -35,6 +35,9 @@ const bodyHtml = computed(() => {
   return renderMarkdown(md)
 })
 
+// 大纲折叠面板：默认收起，用户可手动展开
+const outlineActiveKey = ref<string[]>([])
+
 const outlineList = computed(() => {
   const o = article.value?.outline
   return Array.isArray(o) ? (o as Array<{ section: number; title: string; points: string[] }>) : []
@@ -240,18 +243,30 @@ onBeforeUnmount(() => {
           <template v-else>
             <!-- 文章大纲 -->
             <section v-if="outlineList.length" class="article-section">
-              <h2 class="section-title">
-                <OrderedListOutlined />
-                文章大纲
-              </h2>
-              <div class="outline-list">
-                <div v-for="item in outlineList" :key="item.section" class="outline-block">
-                  <div class="outline-block-title">{{ item.section }}. {{ item.title }}</div>
-                  <ul class="outline-points">
-                    <li v-for="(p, i) in item.points" :key="i">{{ p }}</li>
-                  </ul>
-                </div>
-              </div>
+              <!-- 文章大纲：默认收起，可点击展开 -->
+              <a-collapse
+                v-model:activeKey="outlineActiveKey"
+                class="outline-collapse"
+                :bordered="false"
+                expand-icon-position="end"
+              >
+                <a-collapse-panel key="outline">
+                  <template #header>
+                    <span class="section-title">
+                      <OrderedListOutlined />
+                      文章大纲
+                    </span>
+                  </template>
+                  <div class="outline-list">
+                    <div v-for="item in outlineList" :key="item.section" class="outline-block">
+                      <div class="outline-block-title">{{ item.section }}. {{ item.title }}</div>
+                      <ul class="outline-points">
+                        <li v-for="(p, i) in item.points" :key="i">{{ p }}</li>
+                      </ul>
+                    </div>
+                  </div>
+                </a-collapse-panel>
+              </a-collapse>
             </section>
 
             <!-- 文章正文 -->
@@ -404,6 +419,24 @@ onBeforeUnmount(() => {
   margin: 0 0 16px;
 }
 .section-title .anticon {
+  color: var(--color-primary);
+}
+
+/* 大纲折叠面板（默认收起） */
+.outline-collapse {
+  background: transparent;
+}
+.outline-collapse :deep(.ant-collapse-header) {
+  align-items: center;
+  padding: 0 0 16px;
+}
+.outline-collapse :deep(.ant-collapse-content-box) {
+  padding: 0;
+}
+.outline-collapse .section-title {
+  margin-bottom: 0;
+}
+.outline-collapse :deep(.ant-collapse-expand-icon) {
   color: var(--color-primary);
 }
 
