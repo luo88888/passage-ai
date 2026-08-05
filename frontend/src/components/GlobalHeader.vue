@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
@@ -163,11 +163,18 @@ const doCheckin = async () => {
   }
 }
 
-onMounted(() => {
-  if (loginUserStore.loginUser.id) {
-    refreshCheckinStatus()
-  }
-})
+// 登录用户就绪后刷新今日签到状态：页面刷新时 onMounted 早于路由守卫的
+// fetchLoginUser 完成，此时 loginUser.id 尚为空会漏刷，导致刷新后签到按钮
+// 误显示为可签到；改用 watch 等登录态就绪后再拉取。
+watch(
+  () => loginUserStore.loginUser.id,
+  (id) => {
+    if (id) {
+      refreshCheckinStatus()
+    }
+  },
+  { immediate: true },
+)
 
 // 菜单配置项
 const originItems = [

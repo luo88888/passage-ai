@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
   PlusOutlined,
@@ -18,6 +18,7 @@ import { exportMarkdown } from '@/utils/export'
 import { useLoginUserStore } from '@/stores/loginUser'
 
 const router = useRouter()
+const route = useRoute()
 const loginUserStore = useLoginUserStore()
 
 // 列数据
@@ -45,6 +46,8 @@ const searchParams = reactive<API.ArticleQueryRequest>({
 // 状态下拉选项
 const statusOptions = [
   { label: '全部状态', value: '' },
+  // “进行中”为复合筛选：等待中(PENDING) + 生成中(PROCESSING)，后端通过 statuses 列表接受
+  { label: '进行中', value: 'ACTIVE' },
   { label: '已完成', value: 'COMPLETED' },
   { label: '生成中', value: 'PROCESSING' },
   { label: '等待中', value: 'PENDING' },
@@ -64,12 +67,19 @@ const pagination = computed(() => ({
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await listArticle({
-      ...searchParams,
+    // 构建查询参数：“进行中”(ACTIVE) 映射为多状态列表，后端用 statuses 接受
+    const params: Record<string, any> = {
+      current: searchParams.current,
+      pageSize: searchParams.pageSize,
       // 空字符串视为不筛选，避免后端按精确空值匹配
       topic: searchParams.topic || undefined,
-      status: searchParams.status || undefined,
-    })
+    }
+    if (searchParams.status === 'ACTIVE') {
+      params.statuses = ['PENDING', 'PROCESSING']
+    } else {
+      params.status = searchParams.status || undefined
+    }
+    const res = await listArticle(params)
     const d = res.data?.data
     if (d) {
       data.value = (d.records as API.ArticleVO[]) ?? []
@@ -135,11 +145,28 @@ const doDelete = async (id: number | string) => {
   }
 }
 
+// 状态筛选变更：重新查询 + 同步 URL（支持从个人中心等入口带参数跳转）
+const onStatusChange = () => {
+  doSearch()
+  router.replace({
+    path: '/article/list',
+    query: searchParams.status ? { status: searchParams.status } : {},
+  })
+}
+
 onMounted(() => {
   // 登录态兜底
   if (!loginUserStore.loginUser.id) {
     router.replace(`/user/login?redirect=${window.location.pathname + window.location.search}`)
     return
+  }
+  // 支持 /article/list?status=ACTIVE|PENDING|PROCESSING|COMPLETED|FAILED 自动设置筛选
+  const qStatus = route.query.status
+  if (typeof qStatus === 'string' && qStatus) {
+    const valid = ['ACTIVE', 'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'].includes(qStatus)
+    if (valid) {
+      searchParams.status = qStatus as any
+    }
   }
   fetchData()
 })
@@ -180,7 +207,7 @@ onMounted(() => {
             v-model:value="searchParams.status"
             class="status-select"
             :options="statusOptions"
-            @change="doSearch"
+            @change="onStatusChange"
           />
           <a-button type="primary" class="search-btn" @click="doSearch">
             <SearchOutlined />

@@ -145,8 +145,12 @@ const pointsLoading = ref(false)
 // 进行中任务数（登录用户信息已带）
 const activeTaskCount = computed(() => loginUserStore.loginUser.activeTaskCount ?? 0)
 
-// 本单预计消耗：按目标字数粗略估算（约 6 积分/千字，含标题/大纲/正文输入+输出），实际以后端用量结算为准
+// 是否为新闻题材（触发信息采集，消耗更大）
+const isNewsGenre = computed(() => selectedGenre.value === 'news')
+
+// 本单预计消耗：新闻题材固定 120 积分（含信息采集成本）；其余按目标字数粗略估算（约 6 积分/千字，含标题/大纲/正文输入+输出），实际以后端用量结算为准
 const estimateCost = computed(() => {
+  if (isNewsGenre.value) return 120
   const wc = targetWordCount.value || DEFAULT_WORD_COUNT
   return Math.max(1, Math.ceil((wc * 6) / 1000))
 })
@@ -764,6 +768,11 @@ onBeforeUnmount(() => {
                 :value="item.value"
               >{{ item.label }}</a-radio-button>
             </a-radio-group>
+            <!-- 新闻题材内联提醒（非弹窗）：先采集新闻资讯，消耗较大 -->
+            <div v-if="isNewsGenre" class="genre-news-notice">
+              <WarningOutlined />
+              <span>新闻题材将自动采集相关新闻资讯，生成链路更长、消耗更大，本单预估消耗 <b>120</b> 积分。</span>
+            </div>
           </div>
 
           <!-- 语言风格：单选（含"默认"，默认项提交时映射为 null） -->
@@ -863,7 +872,10 @@ onBeforeUnmount(() => {
             </div>
             <div class="points-estimate">
               本单预计消耗 <b>{{ estimateCost }}</b> 积分
-              <div class="points-estimate-sub">按 {{ targetWordCount || DEFAULT_WORD_COUNT }} 字估算，实际按用量结算</div>
+              <div class="points-estimate-sub">
+                <template v-if="isNewsGenre">新闻题材固定预估 120 积分（含信息采集），实际按用量结算</template>
+                <template v-else>按 {{ targetWordCount || DEFAULT_WORD_COUNT }} 字估算，实际按用量结算</template>
+              </div>
             </div>
             <div class="points-active">进行中任务 <b>{{ activeTaskCount }}</b> 个</div>
             <div v-if="isDebt" class="points-debt-warning">
@@ -1492,6 +1504,28 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+/* 新闻题材提醒（内联，非弹窗） */
+.genre-news-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-warning, #b45309);
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.25);
+  border-radius: var(--radius-md);
+}
+.genre-news-notice .anticon {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.genre-news-notice b {
+  color: var(--color-primary-dark, #16a34a);
 }
 .option-wordcount {
   width: 200px;

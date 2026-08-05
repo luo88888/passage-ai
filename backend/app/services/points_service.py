@@ -14,7 +14,7 @@ M4 扩展：余额 VO（get_balance_vo）、明细分页（list_transactions）�
     保证余额与流水一致。
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
 
 from databases import Database
@@ -37,6 +37,12 @@ from app.schemas.points import (
     PointsUsageStatsQueryRequest,
 )
 from app.utils.logger import logger
+
+
+# 签到/看板统计按北京时区（Asia/Shanghai）自然日刷新：
+# 中国无夏令时，固定 UTC+8（不依赖 tzdata，Windows 下 zoneinfo 不可用）；
+# 无论服务器部署在哪个时区，每天北京时间 00:00 后即为新的一天，可再次签到。
+SHANGHAI_TZ = timezone(timedelta(hours=8), name="Asia/Shanghai")
 
 
 class PointsService:
@@ -217,6 +223,18 @@ class PointsService:
     # ==================== 每日签到（M4） ====================
 
     @staticmethod
+    def _get_today_str() -> str:
+        """获取北京时区（Asia/Shanghai）的当天日期字符串 YYYY-MM-DD。
+
+        签到按北京自然日刷新，不依赖服务器本地时区；
+        服务器时区漂移不会改变「每天北京时间 0 点后可再次签到」的刷新点。
+
+        Returns:
+            当天日期字符串（YYYY-MM-DD）。
+        """
+        return datetime.now(SHANGHAI_TZ).strftime("%Y-%m-%d")
+
+    @staticmethod
     def _checkin_redis_key(user_id: int, day: str) -> str:
         """构造签到 Redis 幂等键。
 
@@ -241,7 +259,7 @@ class PointsService:
         redis = get_client()
         if not redis:
             return False
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = self._get_today_str()
         return bool(await redis.exists(self._checkin_redis_key(user_id, today)))
 
     async def checkin(self, user_id: int) -> PointsCheckinVO:
@@ -261,7 +279,7 @@ class PointsService:
         redis = get_client()
         if not redis:
             raise BusinessException(ErrorCode.SYSTEM_ERROR, "签到服务暂不可用，请稍后再试")
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = self._get_today_str()
         key = self._checkin_redis_key(user_id, today)
         acquired = await redis.set(key, "1", nx=True, ex=86400 * 2)
         if not acquired:
@@ -427,7 +445,7 @@ class PointsService:
         usage_record_count = int(await self.db.fetch_val("SELECT COUNT(*) FROM model_usage_record") or 0)
         total_cost_points = int(await self.db.fetch_val("SELECT COALESCE(SUM(costPoints), 0) FROM model_usage_record") or 0)
 
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = self._get_today_str()
         today_checkin_count = int(
             await self.db.fetch_val(
                 query="SELECT COUNT(*) FROM points_transaction WHERE type = :type AND createTime >= :today",
