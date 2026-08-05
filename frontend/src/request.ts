@@ -3,7 +3,8 @@ import { message } from 'ant-design-vue'
 
 // 创建 Axios 实例
 const myAxios = axios.create({
-  baseURL: 'http://localhost:8567/api',
+  // 生产默认同源 /api（由 Nginx 反代到后端）；跨域部署时用 VITE_API_BASE_URL 覆盖
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 60000,
   withCredentials: true,  // 必须！携带 Cookie
 })

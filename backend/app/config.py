@@ -126,7 +126,7 @@ class Settings(BaseSettings):
 
     # ===================== 积分与并发限制（M3：后付费段级结算） =====================
     # 积分透支护栏：余额允许为负，最多透支 max_debt_points（100 积分 = 1 元）
-    max_debt_points: int = 10
+    max_debt_points: int = 200
     # 单用户「进行中（含挂起）」创作任务上限（activeTaskCount 原子计数，仅 admin 豁免）
     max_active_tasks: int = 5
     # 僵尸任务判定阈值（小时）：用于对账/清理识别长时间未完成的任务（本期仅对账计数，不强制清理）
@@ -157,7 +157,7 @@ class Settings(BaseSettings):
     # 子 Agent（单篇文章摘要），用轻量模型即可
     info_collector_sub_provider: str = "deepseek"
     info_collector_sub_model: str = "deepseek-v4-flash"
-    info_collector_sub_temperature: float = 0.1
+    info_collector_sub_temperature: float = 1.0
 
     # 工具调用次数限制（兜底防失控）
     info_collector_serper_tool_limit: int = 5      # serper_search 单工具调用上限
@@ -181,30 +181,30 @@ class Settings(BaseSettings):
     # ---------- 标题生成 Agent ----------
     title_agent_provider: str = ""
     title_agent_model: str = ""
-    title_agent_temperature: float = 0.6
+    title_agent_temperature: float = 1.5
     title_agent_thinking: bool = False
     title_agent_reasoning_effort: str = "high"
 
     # ---------- 大纲生成 Agent ----------
     outline_agent_provider: str = ""
     outline_agent_model: str = ""
-    outline_agent_temperature: float = 0.3
-    outline_agent_thinking: bool = False
-    outline_agent_reasoning_effort: str = "high"
+    outline_agent_temperature: float = 1.0
+    outline_agent_thinking: bool = True
+    outline_agent_reasoning_effort: str = "low"
 
     # ---------- 正文生成 Agent ----------
     content_agent_provider: str = ""
     content_agent_model: str = ""
-    content_agent_temperature: float = 0.3
-    content_agent_thinking: bool = False
-    content_agent_reasoning_effort: str = "high"
+    content_agent_temperature: float = 1.3
+    content_agent_thinking: bool = True
+    content_agent_reasoning_effort: str = "low"
 
     # ---------- 配图需求分析 Agent ----------
     image_analyzer_agent_provider: str = ""
     image_analyzer_agent_model: str = ""
-    image_analyzer_agent_temperature: float = 0.1
-    image_analyzer_agent_thinking: bool = False
-    image_analyzer_agent_reasoning_effort: str = "high"
+    image_analyzer_agent_temperature: float = 0.2
+    image_analyzer_agent_thinking: bool = True
+    image_analyzer_agent_reasoning_effort: str = "low"
 
     @property
     def database_url(self) -> str:
