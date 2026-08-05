@@ -87,8 +87,8 @@ export interface SseHandlers {
   onComplete?: () => void
 }
 
-// 与 request.ts 的 baseURL 保持一致
-const API_BASE = 'http://localhost:8567/api'
+// 与 request.ts 的 baseURL 保持一致：默认同源 /api，跨域部署时用 VITE_API_BASE_URL 覆盖
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
 /**
  * 订阅文章生成进度 SSE 流。
