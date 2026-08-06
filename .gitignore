@@ -141,6 +141,11 @@ __screenshots__/
 backend/data/
 
 # =====================
+# Deploy scripts (local only)
+# =====================
+deploy/
+
+# =====================
 # Misc / temp
 # =====================
 *.bak
