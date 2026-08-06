@@ -195,7 +195,7 @@ class Settings(BaseSettings):
     # ---------- 正文生成 Agent ----------
     content_agent_provider: str = ""
     content_agent_model: str = ""
-    content_agent_temperature: float = 1.3
+    content_agent_temperature: float = 0.6
     content_agent_thinking: bool = True
     content_agent_reasoning_effort: str = "low"
 
