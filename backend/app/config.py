@@ -4,6 +4,7 @@
 
 import os
 from pathlib import Path
+from urllib.parse import quote_plus
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -211,7 +212,10 @@ class Settings(BaseSettings):
         """
         获取数据库连接 URL
         """
-        return f"mysql+pymysql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}?charset=utf8mb4"
+        return (
+            f"mysql+pymysql://{quote_plus(self.db_user)}:{quote_plus(self.db_password)}"
+            f"@{self.db_host}:{self.db_port}/{self.db_name}?charset=utf8mb4"
+        )
 
     @property
     def redis_url(self) -> str:

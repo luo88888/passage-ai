@@ -19,6 +19,7 @@
 
 import sys
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from sqlalchemy import create_engine, text
 
@@ -59,7 +60,7 @@ MODEL_PRICING_SEEDS = [
 def _create_database() -> None:
     """建库（若不存在），字符集与 init_db.sql 保持一致。"""
     root_url = (
-        f"mysql+pymysql://{settings.db_user}:{settings.db_password}"
+        f"mysql+pymysql://{quote_plus(settings.db_user)}:{quote_plus(settings.db_password)}"
         f"@{settings.db_host}:{settings.db_port}/?charset=utf8mb4"
     )
     root_engine = create_engine(root_url, pool_pre_ping=True)
