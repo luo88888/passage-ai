@@ -31,6 +31,7 @@ class Article(Base):
     style = Column(String(20), nullable=True, comment="文章风格：tech/emotional/educational/humorous（已弃用，保留兼容存量数据）")
     user_description = Column("userDescription", Text, nullable=True, comment="用户补充描述")
     enabled_image_methods = Column("enabledImageMethods", Text, nullable=True, comment="允许的配图方式列表（JSON格式）")
+    research_data = Column("researchData", Text, nullable=True, comment="信息采集结果（JSON）：{requirement, searchQueriesUsed, articles[]}")
     title_options = Column("titleOptions", Text, nullable=True, comment="标题方案列表（JSON格式）")
     genre = Column("genre", String(20), nullable=True, comment="题材：news/knowledge/product/tutorial/opinion/story")
     language_style = Column("languageStyle", String(20), nullable=True, comment="语言风格：professional/accessible/humorous/literary/formal")

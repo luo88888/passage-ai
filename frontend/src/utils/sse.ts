@@ -55,6 +55,24 @@ export interface ImageResult {
   placeholderId?: string
 }
 
+/** 单条信息采集结果（新闻/文章摘要，对应后端 NewsArticleSummary 的 camelCase 形态） */
+export interface ResearchArticle {
+  title: string
+  url: string
+  summary: string
+  publishTime?: string | null
+  source?: string | null
+  author?: string | null
+  tags?: string[]
+}
+
+/** 信息采集结果（对应后端 article.researchData JSON 列 / RESEARCH_COMPLETE SSE 载荷） */
+export interface ResearchData {
+  requirement?: string
+  searchQueriesUsed?: string[]
+  articles?: ResearchArticle[]
+}
+
 /** SSE 消息载荷（按 type 不同携带不同字段） */
 export interface SseMessage {
   type: SseMessageType
@@ -76,6 +94,10 @@ export interface SseMessage {
   message?: string
   // RESEARCH_COMPLETE：信息采集完成（新闻题材），携带采集到的相关新闻条数
   count?: number
+  // RESEARCH_COMPLETE：实际使用的搜索词列表
+  searchQueriesUsed?: string[]
+  // RESEARCH_COMPLETE：采集到的新闻条目（结构化）
+  articles?: ResearchArticle[]
 }
 
 export interface SseHandlers {

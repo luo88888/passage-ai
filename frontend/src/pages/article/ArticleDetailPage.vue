@@ -18,6 +18,8 @@ import { renderMarkdown } from '@/utils/markdown'
 import { exportMarkdown, exportHtml } from '@/utils/export'
 import { useLoginUserStore } from '@/stores/loginUser'
 import ExecutionLogPanel from '@/components/article/ExecutionLogPanel.vue'
+import ResearchPanel from '@/components/article/ResearchPanel.vue'
+import type { ResearchData } from '@/utils/sse'
 
 const route = useRoute()
 const router = useRouter()
@@ -46,6 +48,12 @@ const outlineList = computed(() => {
 const imageList = computed(() => {
   const imgs = article.value?.images
   return Array.isArray(imgs) ? (imgs as Array<{ position: number; url: string; description?: string }>) : []
+})
+
+// 信息采集结果（数据采集可视化）：新闻题材且已采集完成时展示
+const researchData = computed<ResearchData | null>(() => {
+  const rd = (article.value as any)?.researchData
+  return rd && typeof rd === 'object' ? (rd as ResearchData) : null
 })
 
 const createTimeText = computed(() => {
@@ -210,6 +218,9 @@ onBeforeUnmount(() => {
             :task-id="route.params.taskId as string"
             :article-status="article.status"
           />
+
+          <!-- 信息采集结果（新闻题材，只读回看） -->
+          <ResearchPanel v-if="researchData" :research="researchData" />
 
           <!-- 生成中态 -->
           <div v-if="article.status === 'PROCESSING' || article.status === 'PENDING'" class="status-notice">

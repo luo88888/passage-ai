@@ -114,6 +114,32 @@ class ArticleAiModifyOutlineRequest(BaseModel):
 # ==================== 响应模型 ====================
 
 
+class ResearchArticleVO(BaseModel):
+    """单条信息采集结果（新闻/文章摘要，对应 information_collector.schemas.NewsArticleSummary）"""
+
+    title: str = Field(..., description="文章标题")
+    url: str = Field(..., description="文章原始链接")
+    summary: str = Field(..., description="基于全文内容的摘要")
+    publish_time: Optional[str] = Field(None, alias="publishTime", description="发布时间")
+    source: Optional[str] = Field(None, description="来源媒体")
+    author: Optional[str] = Field(None, description="作者/机构")
+    tags: List[str] = Field(default_factory=list, description="标签")
+
+    class Config:
+        populate_by_name = True
+
+
+class ResearchDataVO(BaseModel):
+    """信息采集结果（对应 article.researchData JSON 列 / RESEARCH_COMPLETE SSE 载荷）"""
+
+    requirement: Optional[str] = Field(None, description="原始信息需求")
+    search_queries_used: List[str] = Field(default_factory=list, alias="searchQueriesUsed", description="实际使用的搜索词")
+    articles: List[ResearchArticleVO] = Field(default_factory=list, description="相关新闻条目")
+
+    class Config:
+        populate_by_name = True
+
+
 class ArticleVO(BaseModel):
     """文章视图对象"""
     
@@ -132,6 +158,7 @@ class ArticleVO(BaseModel):
     outline: Optional[List[Any]] = None
     content: Optional[str] = None
     full_content: Optional[str] = Field(None, alias="fullContent")
+    research_data: Optional[ResearchDataVO] = Field(None, alias="researchData", description="信息采集结果（结构化）")
     cover_image: Optional[str] = Field(None, alias="coverImage")
     images: Optional[List[Any]] = None
     status: str

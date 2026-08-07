@@ -34,11 +34,12 @@ import {
   getCreationOptions,
   type CreationOptionItem,
 } from '@/api/articleController'
-import { subscribeArticleProgress, type SseMessage, type OutlineSection, type TitleOption } from '@/utils/sse'
+import { subscribeArticleProgress, type SseMessage, type OutlineSection, type TitleOption, type ResearchData } from '@/utils/sse'
 import { getPointsBalance, checkin as pointsCheckin } from '@/api/pointsController.ts'
 import { renderMarkdown } from '@/utils/markdown'
 import { exportMarkdown, exportHtml } from '@/utils/export'
 import OutlineEditor from '@/components/article/OutlineEditor.vue'
+import ResearchPanel from '@/components/article/ResearchPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -58,6 +59,9 @@ const taskId = ref('')
 const creating = ref(false)
 const completed = ref(false)
 const errorMsg = ref('')
+// 信息采集结果（数据采集可视化）：RESEARCH_COMPLETE 到达后回填；新闻题材且未完成时 loading
+const researchData = ref<ResearchData | null>(null)
+const researchLoading = ref(false)
 
 // 题材 / 语言风格 / 配图方式 可选项（由后端 /article/options 动态返回，不在前端硬编码）
 // 题材 / 语言风格均为单选：'default' 表示"默认"项（前端写死，后端不返回，提交时映射为 null）。
@@ -254,6 +258,8 @@ const resetAll = () => {
   imageUrls.value = []
   images.value = []
   fullContent.value = ''
+  researchData.value = null
+  researchLoading.value = false
   // 重置新输入控件（保留用户已选题材/语言风格/字数，便于连续创作同类型）
   // —— 这里不重置 selectedGenre/selectedLanguageStyle/wordCount，让用户改字段后点"再创作一篇"即可继续用
 }
@@ -286,7 +292,14 @@ const handleSse = (data: SseMessage) => {
   errorMsg.value = ''
   switch (data.type) {
     case 'RESEARCH_COMPLETE':
-      // 信息采集完成（新闻题材）：仅作信息提示，不影响阶段（标题随后仍点火）
+      // 信息采集完成（新闻题材）：结构化结果回填采集面板，不影响阶段（标题随后仍点火）
+      if (data.searchQueriesUsed?.length || data.articles?.length) {
+        researchData.value = {
+          searchQueriesUsed: data.searchQueriesUsed || [],
+          articles: data.articles || [],
+        }
+      }
+      researchLoading.value = false
       if (typeof data.count === 'number' && data.count > 0) {
         message.info(`信息采集完成，已收集 ${data.count} 条相关新闻`)
       }
@@ -459,6 +472,8 @@ const startGenerate = async () => {
       return
     }
     taskId.value = res.data.data
+    // 新闻题材：采集完成前展示「信息采集中…」占位
+    researchLoading.value = isNewsGenre.value
     // 阶段1只触发"生成标题"，先停在输入态等待 TITLE_GENERATED 再切到选标题
     // （这里不切 stage，等 SSE 推 TITLE_GENERATED 再切；订阅 SSE 拿候选）
     ensureSse()
@@ -593,6 +608,11 @@ const resumeByTaskId = async (id: string) => {
     const a = res.data.data as any
     taskId.value = id
     errorMsg.value = a.errorMessage || ''
+    // 采集结果回填（若已存在，详情接口已带 researchData）
+    if (a.researchData) {
+      researchData.value = a.researchData
+      researchLoading.value = false
+    }
 
     // 失败态：展示错误
     if (a.status === 'FAILED') {
@@ -974,6 +994,9 @@ onBeforeUnmount(() => {
           <div v-if="errorMsg" class="error-banner">
             <a-alert :message="errorMsg" type="error" show-icon />
           </div>
+
+          <!-- 信息采集面板（新闻题材） -->
+          <ResearchPanel :research="researchData" :loading="researchLoading" />
 
           <!-- 标题候选列表 -->
           <div v-if="titleOptions.length" class="title-options">

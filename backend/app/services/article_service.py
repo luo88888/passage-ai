@@ -14,7 +14,7 @@ from app.config import settings
 from app.services.points_service import PointsService
 from app.models.article import Article
 from app.models.enums import ArticleGenreEnum, ArticleLanguageStyleEnum, ArticlePhaseEnum, ArticleStatusEnum, ImageMethodEnum
-from app.schemas.article import ArticleQueryRequest, ArticleState, ArticleVO, CreationOptionsVO, OptionItem, OutlineSection, TitleOption
+from app.schemas.article import ArticleQueryRequest, ArticleState, ArticleVO, CreationOptionsVO, OptionItem, OutlineSection, ResearchDataVO, TitleOption
 from app.schemas.user import LoginUserVO
 from app.agent.image_generator import parallel_image_generator
 from app.utils.logger import logger
@@ -332,6 +332,14 @@ class ArticleService:
         title_options = json.loads(article_dict["titleOptions"]) if article_dict.get("titleOptions") else None
         outline = json.loads(article_dict["outline"]) if article_dict.get("outline") else None
         images = json.loads(article_dict["images"]) if article_dict.get("images") else None
+        research_data = None
+        if article_dict.get("researchData"):
+            try:
+                research_data = ResearchDataVO(**json.loads(article_dict["researchData"])).model_dump(by_alias=True)
+            except Exception as e:
+                # 坏 JSON/字段缺失：容忍为空，不阻塞详情返回
+                logger.warning(f"采集数据解析失败：{str(e)}")
+                research_data = None
         return ArticleVO(
             id=article_dict["id"],
             taskId=article_dict["taskId"],
@@ -348,6 +356,7 @@ class ArticleService:
             outline=outline,
             content=article_dict.get("content"),
             fullContent=article_dict.get("fullContent"),
+            researchData=research_data, # type: ignore
             coverImage=article_dict.get("coverImage"),
             images=images,
             status=article_dict["status"],
@@ -363,6 +372,7 @@ class ArticleService:
         query = select(Article).where(and_(Article.id == article_id, Article.is_delete == 0))
         article = await self.db.fetch_one(query)
         throw_if_not(article, ErrorCode.NOT_FOUND_ERROR, "文章不存在")
+        assert article is not None
         self._check_article_permission(article, login_user)
 
         was_active = article["status"] in (
@@ -499,6 +509,21 @@ class ArticleService:
             "phase": phase.value,
             "taskId": task_id,
         })
+
+    async def save_research_data(self, task_id: str, research_data: dict):
+        """保存信息采集结果（结构化 JSON，供创作页/详情页可视化回看）
+
+        Args:
+            task_id: 任务 ID。
+            research_data: 结构化采集结果，含 requirement / searchQueriesUsed / articles。
+        """
+        await self.db.execute(
+            query="UPDATE article SET researchData = :researchData WHERE taskId = :taskId",
+            values={
+                "taskId": task_id,
+                "researchData": json.dumps(research_data, ensure_ascii=False),
+            },
+        )
 
     async def save_title_options(self, task_id: str, title_options: List[TitleOption]):
         """保存标题方案列表"""

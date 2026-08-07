@@ -182,7 +182,7 @@ class Settings(BaseSettings):
     # ---------- 标题生成 Agent ----------
     title_agent_provider: str = ""
     title_agent_model: str = ""
-    title_agent_temperature: float = 1.5
+    title_agent_temperature: float = 0.8
     title_agent_thinking: bool = False
     title_agent_reasoning_effort: str = "high"
 
