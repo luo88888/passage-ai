@@ -13,10 +13,10 @@ article_async_service.resume(task_id, {"modify_suggestion": ...}) 续跑本图�
 避免冒泡到 ArticleAsyncService._handle_failure 把整篇文章标 FAILED。失败后 state.outline 不变，
 用户随后确认大纲会沿用原文档。
 
-agent 访问：复用 get_orchestrator().title_agent —— 仅借用其 BaseAgent 共享方法
-(_call_llm / _agent_log_context_sync / _parse_json_response / _safe_json_dumps)，
-不调用 title_agent.run()（语义无关，仅借用其 client/model/agent_log_service），
-以避免重复构造 AsyncOpenAI 客户端与 AgentLogService，与 _orchestrator.py 单例目的一致。
+agent 访问：复用 get_orchestrator() 单例 —— 借用 title_agent 的 BaseAgent 共享方法
+(_call_structured_model / _agent_log_context_sync / _safe_json_dumps)，结构化模型使用
+编排器持有的 outline_structured_model（OutlineResult schema）；不调用 title_agent.run()，
+以避免重复构造 LLM 客户端与 AgentLogService，与 _orchestrator.py 单例目的一致。
 """
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
 
     # 函数体内 import，避免触发 app.services.__init__ → article_async_service → graph 的循环导入
     from app.database import database
-    from app.schemas.article import OutlineSection
+    from app.schemas.article import OutlineResult, OutlineSection
     from app.services.article_service import ArticleService
 
     current_outline = [OutlineSection(**s) for s in sections_dict]
@@ -69,7 +69,8 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
     )
 
     # 复用编排器单例持有的 title_agent（仅借用 BaseAgent 共享方法，非 title 语义）
-    agent = get_orchestrator().title_agent
+    orchestrator = get_orchestrator()
+    agent = orchestrator.title_agent
     # 注入语言风格提示词（与 outline 节点保持一致），使修改后大纲同样贴合语气取向
     prompt += agent._get_language_style_prompt(state.get("language_style"))
 
@@ -84,9 +85,12 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
                 "currentSectionsCount": len(current_outline),
             },
         ) as log_data:
-            content = await agent._call_llm(prompt, agent_name="ai_modify_outline")
-            outline_data = agent._parse_json_response(content, "修改后的大纲")
-            sections = [OutlineSection(**s) for s in outline_data["sections"]]
+            result: OutlineResult = await agent._call_structured_model(
+                prompt,
+                agent_name="ai_modify_outline",
+                structured_model=orchestrator.outline_structured_model,
+            )
+            sections = result.sections
             log_data["outputData"] = agent._safe_json_dumps(
                 {"sectionsCount": len(sections)}
             )

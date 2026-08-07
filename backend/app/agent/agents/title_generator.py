@@ -3,7 +3,7 @@
 """
 from app.agent.base_agent import BaseAgent
 from app.constants.prompt import PromptConstant
-from app.schemas.article import ArticleState, TitleOption
+from app.schemas.article import ArticleState, TitleOptionResult
 from app.utils.logger import logger
 
 
@@ -27,11 +27,10 @@ class TitleGeneratorAgent(BaseAgent):
                 "hasCollectedNews": bool(state.collected_news and state.collected_news.strip()),
             },
         ) as log_data:
-            content = await self._call_llm(prompt, agent_name="agent1_generate_titles")
-            title_options_data = self._parse_json_list_response(content, "标题方案")
-            state.title_options = [
-                TitleOption(**item) for item in title_options_data
-            ]
+            result: TitleOptionResult = await self._call_structured_model(
+                prompt, agent_name="agent1_generate_titles"
+            )
+            state.title_options = result.title_options
             log_data["outputData"] = self._safe_json_dumps(
                 {"optionsCount": len(state.title_options)}
             )

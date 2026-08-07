@@ -6,7 +6,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
 import json
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage
@@ -114,15 +114,20 @@ class BaseAgent:
         self,
         model: BaseChatModel,
         agent_log_service: AgentLogService,
+        structured_model: Optional[Any] = None,
     ):
         """初始化基础智能体
 
         Args:
             model: 已配置好的 LangChain BaseChatModel 实例（由 llm_factory 创建）
             agent_log_service: 日志服务
+            structured_model: 可选的结构化输出模型（Runnable，如 llm_factory 的
+                DeepSeekStructuredModel / with_structured_output 结果），
+                供 _call_structured_model 使用；未配置时调用会抛错
         """
         self.model = model
         self.agent_log_service = agent_log_service
+        self.structured_model = structured_model
 
     # ==================== LLM 调用 ====================
 
@@ -142,6 +147,44 @@ class BaseAgent:
             logger.error(
                 "LLM 调用失败(非流式) model=%s, error=%s",
                 self.model,
+                str(e),
+                exc_info=True,
+            )
+            raise
+
+    async def _call_structured_model(
+        self,
+        prompt: str,
+        agent_name: Optional[str] = None,
+        structured_model: Optional[Any] = None,
+    ) -> Any:
+        """调用结构化输出模型（非流式），返回 Pydantic 实例
+
+        与 _call_llm 的区别：底层模型是 llm_factory 创建的结构化输出模型
+        （如 DeepSeekStructuredModel / with_structured_output 结果），
+        返回的是校验过的 Pydantic 对象，无需再手工 JSON 解析。
+
+        Args:
+            prompt: 用户提示词。
+            agent_name: 统计点名称（用于模型用量埋点），由调用方传入。
+            structured_model: 可选的结构化模型覆盖（默认用 self.structured_model），
+                供图节点复用其他 schema 的结构化模型（如 AI 修改大纲用 OutlineResult）。
+
+        Returns:
+            结构化模型返回的 Pydantic 实例
+        """
+        model = structured_model or self.structured_model
+        if model is None:
+            raise RuntimeError("未配置结构化输出模型，无法调用 _call_structured_model")
+        logger.debug(f"即将调用结构化 LLM，prompt: {prompt}")
+        try:
+            with usage_context(agent_name=agent_name):
+                result = await model.ainvoke(prompt)
+            return result
+        except Exception as e:
+            logger.error(
+                "结构化 LLM 调用失败 model=%s, error=%s",
+                model,
                 str(e),
                 exc_info=True,
             )
@@ -197,24 +240,6 @@ class BaseAgent:
             logger.error(
                 "%s解析失败, content=%s, error=%s", name, content, str(e)
             )
-            raise RuntimeError(f"{name}解析失败")
-
-    @staticmethod
-    def _parse_json_list_response(content: str, name: str) -> list:
-        """解析 JSON 数组响应"""
-        try:
-            content2 = content.strip()
-            if content2.startswith("```json") or content2.startswith("```JSON"):
-                content2 = content2[7:-3].strip()
-            result = json.loads(content2)
-            if not isinstance(result, list):
-                raise ValueError("响应不是 JSON 数组")
-            return result
-        except json.JSONDecodeError as e:
-            logger.error(f"{name}解析失败, content={content2}, error={e}")
-            raise RuntimeError(f"{name}解析失败")
-        except ValueError as e:
-            logger.error(f"{name}解析失败, content={content}, error={e}")
             raise RuntimeError(f"{name}解析失败")
 
     # ==================== 链路与风格 Prompt ====================

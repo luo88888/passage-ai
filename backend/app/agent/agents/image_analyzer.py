@@ -3,7 +3,7 @@
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from app.agent.base_agent import BaseAgent
 from app.constants.prompt import PromptConstant
@@ -25,8 +25,9 @@ class ImageAnalyzerAgent(BaseAgent):
         model: BaseChatModel,
         agent_log_service: AgentLogService,
         parallel_image_generator: ParallelImageGenerator,
+        structured_model: Optional[Any] = None,
     ):
-        super().__init__(model, agent_log_service)
+        super().__init__(model, agent_log_service, structured_model)
         # 配图方式说明由 ParallelImageGenerator 从已注册服务的 name/description/usage
         # 元数据动态构建（Markdown 表格），本智能体不再硬编码方式列表。
         self.parallel_image_generator = parallel_image_generator
@@ -88,11 +89,8 @@ class ImageAnalyzerAgent(BaseAgent):
             prompt=prompt,
             input_data={"enabledImageMethods": state.enabled_image_methods},
         ) as log_data:
-            content = await self._call_llm(prompt, agent_name="agent4_analyze_image_requirements")
-            # print("Agent4 content")
-            # print(content)
-            agent4_result = Agent4Result(
-                **self._parse_json_response(content, "配图需求")
+            agent4_result: Agent4Result = await self._call_structured_model(
+                prompt, agent_name="agent4_analyze_image_requirements"
             )
             # state.content = agent4_result.content_with_placeholders
 

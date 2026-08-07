@@ -17,21 +17,7 @@ class PromptConstant:
 3. 标题要简洁有力，不超过30字
 4. 不同方案要有不同的切入角度
 
-请直接返回 JSON 格式，不要有其他内容:
-[
-    {{
-        "mainTitle": "主标题1",
-        "subTitle": "副标题1"
-    }},
-    {{
-        "mainTitle": "主标题2",
-        "subTitle": "副标题2"
-    }},
-    {{
-        "mainTitle": "主标题3",
-        "subTitle": "副标题3"
-    }}
-]
+请将 3-8 个标题方案放入 titleOptions 数组，严格按照给定的 JSON Schema 输出，不要有其他内容。
 """
 
 

@@ -67,6 +67,15 @@ class TitleOption(BaseModel):
         populate_by_name = True
 
 
+class TitleOptionResult(BaseModel):
+    """标题方案结构化输出（标题生成智能体返回，供结构化输出模型使用）"""
+
+    title_options: List[TitleOption] = Field(..., alias="titleOptions")
+
+    class Config:
+        populate_by_name = True
+
+
 class ArticleConfirmTitleRequest(BaseModel):
     """确认标题请求"""
 
