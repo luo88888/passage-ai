@@ -152,6 +152,18 @@ const activeTaskCount = computed(() => loginUserStore.loginUser.activeTaskCount 
 // 是否为新闻题材（触发信息采集，消耗更大）
 const isNewsGenre = computed(() => selectedGenre.value === 'news')
 
+// 预标题阶段：尚未产出标题/大纲/正文/配图（「生成中」视图空态细分用）
+const isPreTitlePhase = computed(
+  () => stage.value === 'generating' && !titleResult.value && !outlineRaw.value && !contentRaw.value && !imageCount.value
+)
+
+// 「生成中」空态文案：预标题阶段细分「标题生成中」与新闻题材「采集中」
+const emptyStreamingTip = computed(() => {
+  if (isNewsGenre.value && researchLoading.value) return '正在采集新闻资讯并生成标题方案…'
+  if (isPreTitlePhase.value) return 'AI 正在生成标题方案…'
+  return 'AI 正在构思中…'
+})
+
 // 本单预计消耗：新闻题材固定 120 积分（含信息采集成本）；其余按目标字数粗略估算（约 6 积分/千字，含标题/大纲/正文输入+输出），实际以后端用量结算为准
 const estimateCost = computed(() => {
   if (isNewsGenre.value) return 120
@@ -464,6 +476,8 @@ const startGenerate = async () => {
       enabledImageMethods,
     } as any)
     if (res.data.code !== 0 || !res.data.data) {
+      // 创建失败：回退输入态并展示错误，避免出现「无任务可看的创作页」
+      stage.value = 'input'
       errorMsg.value = res.data.message || '创建任务失败'
       message.error(errorMsg.value)
       if (/(积分|欠费|透支)/.test(errorMsg.value)) {
@@ -472,12 +486,16 @@ const startGenerate = async () => {
       return
     }
     taskId.value = res.data.data
-    // 新闻题材：采集完成前展示「信息采集中…」占位
+    // 点击「开始创作」立即进入三栏创作视图（时间轴第 1 步「生成标题」高亮），
+    // 不再等待 TITLE_GENERATED；标题生成 / 信息采集在后台推进，SSE 接续到「选标题」
+    stage.value = 'generating'
+    currentStep.value = 0
+    // 新闻题材：采集完成前展示「信息采集中…」占位（ResearchPanel loading）
     researchLoading.value = isNewsGenre.value
-    // 阶段1只触发"生成标题"，先停在输入态等待 TITLE_GENERATED 再切到选标题
-    // （这里不切 stage，等 SSE 推 TITLE_GENERATED 再切；订阅 SSE 拿候选）
     ensureSse()
   } catch (e: any) {
+    // 创建失败：回退输入态并展示错误
+    stage.value = 'input'
     errorMsg.value = e?.message || '创建任务失败'
     message.error(errorMsg.value)
   } finally {
@@ -1175,9 +1193,15 @@ onBeforeUnmount(() => {
             </div>
           </section>
 
-          <!-- 空态 -->
-          <div v-if="!titleResult && !outlineRaw && !contentRaw && !imageCount" class="empty-streaming">
-            <a-spin tip="AI 正在构思中…" />
+          <!-- 空态：预标题阶段（标题/大纲/正文/配图均未产出） -->
+          <div
+            v-if="!titleResult && !outlineRaw && !contentRaw && !imageCount"
+            class="empty-streaming"
+            :class="{ 'empty-streaming--research': isNewsGenre }"
+          >
+            <a-spin :tip="emptyStreamingTip" />
+            <!-- 新闻题材：信息采集占位/结果（标题生成前展示；RESEARCH_COMPLETE 到达后回填） -->
+            <ResearchPanel v-if="isNewsGenre" :research="researchData" :loading="researchLoading" />
           </div>
         </div>
       </main>
@@ -1812,6 +1836,17 @@ onBeforeUnmount(() => {
   justify-content: center;
   align-items: center;
   min-height: 200px;
+}
+/* 空态（新闻题材含信息采集面板时）：纵向排列，spinner 居中、面板占满宽度 */
+.empty-streaming--research {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 16px 0;
+}
+.empty-streaming--research :deep(.ant-spin-nested-loading) {
+  align-self: center;
 }
 /* 大纲生成中的流式预览：纵向排列，约束子项宽度并强制换行，避免长行撑破容器 */
 .empty-streaming--outline {
