@@ -2,8 +2,9 @@
 用户路由
 """
 
+import os
 from typing import Optional
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, File, Response, UploadFile
 from databases import Database
 
 from app.database import get_db
@@ -16,21 +17,43 @@ from app.schemas.user import (
     UserQueryRequest,
     UserVO,
     UserProfileVO,
-    LoginUserVO
+    LoginUserVO,
+    UserProfileUpdateRequest,
+    UserChangePasswordRequest,
 )
 from app.services.user_service import UserService
-from app.exceptions import ErrorCode, throw_if_not
+from app.exceptions import ErrorCode, throw_if, throw_if_not
 from app.deps import (
     get_current_user,
+    get_session_id,
     require_login,
     require_admin,
     generate_session_id
 )
 from app.utils.session import set_session, remove_session
+from app.schemas.image import ImageData
+from app.services.local_file_service import LocalFileService
 from app.config import settings
 
 
 router = APIRouter(prefix="/user", tags=["用户管理"])
+
+
+# ==================== 头像上传配置 ====================
+# 允许的头像 MIME 类型与扩展名、大小上限（2MB）
+_ALLOWED_AVATAR_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+_ALLOWED_AVATAR_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+_MAX_AVATAR_SIZE = 2 * 1024 * 1024
+
+_avatar_file_service: "LocalFileService | None" = None
+
+
+def _get_avatar_file_service() -> LocalFileService:
+    """懒加载本地文件存储服务（头像上传复用，避免每次请求重建 httpx 客户端）"""
+    global _avatar_file_service
+    if _avatar_file_service is None:
+        _avatar_file_service = LocalFileService()
+    return _avatar_file_service
 
 
 @router.post("/register", response_model=BaseResponse[int])
@@ -166,3 +189,79 @@ async def delete_user(
     service = UserService(db)
     result = await service.delete_user(request.id)
     return BaseResponse.success(data=result, message="删除成功")
+
+
+@router.post("/profile/update", response_model=BaseResponse[LoginUserVO])
+async def update_user_profile(
+    request: UserProfileUpdateRequest,
+    db: Database = Depends(get_db),
+    session_id: Optional[str] = Depends(get_session_id),
+    current_user: LoginUserVO = Depends(require_login),
+):
+    """更新当前登录用户的个人资料（昵称/头像/简介）
+
+    更新成功后同步刷新 Redis Session 中的用户信息，
+    保证下次 GET /user/get/login 返回最新资料。
+    """
+    service = UserService(db)
+    user = await service.update_profile(current_user.id, request)
+    throw_if_not(user, ErrorCode.NOT_FOUND_ERROR, "用户不存在")
+
+    # 同步更新 Session（by_alias=True 与登录时保持一致）
+    if session_id:
+        await set_session(session_id, {"user": user.model_dump(by_alias=True)}) # type: ignore
+
+    return BaseResponse.success(data=user, message="资料更新成功")
+
+
+@router.post("/change-password", response_model=BaseResponse[bool])
+async def change_password(
+    request: UserChangePasswordRequest,
+    response: Response,
+    db: Database = Depends(get_db),
+    session_id: Optional[str] = Depends(get_session_id),
+    current_user: LoginUserVO = Depends(require_login),
+):
+    """修改当前登录用户的密码
+
+    安全策略：修改成功后清除 Redis Session 与 Cookie，强制用户重新登录。
+    """
+    service = UserService(db)
+    await service.change_password(current_user.id, request)
+
+    if session_id:
+        await remove_session(session_id)
+    response.delete_cookie(key="SESSION")
+
+    return BaseResponse.success(data=True, message="密码修改成功，请重新登录")
+
+
+@router.post("/avatar/upload", response_model=BaseResponse[str])
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: LoginUserVO = Depends(require_login),
+):
+    """上传用户头像（multipart/form-data，字段名 file）
+
+    仅支持 JPG / PNG / WebP / GIF，大小不超过 2MB；
+    文件保存到本地 static/images/avatar/，返回可访问的图片 URL。
+    """
+    # 校验 MIME 类型与扩展名（双重校验，防止伪造类型）
+    content_type = (file.content_type or "").lower()
+    throw_if(
+        content_type not in _ALLOWED_AVATAR_TYPES,
+        ErrorCode.PARAMS_ERROR,
+        "仅支持 JPG/PNG/WebP/GIF 格式的头像",
+    )
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    throw_if(ext not in _ALLOWED_AVATAR_EXTS, ErrorCode.PARAMS_ERROR, "不支持的文件格式")
+
+    content = await file.read()
+    throw_if(len(content) == 0, ErrorCode.PARAMS_ERROR, "文件内容为空")
+    throw_if(len(content) > _MAX_AVATAR_SIZE, ErrorCode.PARAMS_ERROR, "头像大小不能超过 2MB")
+
+    image_data = ImageData.from_bytes(content, mime_type=content_type)
+    url = await _get_avatar_file_service().upload_image_data(image_data, folder="avatar")
+    throw_if_not(url, ErrorCode.OPERATION_ERROR, "头像上传失败")
+
+    return BaseResponse.success(data=url, message="头像上传成功")

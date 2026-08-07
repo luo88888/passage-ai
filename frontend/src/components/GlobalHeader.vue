@@ -70,6 +70,10 @@
                   <WalletOutlined />
                   <span>积分中心</span>
                 </a-menu-item>
+                <a-menu-item key="settings" class="dropdown-item" @click="router.push('/user/settings')">
+                  <SettingOutlined />
+                  <span>账号设置</span>
+                </a-menu-item>
                 <a-menu-divider />
                 <a-menu-item v-if="isVip" key="vip-info" class="vip-info-item" @click="router.push('/vip')">
                   <CrownOutlined />

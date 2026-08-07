@@ -97,6 +97,10 @@ class ImageData:
             return ".jpg"
         elif mime_lower == "image/svg+xml":
             return ".svg"
+        elif mime_lower == "image/webp":
+            return ".webp"
+        elif mime_lower == "image/gif":
+            return ".gif"
         return ".png"
 
     def get_image_bytes(self) -> Optional[bytes]:

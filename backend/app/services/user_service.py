@@ -13,7 +13,9 @@ from app.schemas.user import (
     UserQueryRequest,
     UserVO,
     UserProfileVO,
-    LoginUserVO
+    LoginUserVO,
+    UserProfileUpdateRequest,
+    UserChangePasswordRequest,
 )
 from app.constants.points import PointsConstant
 from app.constants.user import UserConstant
@@ -121,21 +123,7 @@ class UserService:
 
         # 返回登录用户信息
         logger.info("用户登录成功 userAccount=%s, userId=%s", user_dict["userAccount"], user_dict["id"])
-        return LoginUserVO(
-            id=user_dict["id"],
-            userAccount=user_dict["userAccount"],
-            userName=user_dict["userName"],
-            userAvatar=user_dict["userAvatar"],
-            userProfile=user_dict["userProfile"],
-            userRole=user_dict["userRole"],
-            quota=user_dict.get("quota"),
-            points=user_dict.get("points"),
-            pointsVersion=await self._get_points_version(user_dict["id"]),
-            activeTaskCount=user_dict.get("activeTaskCount"),
-            vipTime=user_dict["vipTime"].isoformat() if user_dict.get("vipTime") else None,
-            createTime=user_dict["createTime"].isoformat(),
-            updateTime=user_dict["updateTime"].isoformat()
-        )
+        return await self._to_login_vo(user_dict)
     
     async def _get_points_version(self, user_id: int) -> Optional[int]:
         """查询用户积分账户乐观锁版本（登录/当前用户接口带回，前端实时刷新余额用）。
@@ -155,6 +143,137 @@ class UserService:
         except Exception:
             logger.exception("积分版本查询失败 userId=%s", user_id)
             return None
+
+    async def _to_login_vo(self, user_dict: dict) -> LoginUserVO:
+        """将 user 行字典转为 LoginUserVO（含积分账户乐观锁版本）。
+
+        Args:
+            user_dict: 查询到的 user 行（dict 形态）。
+
+        Returns:
+            LoginUserVO 实例。
+        """
+        return LoginUserVO(
+            id=user_dict["id"],
+            userAccount=user_dict["userAccount"],
+            userName=user_dict["userName"],
+            userAvatar=user_dict["userAvatar"],
+            userProfile=user_dict["userProfile"],
+            userRole=user_dict["userRole"],
+            quota=user_dict.get("quota"),
+            points=user_dict.get("points"),
+            pointsVersion=await self._get_points_version(user_dict["id"]),
+            activeTaskCount=user_dict.get("activeTaskCount"),
+            vipTime=user_dict["vipTime"].isoformat() if user_dict.get("vipTime") else None,
+            createTime=user_dict["createTime"].isoformat(),
+            updateTime=user_dict["updateTime"].isoformat()
+        )
+
+    async def update_profile(
+        self, user_id: int, request: UserProfileUpdateRequest
+    ) -> Optional[LoginUserVO]:
+        """更新当前用户个人资料（昵称/头像/简介）。
+
+        Args:
+            user_id: 当前登录用户 ID。
+            request: 待更新内容（user_name / user_avatar / user_profile，至少一项非空）。
+
+        Returns:
+            更新后的 LoginUserVO；用户不存在返回 None。
+
+        Raises:
+            BusinessException: 没有可更新的字段 / 昵称为空。
+        """
+        # 检查用户是否存在
+        query = select(User).where(and_(User.id == user_id, User.is_delete == 0))
+        user = await self.db.fetch_one(query)
+        if not user:
+            return None
+
+        # 至少提供一项要更新的字段
+        has_update = any([
+            request.user_name is not None,
+            request.user_avatar is not None,
+            request.user_profile is not None,
+        ])
+        throw_if(not has_update, ErrorCode.PARAMS_ERROR, "没有需要更新的字段")
+
+        # 昵称不能为空字符串
+        if request.user_name is not None:
+            throw_if(not request.user_name.strip(), ErrorCode.PARAMS_ERROR, "昵称不能为空")
+
+        # 构建动态更新字段
+        update_fields = []
+        values: dict[str, Any] = {"id": user_id}
+        if request.user_name is not None:
+            update_fields.append("userName = :userName")
+            values["userName"] = request.user_name.strip()
+        if request.user_avatar is not None:
+            update_fields.append("userAvatar = :userAvatar")
+            values["userAvatar"] = request.user_avatar
+        if request.user_profile is not None:
+            update_fields.append("userProfile = :userProfile")
+            values["userProfile"] = request.user_profile
+
+        query = f"UPDATE user SET {', '.join(update_fields)} WHERE id = :id"
+        await self.db.execute(query=query, values=values)
+
+        # 重新查询并返回最新用户信息（供前端同步刷新登录态）
+        query = select(User).where(and_(User.id == user_id, User.is_delete == 0))
+        user = await self.db.fetch_one(query)
+        if not user:
+            return None
+
+        logger.info("用户更新个人资料 userId=%s, fields=%s", user_id, update_fields)
+        return await self._to_login_vo(dict(user))
+
+    async def change_password(self, user_id: int, request: UserChangePasswordRequest) -> bool:
+        """修改密码（校验原密码后更新）。
+
+        Args:
+            user_id: 当前登录用户 ID。
+            request: 原密码 + 新密码 + 确认密码。
+
+        Returns:
+            修改成功返回 True。
+
+        Raises:
+            BusinessException: 用户不存在 / 原密码错误 / 两次新密码不一致 /
+                新密码长度不足 / 新密码与原密码相同。
+        """
+        query = select(User).where(and_(User.id == user_id, User.is_delete == 0))
+        user = await self.db.fetch_one(query)
+        throw_if_not(user, ErrorCode.USER_NOT_EXIST, "用户不存在")
+        assert user is not None  # type narrow: throw_if_not 保证了 user 不为 None
+
+        # 校验原密码
+        old_encrypted = encrypt_password(request.old_password)
+        throw_if(user["userPassword"] != old_encrypted, ErrorCode.PASSWORD_ERROR, "原密码错误")
+
+        # 校验新密码
+        throw_if(
+            request.new_password != request.check_password,
+            ErrorCode.PARAMS_ERROR,
+            "两次输入的新密码不一致",
+        )
+        throw_if(
+            len(request.new_password) < 8,
+            ErrorCode.PARAMS_ERROR,
+            "新密码长度不能小于 8 位",
+        )
+        throw_if(
+            request.new_password == request.old_password,
+            ErrorCode.PARAMS_ERROR,
+            "新密码不能与原密码相同",
+        )
+
+        new_encrypted = encrypt_password(request.new_password)
+        await self.db.execute(
+            query="UPDATE user SET userPassword = :userPassword WHERE id = :id",
+            values={"userPassword": new_encrypted, "id": user_id},
+        )
+        logger.info("用户修改密码成功 userId=%s", user_id)
+        return True
 
     async def get_by_id(self, user_id: int) -> Optional[UserVO]:
         """根据 ID 获取用户"""

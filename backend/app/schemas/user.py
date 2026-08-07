@@ -56,6 +56,23 @@ class UserQueryRequest(PageRequest):
 
 
 
+class UserProfileUpdateRequest(BaseModel):
+    """当前用户更新个人资料请求（昵称/头像/简介，至少一项非空）"""
+
+    user_name: Optional[str] = Field(None, max_length=256, alias="userName", description="用户昵称")
+    user_avatar: Optional[str] = Field(None, max_length=1024, alias="userAvatar", description="用户头像 URL")
+    user_profile: Optional[str] = Field(None, max_length=512, alias="userProfile", description="用户简介")
+
+
+class UserChangePasswordRequest(BaseModel):
+    """修改密码请求"""
+
+    old_password: str = Field(..., min_length=8, max_length=512, alias="oldPassword", description="原密码")
+    new_password: str = Field(..., min_length=8, max_length=512, alias="newPassword", description="新密码")
+    check_password: str = Field(..., min_length=8, max_length=512, alias="checkPassword", description="确认新密码")
+
+
+
 # ============================== 响应模型 ==============================
 
 class UserVO(BaseModel):

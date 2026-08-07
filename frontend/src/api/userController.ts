@@ -145,3 +145,63 @@ export async function updateUser(body: API.UserUpdateRequest, options?: { [key: 
     ...(options || {}),
   })
 }
+/** 更新当前用户个人资料 POST /user/profile/update */
+export interface UserProfileUpdateRequest {
+  /** 用户昵称 */
+  userName?: string
+  /** 用户头像 URL */
+  userAvatar?: string
+  /** 用户简介 */
+  userProfile?: string
+}
+
+/** 修改密码请求 POST /user/change-password */
+export interface UserChangePasswordRequest {
+  /** 原密码 */
+  oldPassword: string
+  /** 新密码 */
+  newPassword: string
+  /** 确认新密码 */
+  checkPassword: string
+}
+
+/** 更新当前用户个人资料（昵称/头像/简介），返回最新登录用户信息 */
+export async function updateUserProfile(
+  body: UserProfileUpdateRequest,
+  options?: { [key: string]: any }
+) {
+  return request<{ code: number; data: API.LoginUserVO; message?: string }>('/user/profile/update', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  })
+}
+
+/** 修改密码 POST /user/change-password（成功后需重新登录） */
+export async function changePassword(
+  body: UserChangePasswordRequest,
+  options?: { [key: string]: any }
+) {
+  return request<{ code: number; data: boolean; message?: string }>('/user/change-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  })
+}
+
+/** 上传用户头像 POST /user/avatar/upload（multipart，字段名 file），返回图片 URL */
+export async function uploadUserAvatar(file: File, options?: { [key: string]: any }) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request<{ code: number; data: string; message?: string }>('/user/avatar/upload', {
+    method: 'POST',
+    data: formData,
+    ...(options || {}),
+  })
+}

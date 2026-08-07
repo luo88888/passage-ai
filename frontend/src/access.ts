@@ -28,7 +28,7 @@ router.beforeEach(async (to, from, next) => {
   
   const toUrl = to.fullPath
   // 积分中心/个人主页需要登录
-  if (toUrl.startsWith('/points') || toUrl.startsWith('/user/profile')) {
+  if (toUrl.startsWith('/points') || toUrl.startsWith('/user/profile') || toUrl.startsWith('/user/settings')) {
     if (!loginUser || !loginUser.id) {
       next(`/user/login?redirect=${to.fullPath}`)
       return

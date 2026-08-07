@@ -139,6 +139,10 @@ const quickActions = [
                 <ClockCircleOutlined class="foot-icon" />
                 <span>注册于 {{ registerTime }}</span>
               </div>
+              <a-button class="edit-profile-btn" @click="router.push('/user/settings')">
+                <EditOutlined />
+                <span>编辑资料</span>
+              </a-button>
             </div>
           </div>
 
@@ -323,6 +327,24 @@ const quickActions = [
 
 .foot-icon {
   color: var(--color-primary, #22c55e);
+}
+
+.edit-profile-btn.ant-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--radius-md, 10px);
+  font-weight: 500;
+  color: var(--color-primary-dark, #16a34a);
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.edit-profile-btn.ant-btn:hover {
+  background: rgba(34, 197, 94, 0.16);
+  border-color: var(--color-primary, #22c55e);
+  color: var(--color-primary-dark, #16a34a);
 }
 
 /* 统计卡片 */

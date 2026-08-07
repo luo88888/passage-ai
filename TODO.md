@@ -55,7 +55,9 @@
 
 ### 1.8 个人中心
 
-- [ ] 个人信息修改（头像、昵称、密码）
+- [X] 个人信息修改（头像、昵称、密码、用户简介）
+      （`/user/settings` 账号设置页：头像上传 + 昵称/简介修改 + 修改密码；
+      后端 `POST /user/profile/update` / `POST /user/change-password` / `POST /user/avatar/upload`）
 - [X] 用户主页：点击头像跳转个人详情页（`/user/profile`），展示头像/昵称/账号/简介/角色/VIP 状态/注册时间，以及积分余额/剩余配额/创作数量/进行中任务
       （后端 `GET /user/profile` 聚合 user + user_points + article 统计）
 - [ ] 创作趋势图（ECharts，随积分中心页一起，待做）
