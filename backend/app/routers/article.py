@@ -195,18 +195,20 @@ async def get_creation_options(
 @router.get("/progress/{task_id}")
 async def get_progress(
     task_id: str,
+    after: int = 0,  # 断点续传：只重放 seq > after 的历史消息（after=0 全量重放）
     db: Database = Depends(get_db),
     current_user: LoginUserVO = Depends(require_login)
 ):
-    """SSE 进度推送"""
+    """SSE 进度推送（支持 ?after= 断点续传：先重放历史，再续接实时流）"""
     throw_if(not task_id or not task_id.strip(), ErrorCode.PARAMS_ERROR, "任务ID不能为空")
-    
+    throw_if(after < 0, ErrorCode.PARAMS_ERROR, "after 不能为负数")
+
     # 校验权限（内部会检查任务是否存在以及用户是否有权限访问）
     service = ArticleService(db)
     await service.get_article_detail(task_id, current_user)
-    
+
     # 创建 SSE Emitter 并返回 StreamingResponse
-    return sse_emitter_manager.create_emitter(task_id)
+    return sse_emitter_manager.create_emitter(task_id, after_seq=after)
 
 
 @router.post("/list", response_model=BaseResponse[dict])

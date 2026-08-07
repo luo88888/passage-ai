@@ -112,18 +112,37 @@ export interface SseHandlers {
 // 与 request.ts 的 baseURL 保持一致：默认同源 /api，跨域部署时用 VITE_API_BASE_URL 覆盖
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
+/** SSE 订阅句柄 */
+export interface SseSubscription {
+  close: () => void
+  /** 最近一条 SSE 事件的序号（SSE 帧 `id: <seq>`），断线重连时作为 `after` 续传 */
+  getLastSeq: () => number
+}
+
+export interface SubscribeOptions {
+  /** 订阅起点：只重放 seq > after 的历史消息；after=0 全量重放；缺省 0 */
+  after?: number
+}
+
 /**
  * 订阅文章生成进度 SSE 流。
- * 返回一个带 close() 的句柄，调用方在组件卸载时应调用 close() 释放连接。
+ * - 支持 `?after=` 断点续传：先重放历史事件，再续接实时流（阶段三：创作进度准确恢复）；
+ * - 每条消息记录 SSE 帧 `id: <seq>` 为 lastSeq，断线重连时以 `after=getLastSeq()` 续传，
+ *   避免重复追加已收到的流式片段。
+ * 返回带 close() / getLastSeq() 的句柄，调用方在组件卸载时应调用 close() 释放连接。
  */
 export function subscribeArticleProgress(
   taskId: string,
   handlers: SseHandlers,
-): { close: () => void } {
-  const url = `${API_BASE}/article/progress/${taskId}`
+  options?: SubscribeOptions,
+): SseSubscription {
+  const after = options?.after ?? 0
+  const url = `${API_BASE}/article/progress/${taskId}?after=${after}`
   const es = new EventSource(url, { withCredentials: true })
 
   let closed = false
+  let lastSeq = 0
+
   const close = () => {
     if (closed) return
     closed = true
@@ -131,6 +150,11 @@ export function subscribeArticleProgress(
   }
 
   es.onmessage = (ev: MessageEvent) => {
+    // 记录最近事件序号（SSE 帧 id: <seq>），供断线重连 after=lastSeq 续传
+    if (ev.lastEventId) {
+      const n = Number.parseInt(ev.lastEventId, 10)
+      if (!Number.isNaN(n) && n > lastSeq) lastSeq = n
+    }
     // 后端心跳或空数据跳过
     if (!ev.data) return
     let data: SseMessage
@@ -156,5 +180,8 @@ export function subscribeArticleProgress(
     }
   }
 
-  return { close }
+  return {
+    close,
+    getLastSeq: () => lastSeq,
+  }
 }

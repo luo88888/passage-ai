@@ -118,7 +118,13 @@ const images = ref<Array<{ position: number; url: string; description: string }>
 const fullContent = ref('') // MERGE_COMPLETE
 
 // SSE 句柄
-let sseHandle: { close: () => void } | null = null
+let sseHandle: { close: () => void; getLastSeq: () => number } | null = null
+// 本会话已收到的最近 SSE 事件序号（断线重连时 after=lastSeq 续传，避免重复追加）
+let lastSseSeq = 0
+// 订阅起点：不重放历史、仅接实时流（用于页面上已有当前状态、仅需续接新事件的场景）
+const NO_REPLAY_AFTER = Number.MAX_SAFE_INTEGER
+// 是否处于「详情页 → 去创作页观察进度」的恢复态（顶部展示恢复提示条）
+const isRecovering = ref(false)
 let reconnecting = false // 重连防递归标志
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -272,31 +278,43 @@ const resetAll = () => {
   fullContent.value = ''
   researchData.value = null
   researchLoading.value = false
+  lastSseSeq = 0
+  isRecovering.value = false
   // 重置新输入控件（保留用户已选题材/语言风格/字数，便于连续创作同类型）
   // —— 这里不重置 selectedGenre/selectedLanguageStyle/wordCount，让用户改字段后点"再创作一篇"即可继续用
 }
 
 // 订阅 SSE（若尚未订阅）。跨阶段复用同一条连接，避免重复订阅。
 // 断连后 sseHandle 会被置空并自动延迟重连一次，确保多阶段长连接在抖动后自愈。
-const ensureSse = () => {
+// after: 订阅起点序号——0=全量重放（首次进入/新建任务）；lastSseSeq=断线续传；NO_REPLAY_AFTER=仅实时续接
+const ensureSse = (after: number = 0) => {
   if (sseHandle || !taskId.value) return
-  sseHandle = subscribeArticleProgress(taskId.value, {
-    onMessage: handleSse,
-    onError: () => {
-      // 连接断开：置空句柄以便可重连；未到终态时延迟自动重连一次
-      sseHandle = null
-      if (completed.value || stage.value === 'done' || reconnecting) return
-      reconnecting = true
-      errorMsg.value = '生成进度连接中断，正在自动重连…'
-      message.warning(errorMsg.value)
-      // 延迟重连，给后端/网络一点恢复时间
-      reconnectTimer = setTimeout(() => {
-        reconnecting = false
-        reconnectTimer = null
-        ensureSse()
-      }, 2000)
+  sseHandle = subscribeArticleProgress(
+    taskId.value,
+    {
+      onMessage: (data) => {
+        // 记录最近事件序号，供断线重连 after=lastSeq 续传
+        const seq = sseHandle?.getLastSeq() ?? 0
+        if (seq > lastSseSeq) lastSseSeq = seq
+        handleSse(data)
+      },
+      onError: () => {
+        // 连接断开：置空句柄以便可重连；未到终态时延迟自动重连一次
+        sseHandle = null
+        if (completed.value || stage.value === 'done' || reconnecting) return
+        reconnecting = true
+        errorMsg.value = '生成进度连接中断，正在自动重连…'
+        message.warning(errorMsg.value)
+        // 延迟重连：携带 after=lastSseSeq 续传，避免重复追加已收到的流式片段
+        reconnectTimer = setTimeout(() => {
+          reconnecting = false
+          reconnectTimer = null
+          ensureSse(lastSseSeq)
+        }, 2000)
+      },
     },
-  })
+    { after }
+  )
 }
 
 // SSE 事件分派（多阶段）
@@ -380,6 +398,7 @@ const handleSse = (data: SseMessage) => {
     case 'ALL_COMPLETE':
       completed.value = true
       stage.value = 'done'
+      isRecovering.value = false
       fetchFinalDetail()
       break
     case 'AI_MODIFY_OUTLINE_COMPLETE':
@@ -402,6 +421,7 @@ const handleSse = (data: SseMessage) => {
       if (/(积分|欠费|透支)/.test(errorMsg.value)) {
         showPointsGuide(-(pointsBalance.value ?? 0))
       }
+      isRecovering.value = false
       break
   }
 }
@@ -546,7 +566,8 @@ const confirmTitleSelection = async () => {
     outlineRaw.value = ''
     outline.value = []
     stage.value = 'outlineEdit'
-    ensureSse()
+    // 续接实时流：仅订阅新事件（本页已有当前状态，不重放历史，避免阶段回跳）
+    ensureSse(lastSseSeq > 0 ? lastSseSeq : NO_REPLAY_AFTER)
   } catch (e: any) {
     errorMsg.value = e?.message || '确认标题失败'
     message.error(errorMsg.value)
@@ -561,7 +582,8 @@ const onAiModify = async (modifySuggestion: string) => {
   aiModifying.value = true
   errorMsg.value = ''
   // 确保此时 SSE 仍连着（大纲编辑阶段不关流，但断点续作场景下可能未连）
-  ensureSse()
+  // 续接实时流：仅订阅新事件（本页已有当前状态，不重放历史，避免阶段回跳）
+  ensureSse(lastSseSeq > 0 ? lastSseSeq : NO_REPLAY_AFTER)
   try {
     const res = await aiModifyOutline({
       taskId: taskId.value,
@@ -605,7 +627,8 @@ const onOutlineConfirm = async () => {
     fullContent.value = ''
     currentStep.value = 2
     stage.value = 'generating'
-    ensureSse()
+    // 续接实时流：仅订阅新事件（本页已有当前状态，不重放历史，避免阶段回跳）
+    ensureSse(lastSseSeq > 0 ? lastSseSeq : NO_REPLAY_AFTER)
   } catch (e: any) {
     errorMsg.value = e?.message || '确认大纲失败'
     message.error(errorMsg.value)
@@ -616,7 +639,15 @@ const onOutlineConfirm = async () => {
 }
 
 // 断点续作：根据 taskId 拉取 ArticleVO，按 phase/status 恢复到对应阶段
+// （仅「详情页 → 去创作页观察进度」的 /create?taskId= 场景触发；直接访问 /create 不自动恢复）
 const resumeByTaskId = async (id: string) => {
+  // 本会话新起点：清空流式累加器与序号，作为 SSE 全量重放还原中间态的干净基准
+  lastSseSeq = 0
+  outlineRaw.value = ''
+  contentRaw.value = ''
+  imageUrls.value = []
+  images.value = []
+  fullContent.value = ''
   try {
     const res = await getArticle({ taskId: id } as any)
     if (res.data.code !== 0 || !res.data?.data) {
@@ -636,6 +667,7 @@ const resumeByTaskId = async (id: string) => {
     if (a.status === 'FAILED') {
       stage.value = 'generating'
       completed.value = false
+      isRecovering.value = false
       return
     }
 
@@ -650,38 +682,48 @@ const resumeByTaskId = async (id: string) => {
       }
       completed.value = true
       stage.value = 'done'
+      isRecovering.value = false
       return
     }
 
-    // 进行中：按 phase 定位阶段
+    // 进行中：按 phase 定位阶段（恢复矩阵见 docs/用户体验优化实施计划.md §3.3）
+    // 顶部展示「正在恢复创作进度」提示条；流式进行中阶段订阅 SSE 并全量重放（after=0）还原中间态
+    isRecovering.value = true
     const phase = a.phase
-    if (phase === 'TITLE_SELECTING') {
+    if (phase === 'PENDING') {
+      // 任务已创建但图尚未推进（start 异步中）：生成中视图（预标题空态）+ 订阅 SSE，事件到达即展示
+      stage.value = 'generating'
+      currentStep.value = 0
+      ensureSse(0)
+    } else if (phase === 'TITLE_GENERATING') {
+      // 标题还在生成：与「立即进入创作页」统一为生成中视图（预标题空态）+ 订阅 SSE
+      stage.value = 'generating'
+      currentStep.value = 0
+      ensureSse(0)
+    } else if (phase === 'TITLE_SELECTING') {
       // 标题候选已就绪，等待用户选择；不重连 SSE（后端已停）
       if (a.titleOptions) titleOptions.value = a.titleOptions
       selectedTitleIdx.value = 0
       stage.value = 'titleSelect'
-    } else if (phase === 'TITLE_GENERATING') {
-      // 标题还在生成，重连 SSE 等推 TITLE_GENERATED
-      stage.value = 'titleSelect'
-      ensureSse()
     } else if (phase === 'OUTLINE_EDITING') {
       // 大纲已就绪，等待用户编辑；不重连 SSE
       if (a.outline) outline.value = a.outline as OutlineSection[]
       stage.value = 'outlineEdit'
     } else if (phase === 'OUTLINE_GENERATING') {
-      // 大纲还在生成，重连 SSE 等推 OUTLINE_GENERATED
+      // 大纲还在生成：展示已确认标题 + 「编辑大纲」占位 + 订阅 SSE（重放 AGENT2_STREAMING 还原流式大纲）
       if (a.mainTitle) titleResult.value = { mainTitle: a.mainTitle, subTitle: a.subTitle || '' }
       stage.value = 'outlineEdit'
-      ensureSse()
+      ensureSse(0)
     } else if (phase === 'CONTENT_GENERATING') {
-      // 正文生成中，重连 SSE 看 phase3 流式（接受历史片段丢失）
+      // 正文生成中：展示已确认大纲 + 生成中流式区 + 订阅 SSE（重放 AGENT3_STREAMING / IMAGE_COMPLETE 还原中间态）
       if (a.mainTitle) titleResult.value = { mainTitle: a.mainTitle, subTitle: a.subTitle || '' }
       if (a.outline) outline.value = a.outline as OutlineSection[]
       stage.value = 'generating'
-      ensureSse()
+      ensureSse(0)
     } else {
       // 未知/早期阶段，回退到输入态
       stage.value = 'input'
+      isRecovering.value = false
     }
   } catch (e: any) {
     console.warn('恢复任务失败:', e)
@@ -771,6 +813,18 @@ onBeforeUnmount(() => {
 
 <template>
   <div id="createArticlePage">
+    <!-- 恢复提示条：详情页「去创作页观察进度」进入且任务进行中时展示；放弃恢复回到干净输入态 -->
+    <div v-if="isRecovering && !completed" class="recover-banner">
+      <a-alert type="info" show-icon>
+        <template #message>
+          正在恢复创作进度 · 任务ID：<span class="recover-task-id">{{ taskId }}</span>
+        </template>
+        <template #action>
+          <a-button size="small" type="primary" ghost @click="resetAll">放弃恢复</a-button>
+        </template>
+      </a-alert>
+    </div>
+
     <!-- 输入态：左右辅助栏隐藏，居中输入卡 -->
     <div v-if="stage === 'input'" class="layout input-layout">
       <!-- 左栏占位：输入态仅展示配额在右侧，左侧流程轴隐藏 -->
@@ -1738,6 +1792,14 @@ onBeforeUnmount(() => {
 }
 .error-banner {
   margin-bottom: 16px;
+}
+/* 恢复提示条（详情页 → 去创作页观察进度） */
+.recover-banner {
+  max-width: 1240px;
+  margin: 0 auto 20px;
+}
+.recover-task-id {
+  font-weight: 600;
 }
 .article-title-area {
   text-align: center;
