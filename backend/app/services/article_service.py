@@ -22,9 +22,9 @@ from app.utils.logger import logger
 
 class ArticleService:
     """文章服务类，提供下述服务：
-    1. 创建文章任务，返回 task_id（写进数据库）
-        - create_article_task -> str
-        - create_article_task_with_slot_check -> str
+    1. 创建文章任务，返回 (task_id, final_image_methods)（task_id 写进数据库）
+        - create_article_task -> Tuple[str, Optional[List[str]]]
+        - create_article_task_with_slot_check -> Tuple[str, Optional[List[str]]]
     2. 获取创作页可选项：文章风格 + 配图方式
         - get_creation_options(self) -> CreationOptionsVO
     3. 更新文章状态
@@ -82,8 +82,14 @@ class ArticleService:
             genre: Optional[str] = None,
             language_style: Optional[str] = None,
             word_count: Optional[int] = None,
-        ) -> str:
-            """创建文章任务"""
+        ) -> Tuple[str, Optional[List[str]]]:
+            """创建文章任务
+
+            Returns:
+                (task_id, final_image_methods)：task_id 为任务 ID；
+                final_image_methods 为处理后的配图白名单（None=全部可用），
+                供图启动 state 使用，保证 DB 与图两侧口径一致。
+            """
             final_image_methods = self._process_image_methods(enabled_image_methods, login_user)
             self._validate_image_methods(final_image_methods, login_user)
 
@@ -118,7 +124,7 @@ class ArticleService:
                 },
             )
             logger.info("文章任务创建成功, taskId=%s, userId=%s", task_id, login_user.id)
-            return task_id
+            return task_id, final_image_methods
 
     async def create_article_task_with_slot_check(
         self,
@@ -129,13 +135,16 @@ class ArticleService:
         genre: Optional[str] = None,
         language_style: Optional[str] = None,
         word_count: Optional[int] = None,
-    ) -> str:
+    ) -> Tuple[str, Optional[List[str]]]:
         """在同一事务中完成并发名额占用（activeTaskCount+1）和任务创建（后付费闸门）。
 
         M3 起以「积分 + 并发名额」取代历史 quota 门槛：
           - 仅 admin 豁免（不计数、不限并发）；VIP 与普通用户同样按积分结算并受并发限制；
           - 创建不预扣、不估算，仅原子占用「进行中」任务名额；
           - 余额 >= 0 的快速失败在路由层 require_create_slot 完成，此处做权威原子校验。
+
+        Returns:
+            (task_id, final_image_methods)：同 create_article_task。
         """
         if self._is_admin(login_user):
             return await self.create_article_task(
