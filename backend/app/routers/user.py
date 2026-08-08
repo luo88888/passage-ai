@@ -4,7 +4,7 @@
 
 import os
 from typing import Optional
-from fastapi import APIRouter, Depends, File, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Request, Response, UploadFile
 from databases import Database
 
 from app.database import get_db
@@ -22,7 +22,7 @@ from app.schemas.user import (
     UserChangePasswordRequest,
 )
 from app.services.user_service import UserService
-from app.exceptions import ErrorCode, throw_if, throw_if_not
+from app.exceptions import BusinessException, ErrorCode, throw_if, throw_if_not
 from app.deps import (
     get_current_user,
     get_session_id,
@@ -31,9 +31,19 @@ from app.deps import (
     generate_session_id
 )
 from app.utils.session import set_session, remove_session
+from app.utils.rate_limit import (
+    get_client_ip,
+    check_register_rate_limit,
+    is_login_locked,
+    record_login_failure,
+    clear_login_failures,
+    is_login_ip_locked,
+    record_login_ip_failure,
+)
 from app.schemas.image import ImageData
 from app.services.local_file_service import LocalFileService
 from app.config import settings
+from app.utils.logger import logger
 
 
 router = APIRouter(prefix="/user", tags=["用户管理"])
@@ -57,8 +67,23 @@ def _get_avatar_file_service() -> LocalFileService:
 
 
 @router.post("/register", response_model=BaseResponse[int])
-async def register(request: UserRegisterRequest, db: Database = Depends(get_db)):
-    """用户注册"""
+async def register(
+    request: UserRegisterRequest,
+    db: Database = Depends(get_db),
+    client: Request = None,
+):
+    """用户注册（同一 IP 在窗口内限次）"""
+    ip = get_client_ip(client)
+    if ip:
+        allowed = await check_register_rate_limit(ip)
+        throw_if_not(
+            allowed,
+            ErrorCode.OPERATION_ERROR,
+            f"注册过于频繁，请 {settings.register_ip_window_seconds // 60} 分钟后再试",
+        )
+    else:
+        logger.warning("无法获取客户端 IP，跳过注册限流")
+
     service = UserService(db)
     user_id = await service.register(request)
     return BaseResponse.success(data=user_id, message="注册成功")
@@ -68,11 +93,45 @@ async def register(request: UserRegisterRequest, db: Database = Depends(get_db))
 async def login(
     request: UserLoginRequest,
     response: Response,
-    db: Database = Depends(get_db)
+    db: Database = Depends(get_db),
+    client: Request = None,
 ):
-    """用户登录"""
+    """用户登录（单账号失败超限后锁定 + IP 级失败限流，防密码爆破与撞库）"""
+    ip = get_client_ip(client)
+
+    # 登录前先查 IP 是否被锁定（撞库防护：IP 级失败超限后整体拦截）
+    if ip:
+        throw_if(
+            await is_login_ip_locked(ip),
+            ErrorCode.PASSWORD_ERROR,
+            f"登录失败次数过多，请 {settings.login_ip_lock_seconds // 60} 分钟后再试",
+        )
+
+    # 再查账号是否被锁定
+    throw_if(
+        await is_login_locked(request.user_account),
+        ErrorCode.PASSWORD_ERROR,
+        f"登录失败次数过多，账号已锁定，请 {settings.login_lock_seconds // 60} 分钟后再试",
+    )
+
     service = UserService(db)
-    user = await service.login(request)
+    try:
+        user = await service.login(request)
+    except BusinessException as e:
+        # 账号级：仅密码错误时计数锁定（避免攻击者用不同账号名放大锁定）
+        if e.error_code == ErrorCode.PASSWORD_ERROR:
+            locked = await record_login_failure(request.user_account)
+            if locked:
+                logger.warning("登录失败超限，账号已锁定 userAccount=%s", request.user_account)
+        # IP 级：累计所有登录失败（含账号不存在），防跨账号撞库
+        if ip:
+            ip_locked = await record_login_ip_failure(ip)
+            if ip_locked:
+                logger.warning("登录失败超限，IP 已锁定 ip=%s", ip)
+        raise
+
+    # 登录成功：清空该账号失败计数与锁定标记（IP 级计数不清空，避免用正确凭据重置撞库计数）
+    await clear_login_failures(request.user_account)
 
     # 生成 Session ID
     session_id = generate_session_id()
@@ -89,7 +148,7 @@ async def login(
         httponly=True,  # 让 Cookie 无法被 JavaScript 读取，防止 XSS 攻击
         samesite="lax"  # 防止 CSRF 攻击
     )
-
+    logger.info(f"登录成功，ip：{ip or '未知'}")
     return BaseResponse.success(data=user, message="登录成功")
 
 
