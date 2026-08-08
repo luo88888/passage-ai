@@ -32,6 +32,8 @@ dependencies = [
     "langchain>=1.0.0",                        # LangChain v1 create_agent（信息收集智能体）
     "ddgs>=9.14.4",
     "markdownify>=1.2.3",
+    "json5>=0.15.0",
+    "json-repair>=0.62.0",
 ]
 
 [build-system]

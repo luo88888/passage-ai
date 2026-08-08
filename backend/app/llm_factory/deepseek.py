@@ -23,6 +23,7 @@ from langchain_deepseek import ChatDeepSeek
 
 from app.config import settings
 from app.llm_factory.token_usage_handler import TokenUsageCallbackHandler
+from app.utils.json_tool import loads_with_repair
 
 
 # ---------------------------------------------------------------------------
@@ -52,6 +53,7 @@ def _extract_json(text: str) -> Any:
     1. 直接 json.loads（输出本身就是纯 JSON）
     2. 剥离 markdown 代码围栏后 json.loads
     3. 截取第一个 ``{`` 到最后一个 ``}``（兼容前后夹杂解释文字）
+    4. json_repair 修复后再解析（兜底，直接解析与修复结果均记录日志）
     """
     if not text or not text.strip():
         raise ValueError("模型输出为空，无法提取 JSON")
@@ -80,7 +82,11 @@ def _extract_json(text: str) -> Any:
         if parsed is not None:
             return parsed
 
-    raise ValueError(f"无法从模型输出中提取有效 JSON: {text[:200]!r}")
+    # 4. json_repair 修复后再解析（兜底；修复成功/失败均由 loads_with_repair 记录日志）
+    try:
+        return loads_with_repair(candidate, name="模型输出")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"无法从模型输出中提取有效 JSON: {text[:200]!r}") from e
 
 
 def _attach_meta(parsed: BaseModel, raw: AIMessage) -> None:
