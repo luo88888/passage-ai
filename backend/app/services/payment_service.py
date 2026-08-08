@@ -14,6 +14,7 @@ from app.constants.user import UserConstant
 from app.exceptions import BusinessException, ErrorCode
 from app.models.enums import PaymentStatusEnum, ProductTypeEnum
 from app.schemas.payment import PaymentRecordVO, VipPlanVO
+from app.utils.logger import logger
 
 
 # 永久会员特权文案，与 article_service 中会员专属能力对齐
@@ -108,6 +109,33 @@ class PaymentService:
             },
         )
         return session.url
+
+    async def activate_vip(self, user_id: int) -> bool:
+        """直接开通永久会员（临时免支付：Stripe 停用期间，点击「立即开通」即开通）。
+
+        Args:
+            user_id: 用户 ID。
+
+        Returns:
+            是否开通成功（已是会员时幂等返回 True）。
+        """
+        user = await self._get_user_or_throw(user_id)
+        if user["userRole"] == UserConstant.VIP_ROLE:
+            return True
+        await self.db.execute(
+            query="""
+                UPDATE user
+                SET userRole = :userRole, vipTime = :vipTime
+                WHERE id = :id
+            """,
+            values={
+                "id": user_id,
+                "userRole": UserConstant.VIP_ROLE,
+                "vipTime": datetime.now(),
+            },
+        )
+        logger.info("免支付直接开通永久会员 userId=%s", user_id)
+        return True
 
     async def handle_payment_success(self, session: Any):
         """处理支付成功回调（幂等）"""

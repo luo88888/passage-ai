@@ -2,12 +2,12 @@
 /**
  * 开通会员页面
  *
- * 展示会员价格与特权，提供 Stripe 支付跳转、已是会员时展示会员状态与退款入口。
- * 支付成功靠后端 Stripe webhook 异步发货，回跳页（/payment/success）会拉取最新用户信息。
+ * 展示会员特权与价格，提供一键开通（Stripe 停用期间，点击「立即开通」即开通会员），
+ * 已是会员时展示会员状态。
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { message, Modal } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
 import {
   CrownOutlined,
   CheckCircleFilled,
@@ -19,8 +19,7 @@ import { useLoginUserStore } from '@/stores/loginUser'
 import { isVip } from '@/utils/permission'
 import {
   getVipPlans,
-  createVipSession,
-  refundPayment,
+  activateVip,
   type VipPlanVO,
 } from '@/api/paymentController'
 
@@ -30,7 +29,6 @@ const loginUserStore = useLoginUserStore()
 const plans = ref<VipPlanVO[]>([])
 const loadingPlans = ref(false)
 const paying = ref(false)
-const refunding = ref(false)
 
 // 当前用户是否已享受会员权益（VIP 或管理员）
 const isVipUser = computed(() => isVip(loginUserStore.loginUser))
@@ -56,18 +54,10 @@ const fetchPlans = async () => {
   }
 }
 
-// 价格展示
-const priceText = computed(() => {
-  const p = plans.value[0]
-  if (!p) return ''
-  const symbol = p.currency?.toLowerCase() === 'usd' ? '$' : ''
-  return `${symbol}${p.price}`
-})
-
 const plan = computed(() => plans.value[0])
 const privileges = computed(() => plan.value?.privileges || [])
 
-// 开通：创建 Stripe 支付会话并跳转
+// 开通：免支付一键开通（Stripe 停用期间，点击即开通永久会员）
 const startPay = async () => {
   if (!loginUserStore.loginUser.id) {
     router.push(`/user/login?redirect=${encodeURIComponent('/vip')}`)
@@ -79,45 +69,18 @@ const startPay = async () => {
   }
   paying.value = true
   try {
-    const res = await createVipSession()
+    const res = await activateVip()
     if (res.data.code !== 0 || !res.data.data) {
-      message.error(res.data.message || '创建支付会话失败')
+      message.error(res.data.message || '开通失败')
       return
     }
-    // data 为 Stripe 支付页 URL，跳转离开本站
-    window.location.href = res.data.data
+    message.success('永久会员已开通！')
+    await loginUserStore.fetchLoginUser()
   } catch (e: any) {
-    message.error(e?.message || '创建支付会话失败')
+    message.error(e?.message || '开通失败')
   } finally {
     paying.value = false
   }
-}
-
-// 退款：仅真实 VIP（userRole==vip）可调，管理员无支付记录
-const doRefund = () => {
-  Modal.confirm({
-    title: '申请退款',
-    content: '退款后将撤销永久会员身份，相关高级功能将不再可用，确定继续吗？',
-    okText: '确认退款',
-    okType: 'danger',
-    cancelText: '再想想',
-    onOk: async () => {
-      refunding.value = true
-      try {
-        const res = await refundPayment()
-        if (res.data.code === 0 && res.data.data) {
-          message.success('退款成功，会员身份已撤销')
-          await loginUserStore.fetchLoginUser()
-        } else {
-          message.error(res.data.message || '退款失败')
-        }
-      } catch (e: any) {
-        message.error(e?.message || '退款失败')
-      } finally {
-        refunding.value = false
-      }
-    },
-  })
 }
 
 // 会员开通时间（已是会员时展示）
@@ -132,10 +95,6 @@ const vipTimeText = computed(() => {
   }
 })
 
-// 退款按钮仅对真实购买会员（userRole===vip）开放，管理员不展示退款
-const canRefund = computed(
-  () => loginUserStore.loginUser.userRole === 'vip'
-)
 </script>
 
 <template>
@@ -145,16 +104,14 @@ const canRefund = computed(
       <div class="vip-head">
         <div class="head-icon"><CrownOutlined /></div>
         <h1 class="head-title">开通永久会员</h1>
-        <p class="head-subtitle">一次买断，解锁全部高级功能，永久有效</p>
+        <p class="head-subtitle">立即开通，解锁全部高级功能，永久有效</p>
       </div>
 
       <!-- 价格卡片 -->
       <a-spin :spinning="loadingPlans">
         <div v-if="plan" class="price-card">
           <div class="price-top">
-            <span class="price-currency">$</span>
-            <span class="price-amount">{{ plan.price }}</span>
-            <span class="price-unit">USD</span>
+            <span class="price-free">限时免费</span>
           </div>
           <div class="price-title">{{ plan.title }}</div>
           <div class="price-desc">{{ plan.description }}</div>
@@ -182,13 +139,13 @@ const canRefund = computed(
               @click="startPay"
             >
               <ThunderboltFilled v-if="!paying" />
-              立即开通（{{ priceText }}）
+              立即开通
             </a-button>
             <a-button v-else size="large" block disabled class="pay-btn">
               <CrownOutlined />
               您已是会员
             </a-button>
-            <p class="action-tip" v-if="!isVipUser">支付完成后将自动开通，如未刷新请退出重新登录</p>
+            <p class="action-tip" v-if="!isVipUser">点击即可立即开通会员，无需支付</p>
           </div>
         </div>
       </a-spin>
@@ -204,9 +161,6 @@ const canRefund = computed(
           <a-descriptions-item v-if="vipTimeText" label="开通时间">{{ vipTimeText }}</a-descriptions-item>
         </a-descriptions>
         <div class="status-actions">
-          <a-button :loading="refunding" danger ghost @click="doRefund" v-if="canRefund">
-            申请退款
-          </a-button>
           <a-button @click="loginUserStore.fetchLoginUser()">
             <ReloadOutlined /> 刷新会员状态
           </a-button>
@@ -276,22 +230,11 @@ const canRefund = computed(
   gap: 4px;
   justify-content: center;
 }
-.price-currency {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--color-primary, #22c55e);
-}
-.price-amount {
-  font-size: 52px;
+.price-free {
+  font-size: 40px;
   font-weight: 800;
   line-height: 1;
   color: var(--color-primary, #22c55e);
-}
-.price-unit {
-  font-size: 14px;
-  color: var(--color-text-muted, #9ca3af);
-  align-self: flex-end;
-  margin-bottom: 6px;
 }
 .price-title {
   text-align: center;

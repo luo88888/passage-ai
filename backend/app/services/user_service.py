@@ -169,6 +169,21 @@ class UserService:
             updateTime=user_dict["updateTime"].isoformat()
         )
 
+    async def get_login_user(self, user_id: int) -> Optional[LoginUserVO]:
+        """按用户 ID 查询最新登录态（供开通会员等场景同步刷新 Redis Session 使用）。
+
+        Args:
+            user_id: 用户 ID。
+
+        Returns:
+            最新 LoginUserVO；用户不存在返回 None。
+        """
+        query = select(User).where(and_(User.id == user_id, User.is_delete == 0))
+        user = await self.db.fetch_one(query)
+        if not user:
+            return None
+        return await self._to_login_vo(dict(user))
+
     async def update_profile(
         self, user_id: int, request: UserProfileUpdateRequest
     ) -> Optional[LoginUserVO]:
