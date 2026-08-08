@@ -11,6 +11,13 @@ class ImageConfig(BaseSettings):
     # Pexels
     pexels_api_key: str
 
+    # 腾讯云 COS
+    tencent_cos_secret_id: str
+    tencent_cos_secret_key: str
+    tencent_cos_region: str
+    tencent_cos_bucket: str
+    tencent_cos_domain: str = ""
+
     # 本地文件存储
     static_base_url: str = "http://localhost:8567"
 
