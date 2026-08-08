@@ -1,115 +1,23 @@
-import os
 from typing import Any
-import dotenv
 from langchain_deepseek import ChatDeepSeek
 from pydantic import BaseModel
 
-dotenv.load_dotenv(override=True)
-
-from langchain_openai import ChatOpenAI
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessageChunk
-from langchain_core.outputs import ChatGenerationChunk, ChatResult
+
 from app.llm_factory.token_usage_handler import TokenUsageCallbackHandler
+from app.config import settings
 
-
-# class ChatMiMo(ChatOpenAI):
-#     """小米 MiMo 对话模型。
-
-#     继承 ChatOpenAI，额外处理 MiMo API 返回的 reasoning_content 字段。
-#     ChatOpenAI 原生不处理第三方提供商的非标准字段，所以在此覆盖
-#     _convert_chunk_to_generation_chunk 和 _create_chat_result。
-#     """
-
-#     def _create_chat_result(
-#         self,
-#         response: Any,
-#         generation_info: dict | None = None,
-#     ) -> ChatResult:
-#         """从非流式响应中提取 reasoning_content。"""
-#         from openai import BaseModel as OpenAIBasedModel
-
-#         rtn = super()._create_chat_result(response, generation_info)
-
-#         if not isinstance(response, OpenAIBasedModel):
-#             return rtn
-
-#         choices = getattr(response, "choices", None)
-#         if choices and hasattr(choices[0].message, "reasoning_content"):
-#             rtn.generations[0].message.additional_kwargs["reasoning_content"] = (
-#                 choices[0].message.reasoning_content
-#             )
-
-#         return rtn
-
-#     def _convert_chunk_to_generation_chunk(
-#         self,
-#         chunk: dict,
-#         default_chunk_class: type,
-#         base_generation_info: dict | None,
-#     ) -> ChatGenerationChunk | None:
-#         """从流式 chunk 中提取 reasoning_content。
-
-#         MiMo 在思考阶段返回 content="" 但 delta 中包含 reasoning_content，
-#         ChatOpenAI 默认会丢弃它。这里仿照 ChatDeepSeek 的处理方式补上。
-#         """
-#         generation_chunk = super()._convert_chunk_to_generation_chunk(
-#             chunk,
-#             default_chunk_class,
-#             base_generation_info,
-#         )
-#         if (choices := chunk.get("choices")) and generation_chunk is not None:
-#             delta = choices[0].get("delta", {})
-#             if isinstance(generation_chunk.message, AIMessageChunk):
-#                 if (reasoning_content := delta.get("reasoning_content")) is not None:
-#                     generation_chunk.message.additional_kwargs["reasoning_content"] = (
-#                         reasoning_content
-#                     )
-
-#         return generation_chunk
 
 
 def _get_api_key() -> str:
-    key = os.environ.get("MIMO_API_KEY")
+    key = settings.mimo_api_key
     if not key:
         raise ValueError("未配置 MIMO_API_KEY 环境变量")
     return key
 
 
 def _get_base_url() -> str:
-    return os.environ.get("MIMO_BASE_URL", "https://api.xiaomimimo.com/v1")
-
-
-# def create_chat_model(
-#         model_name: str,
-#         temperature: float = 0.0,
-#         thinking: bool = False,
-#         reasoning_effort: str = "high",    # high/max
-#         extra_body: dict[str, Any] | None = None,
-#     ) -> BaseChatModel:
-#     """创建小米 MiMo 对话模型。
-
-#     Args:
-#         model_name: 模型名称，如 "mimo-v2.5" 或 "mimo-v2.5-pro"
-#         temperature: 温度参数
-#         thinking: 是否开启思考模式
-#         reasoning_effort: 推理力度，high 或 max
-#         extra_body: 额外请求体参数
-#     """
-#     extra_body = extra_body or {}
-#     if thinking:
-#         extra_body["thinking"] = {"type": "enabled"}
-#     else:
-#         extra_body["thinking"] = {"type": "disabled"}
-#     return ChatMiMo(
-#         name="ChatXiaomi",
-#         model=model_name,
-#         api_key=_get_api_key(),
-#         base_url=_get_base_url(),
-#         temperature=temperature,
-#         extra_body=extra_body,
-#         default_headers={"x-reasoning": reasoning_effort},
-#     )
+    return settings.mimo_base_url or "https://api.xiaomimimo.com/v1"
 
 
 def create_chat_model(

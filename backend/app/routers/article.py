@@ -57,7 +57,9 @@ async def create_article(
     service = ArticleService(db)
 
     # 占用并发名额（activeTaskCount+1）+ 创建文章任务（在同一事务中，M3 后付费闸门）
-    task_id = await service.create_article_task_with_slot_check(
+    # 第二个返回值 final_image_methods 为处理后的配图白名单（非 VIP 未勾选时仅含普通方式），
+    # 必须传给图启动 state，否则图里 None=全部可用会绕过 VIP 配图权限校验。
+    task_id, final_image_methods = await service.create_article_task_with_slot_check(
         request.topic,
         current_user,
         request.style,
@@ -77,7 +79,7 @@ async def create_article(
             request.genre,
             request.language_style,
             word_count,
-            request.enabled_image_methods,
+            final_image_methods,
             request.style,
             user_id=current_user.id,
         )
