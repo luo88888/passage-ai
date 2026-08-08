@@ -53,6 +53,7 @@ from app.config import settings
 from app.llm_factory.factory import get_chat_model
 from app.services.model_usage_service import usage_context
 from app.utils.logger import logger
+from app.utils.json_tool import loads_with_repair
 
 
 # 会产出 NewsArticleSummary 的工具名（collect 后处理需识别这些 ToolMessage）
@@ -189,7 +190,7 @@ class InformationCollectorAgent:
             return []
 
         try:
-            data = json.loads(content)
+            data = loads_with_repair(content, name=f"ToolMessage({msg.name})")
         except (json.JSONDecodeError, TypeError) as e:
             logger.warning(f"ToolMessage content 解析 JSON 失败 (name={msg.name}): {e}")
             return []

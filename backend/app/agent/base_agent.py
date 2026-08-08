@@ -20,6 +20,7 @@ from app.models.enums import (
     SseMessageTypeEnum,
 )
 from app.utils.logger import logger
+from app.utils.json_tool import loads_with_repair
 
 if TYPE_CHECKING:
     from app.services.agent_log_service import AgentLogService
@@ -230,12 +231,12 @@ class BaseAgent:
 
     @staticmethod
     def _parse_json_response(content: str, name: str) -> dict:
-        """解析 JSON 响应"""
+        """解析 JSON 响应（直接解析失败时用 json_repair 修复，并记录日志）"""
         try:
             content2 = content.strip()
             if content2.startswith("```json") or content2.startswith("```JSON"):
                 content2 = content2[7:-3].strip()
-            return json.loads(content2)
+            return loads_with_repair(content2, name=name)
         except json.JSONDecodeError as e:
             logger.error(
                 "%s解析失败, content=%s, error=%s", name, content, str(e)

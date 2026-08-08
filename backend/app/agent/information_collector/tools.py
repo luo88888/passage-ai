@@ -25,6 +25,7 @@ dotenv.load_dotenv(override=True)
 
 
 from app.utils.logger import logger
+from app.utils.json_tool import loads_with_repair
 from app.config import settings
 from app.agent.information_collector.schemas import NewsArticleSummary
 from app.llm_factory.factory import get_structured_model
@@ -290,7 +291,7 @@ async def batch_extract_articles(
                 "requirement": requirement,
             })
             try:
-                return json.loads(result_json)
+                return loads_with_repair(result_json, name=f"文章摘要({url})")
             except json.JSONDecodeError:
                 return {"error": "解析结果失败", "url": url, "raw": result_json}
 
