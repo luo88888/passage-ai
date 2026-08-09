@@ -16,7 +16,7 @@ from databases import Database
 from databases.interfaces import Record
 
 from app.constants.message import MessageConstant
-from app.exceptions import ErrorCode, throw_if
+from app.exceptions import ErrorCode, throw_if, throw_if_not
 from app.schemas.message import (
     AdminMessageQueryRequest,
     AdminMessageSendRequest,
@@ -217,6 +217,28 @@ class MessageService:
         )
         return [self._to_vo(r) for r in rows], int(total or 0)
 
+    async def get_detail(self, user_id: int, message_id: int) -> MessageVO:
+        """查询单条站内信详情（仅本人，归属校验）。
+
+        Args:
+            user_id: 当前用户 ID。
+            message_id: 消息 ID。
+
+        Returns:
+            消息视图对象。
+
+        Raises:
+            BusinessException: 消息不存在或不属于当前用户（NOT_FOUND_ERROR）。
+        """
+        row = await self.db.fetch_one(
+            query="""
+                SELECT * FROM message
+                WHERE id = :id AND userId = :userId AND isDelete = 0
+            """,
+            values={"id": message_id, "userId": user_id},
+        )
+        throw_if_not(row, ErrorCode.NOT_FOUND_ERROR, "消息不存在")
+        return self._to_vo(row)  # type: ignore
     async def unread_count(self, user_id: int) -> int:
         """查询当前用户未读站内信数。
 

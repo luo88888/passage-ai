@@ -59,3 +59,39 @@ ${body}
 </html>`
   download(`${safeFilename(name)}.html`, html, 'text/html;charset=utf-8')
 }
+
+/**
+ * 复制文本到剪贴板（优先 Clipboard API，非安全上下文用 execCommand 兜底）
+ *
+ * Args:
+ *     text: 要复制的文本内容。
+ *
+ * Returns:
+ *     是否复制成功。
+ */
+export async function copyText(text: string): Promise<boolean> {
+  if (!text) return false
+  // 优先使用现代 Clipboard API（需要 https 或 localhost 安全上下文）
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch (e) {
+    // 失败则走下面的兜底方案
+  }
+  // 兜底：隐藏 textarea + execCommand('copy')
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch (e) {
+    return false
+  }
+}

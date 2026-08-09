@@ -1,6 +1,6 @@
 """站内信接口路由。
 
-用户端：分页（未读优先）/ 未读数 / 已读（单条、全部）/ 删除；管理端：发送（SINGLE/BATCH/ALL）/ 已发列表。
+用户端：分页（未读优先）/ 未读数 / 详情 / 已读（单条、全部）/ 删除；管理端：发送（SINGLE/BATCH/ALL）/ 已发列表。
 """
 from typing import Optional
 
@@ -17,6 +17,7 @@ from app.schemas.message import (
     MessageQueryRequest,
     MessageReadRequest,
     MessageUnreadCountVO,
+    MessageVO,
 )
 from app.schemas.user import LoginUserVO
 from app.services.message_service import MessageService
@@ -57,6 +58,17 @@ async def get_unread_count(
     service = MessageService(db)
     count = await service.unread_count(current_user.id)
     return BaseResponse.success(data=MessageUnreadCountVO(count=count))
+
+
+@router.get("/{message_id}", response_model=BaseResponse[MessageVO])
+async def get_message_detail(
+    message_id: int,
+    db: Database = Depends(get_db),
+    current_user: LoginUserVO = Depends(require_login),
+):
+    """站内信详情（仅本人，归属校验）"""
+    service = MessageService(db)
+    return BaseResponse.success(data=await service.get_detail(current_user.id, message_id))
 
 
 @router.post("/read", response_model=BaseResponse[int])

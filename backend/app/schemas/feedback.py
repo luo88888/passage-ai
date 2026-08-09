@@ -128,9 +128,13 @@ class FeedbackReplyRequest(BaseModel):
 
     id: int = Field(..., description="反馈 ID")
     reply_content: Optional[str] = Field(
-        None, max_length=FeedbackConstant.MAX_CONTENT_LENGTH, description="回复内容",
+        None, alias="replyContent", max_length=FeedbackConstant.MAX_CONTENT_LENGTH,
+        description="回复内容（前端驼峰 replyContent）",
     )
     status: str = Field(default=FeedbackConstant.STATUS_RESOLVED, description="处理状态（默认 RESOLVED）")
+
+    class Config:
+        populate_by_name = True
 
 
 class FeedbackStatusRequest(BaseModel):

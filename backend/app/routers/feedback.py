@@ -1,15 +1,17 @@
 """意见反馈接口路由。
 
 用户端：提交 / 我的反馈分页 / 详情；管理端：全量分页 / 详情 / 回复 / 仅改状态。
-截图上传（POST /feedback/upload，复用头像上传白名单范式 + LocalFileService 落盘）按计划在 M2 实现。
+截图上传（POST /feedback/upload，复用头像上传白名单范式 + LocalFileService 落盘）已实现。
 """
+import os
 from typing import Optional
 
 from databases import Database
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 
 from app.database import get_db
 from app.deps import require_admin, require_login
+from app.exceptions import ErrorCode, throw_if, throw_if_not
 from app.schemas.common import BaseResponse
 from app.schemas.feedback import (
     AdminFeedbackQueryRequest,
@@ -20,8 +22,27 @@ from app.schemas.feedback import (
     FeedbackSubmitRequest,
     FeedbackVO,
 )
+from app.schemas.image import ImageData
 from app.schemas.user import LoginUserVO
 from app.services.feedback_service import FeedbackService
+from app.services.local_file_service import LocalFileService
+
+
+# ==================== 反馈截图上传配置 ====================
+# 与头像上传一致：白名单 MIME/扩展名 + 单张 2MB 上限；不接受 SVG（防存储型 XSS，见 docs/local/代码审查报告.md P0-7）
+_ALLOWED_FEEDBACK_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+_ALLOWED_FEEDBACK_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+_MAX_FEEDBACK_IMAGE_SIZE = 2 * 1024 * 1024
+
+_feedback_file_service: "LocalFileService | None" = None
+
+
+def _get_feedback_file_service() -> LocalFileService:
+    """懒加载本地文件存储服务（反馈截图上传复用，避免每次请求重建 httpx 客户端）"""
+    global _feedback_file_service
+    if _feedback_file_service is None:
+        _feedback_file_service = LocalFileService()
+    return _feedback_file_service
 
 
 router = APIRouter(prefix="/feedback", tags=["意见反馈"])
@@ -29,6 +50,39 @@ router = APIRouter(prefix="/feedback", tags=["意见反馈"])
 # 管理端接口独立路由（/admin/feedback，仅管理员可访问）
 admin_feedback_router = APIRouter(prefix="/admin/feedback", tags=["意见反馈管理"])
 
+
+
+
+@router.post("/upload", response_model=BaseResponse[str])
+async def upload_feedback_image(
+    file: UploadFile = File(...),
+    current_user: LoginUserVO = Depends(require_login),
+):
+    """上传反馈截图（multipart/form-data，字段名 file）
+
+    仅支持 JPG / PNG / WebP / GIF，大小不超过 2MB，不接受 SVG（防存储型 XSS）；
+    单张上传返回可访问 URL，同一反馈可多次调用（提交时最多 5 张，由提交接口兜底校验）。
+    文件保存到本地 static/images/feedback/。
+    """
+    # 校验 MIME 类型与扩展名（双重校验，防止伪造类型）
+    content_type = (file.content_type or "").lower()
+    throw_if(
+        content_type not in _ALLOWED_FEEDBACK_TYPES,
+        ErrorCode.PARAMS_ERROR,
+        "仅支持 JPG/PNG/WebP/GIF 格式的截图",
+    )
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    throw_if(ext not in _ALLOWED_FEEDBACK_EXTS, ErrorCode.PARAMS_ERROR, "不支持的文件格式")
+
+    content = await file.read()
+    throw_if(len(content) == 0, ErrorCode.PARAMS_ERROR, "文件内容为空")
+    throw_if(len(content) > _MAX_FEEDBACK_IMAGE_SIZE, ErrorCode.PARAMS_ERROR, "截图大小不能超过 2MB")
+
+    image_data = ImageData.from_bytes(content, mime_type=content_type)
+    url = await _get_feedback_file_service().upload_image_data(image_data, folder="feedback")
+    throw_if_not(url, ErrorCode.OPERATION_ERROR, "截图上传失败")
+
+    return BaseResponse.success(data=url, message="上传成功")
 
 @router.post("/submit", response_model=BaseResponse[int])
 async def submit_feedback(

@@ -21,6 +21,23 @@
           <component :is="item.icon" class="nav-icon" />
           <span>{{ item.label }}</span>
         </RouterLink>
+
+        <!-- 管理员菜单（合并为一个下拉，避免导航按钮过多） -->
+        <a-dropdown v-if="isAdminUser" trigger="click" placement="bottom">
+          <div class="nav-item admin-nav-trigger" :class="{ active: isAdminRoute }">
+            <SettingOutlined class="nav-icon" />
+            <span>管理</span>
+            <DownOutlined class="admin-nav-arrow" />
+          </div>
+          <template #overlay>
+            <a-menu class="admin-nav-menu" :selected-keys="adminSelectedKeys" @click="onAdminMenuClick">
+              <a-menu-item v-for="item in adminMenuItems" :key="item.key">
+                <component :is="item.icon" />
+                <span>{{ item.label }}</span>
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
       </nav>
 
       <!-- 右侧：用户操作区域 -->
@@ -47,6 +64,46 @@
             <span>VIP</span>
           </RouterLink>
 
+          <!-- 站内信铃铛 -->
+          <a-dropdown trigger="click" placement="bottomRight" @visibleChange="onBellVisibleChange">
+            <a-badge :count="unreadCount" :overflow-count="99" :offset="[2, 2]">
+              <a-button class="bell-btn" type="text" aria-label="站内信">
+                <BellOutlined class="bell-icon" />
+              </a-button>
+            </a-badge>
+            <template #overlay>
+              <div class="message-popover">
+                <div class="message-popover-head">
+                  <span>站内信</span>
+                  <a class="message-popover-link" @click="goMessagePage">查看全部</a>
+                </div>
+                <a-spin :spinning="messagesLoading">
+                  <div v-if="recentMessages.length" class="message-popover-list">
+                    <div
+                      v-for="msg in recentMessages"
+                      :key="msg.id"
+                      class="message-popover-item"
+                      :class="{ unread: !msg.isRead }"
+                      @click="openMessageFromHeader(msg)"
+                    >
+                      <div class="message-popover-title">
+                        <span v-if="!msg.isRead" class="unread-dot"></span>
+                        {{ msg.title }}
+                      </div>
+                      <div class="message-popover-desc">{{ msg.content || '' }}</div>
+                      <div class="message-popover-time">{{ formatMessageTime(msg.createTime) }}</div>
+                    </div>
+                  </div>
+                  <a-empty v-else-if="!messagesLoading" description="暂无消息" :image="simpleEmptyImage" />
+                </a-spin>
+                <div class="message-popover-foot">
+                  <a-button type="link" size="small" :disabled="unreadCount === 0" @click="markAllReadFromHeader">
+                    <CheckOutlined /> 全部已读
+                  </a-button>
+                </div>
+              </div>
+            </template>
+          </a-dropdown>
           <a-dropdown>
             <a-space class="user-info">
               <a-avatar
@@ -69,6 +126,10 @@
                 <a-menu-item key="points" class="dropdown-item" @click="router.push('/points')">
                   <WalletOutlined />
                   <span>积分中心</span>
+                </a-menu-item>
+                <a-menu-item key="feedback" class="dropdown-item" @click="router.push('/feedback')">
+                  <MessageOutlined />
+                  <span>意见反馈</span>
                 </a-menu-item>
                 <a-menu-item key="settings" class="dropdown-item" @click="router.push('/user/settings')">
                   <SettingOutlined />
@@ -97,12 +158,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { message, Empty as AntEmpty } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import { userLogout } from '@/api/userController.ts'
 import { getPointsBalance, checkin as pointsCheckin } from '@/api/pointsController.ts'
+import { getMessageUnreadCount, pageMessage, readMessage } from '@/api/messageController.ts'
 import {
   LogoutOutlined,
   UserOutlined,
@@ -114,17 +176,23 @@ import {
   BarChartOutlined,
   GiftOutlined,
   CheckCircleOutlined,
-  WalletOutlined
+  WalletOutlined,
+  BellOutlined,
+  MessageOutlined,
+  CheckOutlined,
+  DownOutlined
 } from '@ant-design/icons-vue'
-import { isVip as checkIsVip } from '@/utils/permission'
+import { isVip as checkIsVip, isAdmin as checkIsAdmin } from '@/utils/permission'
 
 const loginUserStore = useLoginUserStore()
 const router = useRouter()
 // 当前选中菜单
 const selectedKeys = ref<string[]>(['/'])
-// 监听路由变化，更新当前选中菜单
+// 监听路由变化：更新当前选中菜单，并刷新站内信未读角标
+// （在消息详情页标记已读后返回列表，角标即时更新）
 router.afterEach((to) => {
   selectedKeys.value = [to.path]
+  refreshUnread()
 })
 
 // 判断是否为 VIP（管理员也视为 VIP）
@@ -180,6 +248,104 @@ watch(
   { immediate: true },
 )
 
+// ==================== 站内信（铃铛角标 + 最近消息） ====================
+const unreadCount = ref(0)
+const recentMessages = ref<any[]>([])
+const messagesLoading = ref(false)
+const simpleEmptyImage = AntEmpty.PRESENTED_IMAGE_SIMPLE
+
+const formatMessageTime = (v?: string | null) => {
+  if (!v) return ''
+  return v.replace('T', ' ').slice(0, 16)
+}
+
+// 刷新未读数（登录后 / 轮询 / 操作后调用）
+const refreshUnread = async () => {
+  if (!loginUserStore.loginUser.id) return
+  try {
+    const res = await getMessageUnreadCount()
+    if (res.data.code === 0 && res.data.data) {
+      unreadCount.value = res.data.data.count ?? 0
+    }
+  } catch (e) {
+    // 未登录等场景静默处理
+  }
+}
+
+// 拉取最近 5 条（铃铛下拉）
+const loadRecentMessages = async () => {
+  if (!loginUserStore.loginUser.id) return
+  messagesLoading.value = true
+  try {
+    const res = await pageMessage({ current: 1, pageSize: 5 })
+    if (res.data.code === 0 && res.data.data) {
+      recentMessages.value = (res.data.data.records as any[]) ?? []
+    }
+  } catch (e) {
+    // 静默处理
+  } finally {
+    messagesLoading.value = false
+  }
+}
+
+// 铃铛展开时刷新
+const onBellVisibleChange = (visible: boolean) => {
+  if (visible) {
+    refreshUnread()
+    loadRecentMessages()
+  }
+}
+
+// 点击单条：未读先标记已读；有 link 跳转，否则进消息中心
+// 点击单条：直接进入通知详情页查看内容（不再按 link 跳转，避免看不到通知详情；详情页会自动标记已读）
+const openMessageFromHeader = (msg: any) => {
+  router.push(`/message/${msg.id}`)
+}
+
+// 全部已读
+const markAllReadFromHeader = async () => {
+  try {
+    const res = await readMessage({ all: true } as any)
+    if (res.data.code === 0) {
+      unreadCount.value = 0
+      recentMessages.value.forEach((m) => (m.isRead = true))
+      message.success('已全部标记为已读')
+    } else {
+      message.error(res.data.message || '操作失败')
+    }
+  } catch (e: any) {
+    message.error(e?.message || '操作失败')
+  }
+}
+
+const goMessagePage = () => {
+  router.push('/message')
+}
+
+// 登录就绪后拉取未读数；登出后清零
+watch(
+  () => loginUserStore.loginUser.id,
+  (id) => {
+    if (id) {
+      refreshUnread()
+    } else {
+      unreadCount.value = 0
+      recentMessages.value = []
+    }
+  },
+  { immediate: true },
+)
+
+// 轮询刷新未读数（60s）
+let unreadTimer: ReturnType<typeof setInterval> | null = null
+onMounted(() => {
+  unreadTimer = setInterval(() => {
+    refreshUnread()
+  }, 60000)
+})
+onUnmounted(() => {
+  if (unreadTimer) clearInterval(unreadTimer)
+})
 // 菜单配置项
 const originItems = [
   {
@@ -221,18 +387,47 @@ const originItems = [
     label: '计价',
     admin: true,
   },
+  {
+    key: '/admin/feedback',
+    icon: MessageOutlined,
+    label: '反馈管理',
+    admin: true,
+  },
+  {
+    key: '/admin/message',
+    icon: BellOutlined,
+    label: '消息中心',
+    admin: true,
+  },
 ]
 
-// 过滤菜单项
+// 顶部导航仅展示非管理端入口（管理端入口合并进「管理」下拉）
 const menuItems = computed(() => {
-  return originItems.filter((item) => {
-    if (item.admin) {
-      const loginUser = loginUserStore.loginUser
-      return loginUser && loginUser.userRole === 'admin'
-    }
-    return true
-  })
+  return originItems.filter((item) => !item.admin)
 })
+
+// 管理员是否登录（控制「管理」下拉显隐）
+const isAdminUser = computed(() => checkIsAdmin(loginUserStore.loginUser))
+
+// 管理员菜单项（合并到「管理」下拉）
+const adminMenuItems = computed(() => originItems.filter((item) => item.admin))
+
+// 当前是否处于管理端路由（「管理」按钮高亮）
+const isAdminRoute = computed(() => selectedKeys.value.some((k) => k.startsWith('/admin')))
+
+// 下拉菜单中高亮当前管理页
+const adminSelectedKeys = computed(() => {
+  const path = selectedKeys.value[0] || ''
+  const hit = adminMenuItems.value.find(
+    (item) => path === item.key || path.startsWith(item.key + '/'),
+  )
+  return hit ? [hit.key] : []
+})
+
+// 点击管理员菜单项跳转
+const onAdminMenuClick = ({ key }: { key: string }) => {
+  router.push(key)
+}
 
 // 退出登录
 const doLogout = async () => {
@@ -537,5 +732,140 @@ const doLogout = async () => {
   .user-name {
     display: none;
   }
+}
+/* 站内信铃铛 */
+.bell-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+}
+.bell-btn:hover {
+  color: var(--color-primary-dark);
+  background: var(--color-background-secondary);
+}
+.bell-icon {
+  font-size: 17px;
+}
+
+/* 铃铛下拉消息面板 */
+.message-popover {
+  width: 320px;
+  background: #fff;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+.message-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border-light, #e5e7eb);
+}
+.message-popover-link {
+  font-size: 12px;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+.message-popover-link:hover {
+  color: var(--color-primary-dark);
+}
+.message-popover-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+.message-popover-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border-light, #f1f5f9);
+  transition: background var(--transition-fast);
+}
+.message-popover-item:hover {
+  background: var(--color-background-secondary);
+}
+.message-popover-item.unread {
+  background: rgba(34, 197, 94, 0.05);
+}
+.message-popover-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.unread-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  flex-shrink: 0;
+}
+.message-popover-desc {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.message-popover-time {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.message-popover-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 8px;
+  border-top: 1px solid var(--color-border-light, #e5e7eb);
+}
+/* 管理员下拉触发按钮 */
+.admin-nav-trigger {
+  cursor: pointer;
+  user-select: none;
+}
+.admin-nav-arrow {
+  font-size: 11px;
+  margin-left: 2px;
+  opacity: 0.75;
+  transition: transform var(--transition-fast);
+}
+.admin-nav-trigger:hover .admin-nav-arrow {
+  transform: translateY(1px);
+}
+
+/* 管理员下拉菜单 */
+.admin-nav-menu {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
+  min-width: 168px;
+  padding: 4px;
+}
+.admin-nav-menu .ant-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--radius-sm);
+  margin: 2px 0;
+}
+.admin-nav-menu .ant-menu-item .anticon {
+  font-size: 15px;
 }
 </style>

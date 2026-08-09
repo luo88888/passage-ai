@@ -15,7 +15,7 @@ import dayjs from 'dayjs'
 import { getArticle } from '@/api/articleController'
 import { statusText, statusDotColor } from '@/utils/articleStatus'
 import { renderMarkdown } from '@/utils/markdown'
-import { exportMarkdown, exportHtml } from '@/utils/export'
+import { exportMarkdown, exportHtml, copyText } from '@/utils/export'
 import { useLoginUserStore } from '@/stores/loginUser'
 import ExecutionLogPanel from '@/components/article/ExecutionLogPanel.vue'
 import ResearchPanel from '@/components/article/ResearchPanel.vue'
@@ -152,6 +152,32 @@ const doExportHtml = () => {
   exportHtml(a.mainTitle || a.topic || 'article', text)
 }
 
+// 复制到剪贴板
+const doCopyMd = async () => {
+  const a = article.value
+  if (!a) return
+  const text = a.fullContent || a.content || ''
+  if (!text) {
+    message.warning('暂无可复制的内容')
+    return
+  }
+  const ok = await copyText(text)
+  if (ok) message.success('Markdown 内容已复制到剪贴板')
+  else message.error('复制失败，请手动选择复制')
+}
+const doCopyHtml = async () => {
+  const a = article.value
+  if (!a) return
+  const text = a.fullContent || a.content || ''
+  if (!text) {
+    message.warning('暂无可复制的内容')
+    return
+  }
+  const ok = await copyText(renderMarkdown(text))
+  if (ok) message.success('HTML 内容已复制到剪贴板')
+  else message.error('复制失败，请手动选择复制')
+}
+
 onMounted(() => {
   if (!loginUserStore.loginUser.id) {
     router.replace(`/user/login?redirect=${encodeURIComponent(route.fullPath)}`)
@@ -186,6 +212,9 @@ onBeforeUnmount(() => {
             <a-menu>
               <a-menu-item @click="doExportMd">导出 Markdown</a-menu-item>
               <a-menu-item @click="doExportHtml">导出 HTML</a-menu-item>
+              <a-menu-divider />
+              <a-menu-item @click="doCopyMd">复制 Markdown</a-menu-item>
+              <a-menu-item @click="doCopyHtml">复制 HTML</a-menu-item>
             </a-menu>
           </template>
         </a-dropdown>
