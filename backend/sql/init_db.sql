@@ -1,8 +1,8 @@
 -- ============================================================
 -- AI 文章创作平台 · 数据库全量建表脚本（一键初始化）
 -- ------------------------------------------------------------
--- 用途：全新环境初始化（一次性从零建库建表 + 种子数据）
--- 幂等性：可重复执行（CREATE ... IF NOT EXISTS / INSERT IGNORE）
+-- 用途：全新环境初始化（一次性从零建库建表）
+-- 幂等性：可重复执行（CREATE ... IF NOT EXISTS）
 -- 已合并历史增量脚本：create_table.sql / create_article_table.sql /
 --   add_vip_payment.sql / add_phase_fields.sql / add_genre_fields.sql /
 --   add_points_system.sql / add_feedback_message.sql 的全部最终结构
@@ -242,42 +242,3 @@ CREATE TABLE IF NOT EXISTS message
     INDEX idx_userId (userId, isRead, createTime),
     INDEX idx_userId_time (userId, createTime)
 ) COMMENT '站内信' COLLATE = utf8mb4_unicode_ci;
-
--- ============================================================
--- 种子数据（幂等，可重复执行）
--- ============================================================
-
--- 1. 演示账号（密码均为 12345678，MD5 + 盐值 yupi 加密）
-INSERT IGNORE INTO user (id, userAccount, userPassword, userName, userAvatar, userProfile, userRole, quota) VALUES
-(1, 'admin', '10670d38ec32fa8102be6a37f8cb52bf', '管理员', 'https://www.codefather.cn/logo.png', '系统管理员', 'admin', 5),
-(2, 'user',  '10670d38ec32fa8102be6a37f8cb52bf', '普通用户', 'https://www.codefather.cn/logo.png', '我是一个普通用户', 'user', 5),
-(3, 'test',  '10670d38ec32fa8102be6a37f8cb52bf', '测试账号', 'https://www.codefather.cn/logo.png', '这是一个测试账号', 'user', 5);
-
--- 2. 模型计价种子（100 积分 = 1 元，见 docs/积分系统开发计划.md 4.4）
-INSERT IGNORE INTO model_pricing (category, provider, model, agentName, inputPricePer1k, outputPricePer1k, pricePerImage, enabled) VALUES
-('LLM',   'Xiaomi',      'mimo-v2.5-pro',          '', 1.0000, 2.0000, 0, 1),
-('LLM',   'Xiaomi',      'mimo-v2.5',              '', 0.3000, 0.6000, 0, 1),
-('LLM',   'DeepSeek',    'deepseek-v4-flash',      '', 0.3000, 0.6000, 0, 1),
-('LLM',   '*',           '*',                      '', 1.0000, 2.0000, 0, 1),
-('IMAGE', 'Zhipu',       'cogview-3-flash',        '', 0, 0, 0, 1),
-('IMAGE', 'NanoBanana',  'gemini-2.5-flash-image', '', 0, 0, 2.00, 1);
-
--- 3. 演示账号积分账户 + 折算流水（镜像历史迁移：1 quota = 100 积分）
-INSERT IGNORE INTO user_points (userId, balance, totalEarned, totalConsumed, version, createTime, updateTime)
-SELECT id, quota * 100, quota * 100, 0, 0, NOW(), NOW()
-FROM user
-WHERE isDelete = 0;
-
-INSERT INTO points_transaction (userId, taskId, type, amount, balanceAfter, description, createTime)
-SELECT id, NULL, 'ADMIN_ADJUST', quota * 100, quota * 100, '历史配额折算（1 quota = 100 积分）', NOW()
-FROM user
-WHERE isDelete = 0 AND quota > 0
-  AND NOT EXISTS (
-      SELECT 1 FROM points_transaction t
-      WHERE t.userId = user.id AND t.type = 'ADMIN_ADJUST' AND t.description LIKE '历史配额折算%'
-  );
--- 4. 同步 user.points 冗余展示字段（权威以 user_points 为准）
-UPDATE user u
-JOIN user_points up ON up.userId = u.id
-SET u.points = up.balance
-WHERE u.isDelete = 0;
