@@ -37,8 +37,8 @@ class BaseConfig(BaseSettings):
     # 创建文章去重窗口，同一参数在此窗口内禁止重复提交
     dedup_window_seconds: int = 60
 
-    # 密码加密
-    password_salt: str
+    # 密码加密：bcrypt 加密轮数（cost factor），默认 12
+    bcrypt_rounds: int = 12
 
     @property
     def database_url(self) -> str:
