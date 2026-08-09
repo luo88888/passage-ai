@@ -100,7 +100,7 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
         send_sse_message(
             task_id,
             SseMessageTypeEnum.AI_MODIFY_OUTLINE_FAILED,
-            {"message": str(e)},
+            {"message": "系统内部错误：AI 修改大纲失败"},
         )
         # M3：AI 修改失败本轮也即时结算（失败调用 0 积分，仅把 FAILED 用量落库，防内存累积）
         try:

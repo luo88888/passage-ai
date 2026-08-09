@@ -125,8 +125,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={
             "code": ErrorCode.SYSTEM_ERROR.code,
             "data": None,
-            # HACK: 不太安全，可能暴露技术细节
-            "message": f"系统内部异常：{str(exc)}"
+            "message": "系统内部错误"
         }
     )
 

@@ -261,6 +261,11 @@ async def get_execution_logs(
 ):
     """获取任务执行日志"""
     throw_if(not task_id or not task_id.strip(), ErrorCode.PARAMS_ERROR, "任务ID不能为空")
+
+    # 校验权限（内部会检查任务是否存在以及用户是否有权限访问）
+    service = ArticleService(db)
+    await service.get_article_detail(task_id, current_user)
+    
     service = AgentLogService(db)
     stats = await service.get_execution_stats(task_id)
     return BaseResponse.success(data=stats)
