@@ -5,7 +5,7 @@
 -- 幂等性：可重复执行（CREATE ... IF NOT EXISTS / INSERT IGNORE）
 -- 已合并历史增量脚本：create_table.sql / create_article_table.sql /
 --   add_vip_payment.sql / add_phase_fields.sql / add_genre_fields.sql /
---   add_points_system.sql 的全部最终结构
+--   add_points_system.sql / add_feedback_message.sql 的全部最终结构
 -- 数据库：MySQL 8.0+，utf8mb4 / utf8mb4_unicode_ci
 -- ============================================================
 
@@ -199,6 +199,49 @@ CREATE TABLE IF NOT EXISTS model_pricing
     updateTime       datetime       default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP comment '更新时间',
     UNIQUE KEY uk_model (category, provider, model, agentName)
 ) comment '模型计价' collate = utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 9. 意见反馈表（M1：意见反馈与站内信）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS feedback
+(
+    id           BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    userId       BIGINT       NOT NULL COMMENT '提交用户ID',
+    type         VARCHAR(32)  NOT NULL DEFAULT 'OTHER' COMMENT '类型：BUG/FEATURE/COMPLAINT/OTHER',
+    content      TEXT         NOT NULL COMMENT '反馈内容',
+    contact      VARCHAR(128) NULL COMMENT '联系方式（电话/邮箱）',
+    imageUrls    json NULL COMMENT '截图URL列表（JSON数组，最多5张）',
+    status       VARCHAR(32)  NOT NULL DEFAULT 'PENDING' COMMENT '状态：PENDING/PROCESSING/RESOLVED',
+    replyContent TEXT         NULL COMMENT '管理员回复内容',
+    replyUserId  BIGINT       NULL COMMENT '回复管理员ID',
+    replyTime    DATETIME     NULL COMMENT '回复时间',
+    createTime   DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updateTime   DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    isDelete     TINYINT      DEFAULT 0 NOT NULL COMMENT '是否删除',
+    INDEX idx_userId (userId, createTime),
+    INDEX idx_status (status, createTime)
+) COMMENT '意见反馈' COLLATE = utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 10. 站内信表（M1：意见反馈与站内信）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS message
+(
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    userId     BIGINT       NOT NULL COMMENT '收件用户ID（全体广播写时展开为每用户一行）',
+    type       VARCHAR(32)  NOT NULL DEFAULT 'SYSTEM' COMMENT '类型：SYSTEM/FEEDBACK/VIP/POINTS',
+    title      VARCHAR(200) NOT NULL COMMENT '标题',
+    content    TEXT         NULL COMMENT '内容',
+    link       VARCHAR(512) NULL COMMENT '跳转链接（前端路由）',
+    relatedId  BIGINT       NULL COMMENT '关联业务ID（如反馈ID）',
+    senderId   BIGINT       NULL COMMENT '发送者用户ID（管理员主动发信为管理员ID；系统自动触发为空）',
+    isRead     TINYINT      DEFAULT 0 NOT NULL COMMENT '是否已读',
+    readTime   DATETIME     NULL COMMENT '阅读时间',
+    createTime DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    isDelete   TINYINT      DEFAULT 0 NOT NULL COMMENT '是否删除',
+    INDEX idx_userId (userId, isRead, createTime),
+    INDEX idx_userId_time (userId, createTime)
+) COMMENT '站内信' COLLATE = utf8mb4_unicode_ci;
 
 -- ============================================================
 -- 种子数据（幂等，可重复执行）

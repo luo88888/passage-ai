@@ -28,6 +28,10 @@ class QuotaConfig(BaseSettings):
     login_ip_window_seconds: int = 1800     # 失败计数窗口（30 分钟）
     login_ip_lock_seconds: int = 300        # 超限后锁定时长（5 分钟）
 
+    # 意见反馈每日提交限流：每用户每天最多提交条数（Redis 固定窗口，按北京时间自然日计数，超限返回 REQUEST_TOO_FREQUENT）
+    feedback_daily_limit: int = 10
+    feedback_daily_window_seconds: int = 86400
+
     # 多智能体图片并行
     agent_image_max_concurrency: int = 3
     agent_image_fail_fast: bool = True

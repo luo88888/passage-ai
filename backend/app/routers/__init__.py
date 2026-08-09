@@ -7,6 +7,8 @@ from app.routers.payment import payment_router, webhook_router
 from app.routers.statistics import router as statistics_router
 from app.routers.points import router as points_router
 from app.routers.admin_points import admin_points_router, model_pricing_router
+from app.routers.feedback import router as feedback_router, admin_feedback_router
+from app.routers.message import router as message_router, admin_message_router
 
 __all__ = [
     "health_router",
@@ -17,5 +19,9 @@ __all__ = [
     "statistics_router",
     "points_router",
     "admin_points_router",
-    "model_pricing_router"
+    "model_pricing_router",
+    "feedback_router",
+    "admin_feedback_router",
+    "message_router",
+    "admin_message_router"
 ]

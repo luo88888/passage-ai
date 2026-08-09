@@ -1,0 +1,137 @@
+"""意见反馈接口路由。
+
+用户端：提交 / 我的反馈分页 / 详情；管理端：全量分页 / 详情 / 回复 / 仅改状态。
+截图上传（POST /feedback/upload，复用头像上传白名单范式 + LocalFileService 落盘）按计划在 M2 实现。
+"""
+from typing import Optional
+
+from databases import Database
+from fastapi import APIRouter, Depends, Query
+
+from app.database import get_db
+from app.deps import require_admin, require_login
+from app.schemas.common import BaseResponse
+from app.schemas.feedback import (
+    AdminFeedbackQueryRequest,
+    AdminFeedbackVO,
+    FeedbackQueryRequest,
+    FeedbackReplyRequest,
+    FeedbackStatusRequest,
+    FeedbackSubmitRequest,
+    FeedbackVO,
+)
+from app.schemas.user import LoginUserVO
+from app.services.feedback_service import FeedbackService
+
+
+router = APIRouter(prefix="/feedback", tags=["意见反馈"])
+
+# 管理端接口独立路由（/admin/feedback，仅管理员可访问）
+admin_feedback_router = APIRouter(prefix="/admin/feedback", tags=["意见反馈管理"])
+
+
+@router.post("/submit", response_model=BaseResponse[int])
+async def submit_feedback(
+    request: FeedbackSubmitRequest,
+    db: Database = Depends(get_db),
+    current_user: LoginUserVO = Depends(require_login),
+):
+    """提交意见反馈（每日限流：每用户每天最多 feedback_daily_limit 条，超限返回 REQUEST_TOO_FREQUENT）"""
+    service = FeedbackService(db)
+    feedback_id = await service.submit(current_user.id, request)
+    return BaseResponse.success(data=feedback_id, message="提交成功")
+
+
+@router.get("/page", response_model=BaseResponse[dict])
+async def page_my_feedback(
+    current: int = Query(1, ge=1, description="当前页码"),
+    page_size: int = Query(10, ge=1, le=100, alias="pageSize", description="每页大小"),
+    type: Optional[str] = Query(None, description="反馈类型筛选：BUG/FEATURE/COMPLAINT/OTHER"),
+    status: Optional[str] = Query(None, description="处理状态筛选：PENDING/PROCESSING/RESOLVED"),
+    db: Database = Depends(get_db),
+    current_user: LoginUserVO = Depends(require_login),
+):
+    """我的反馈分页（type/status 筛选，仅本人）"""
+    service = FeedbackService(db)
+    query = FeedbackQueryRequest(current=current, pageSize=page_size, type=type, status=status)
+    records, total = await service.page_mine(current_user.id, query)
+    return BaseResponse.success(data={
+        "records": records,
+        "total": total,
+        "current": query.current,
+        "size": query.page_size,
+    })
+
+
+@router.get("/{feedback_id}", response_model=BaseResponse[FeedbackVO])
+async def get_feedback(
+    feedback_id: int,
+    db: Database = Depends(get_db),
+    current_user: LoginUserVO = Depends(require_login),
+):
+    """反馈详情（仅本人，归属校验）"""
+    service = FeedbackService(db)
+    return BaseResponse.success(data=await service.get_detail(current_user.id, feedback_id))
+
+
+@admin_feedback_router.get("/page", response_model=BaseResponse[dict])
+async def admin_page_feedback(
+    current: int = Query(1, ge=1, description="当前页码"),
+    page_size: int = Query(10, ge=1, le=100, alias="pageSize", description="每页大小"),
+    keyword: Optional[str] = Query(None, description="关键字（匹配用户账号/昵称/反馈内容）"),
+    type: Optional[str] = Query(None, description="反馈类型筛选"),
+    status: Optional[str] = Query(None, description="处理状态筛选"),
+    start_time: Optional[str] = Query(None, alias="startTime", description="起始时间（含）"),
+    end_time: Optional[str] = Query(None, alias="endTime", description="结束时间（含）"),
+    db: Database = Depends(get_db),
+    _: LoginUserVO = Depends(require_admin),
+):
+    """管理端全量分页（关键字/类型/状态/时间筛选，含提交用户信息）"""
+    service = FeedbackService(db)
+    query = AdminFeedbackQueryRequest(
+        current=current, pageSize=page_size,
+        keyword=keyword, type=type, status=status,
+        startTime=start_time, endTime=end_time,
+    )
+    records, total = await service.admin_page(query)
+    return BaseResponse.success(data={
+        "records": records,
+        "total": total,
+        "current": query.current,
+        "size": query.page_size,
+    })
+
+
+@admin_feedback_router.get("/{feedback_id}", response_model=BaseResponse[AdminFeedbackVO])
+async def admin_get_feedback(
+    feedback_id: int,
+    db: Database = Depends(get_db),
+    _: LoginUserVO = Depends(require_admin),
+):
+    """管理端反馈详情（含提交用户信息）"""
+    service = FeedbackService(db)
+    return BaseResponse.success(data=await service.admin_detail(feedback_id))
+
+
+@admin_feedback_router.post("/reply", response_model=BaseResponse[FeedbackVO])
+async def admin_reply_feedback(
+    request: FeedbackReplyRequest,
+    db: Database = Depends(get_db),
+    current_user: LoginUserVO = Depends(require_admin),
+):
+    """管理员回复反馈（回复内容 + 状态，默认置 RESOLVED；联动发送 FEEDBACK 站内信）"""
+    service = FeedbackService(db)
+    result = await service.reply(current_user.id, request)
+    return BaseResponse.success(data=result, message="回复成功，已通知用户")
+
+
+@admin_feedback_router.post("/status", response_model=BaseResponse[FeedbackVO])
+async def admin_update_feedback_status(
+    request: FeedbackStatusRequest,
+    db: Database = Depends(get_db),
+    _: LoginUserVO = Depends(require_admin),
+):
+    """管理员仅改状态（不回复）"""
+    service = FeedbackService(db)
+    result = await service.update_status(request)
+    return BaseResponse.success(data=result, message="状态更新成功")
