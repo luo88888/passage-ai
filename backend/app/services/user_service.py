@@ -21,7 +21,7 @@ from app.constants.points import PointsConstant
 from app.constants.user import UserConstant
 from app.exceptions import ErrorCode, throw_if, throw_if_not, BusinessException
 from app.services.points_service import PointsService
-from app.utils.password import encrypt_password
+from app.utils.password import encrypt_password, verify_password
 from app.utils.logger import logger
 
 
@@ -108,9 +108,8 @@ class UserService:
         throw_if_not(user, ErrorCode.USER_NOT_EXIST, "用户不存在")
         assert user is not None  # type narrow: throw_if_not 保证了 user 不为 None
         
-        # 验证密码
-        encrypted_password = encrypt_password(request.user_password)
-        password_match = user["userPassword"] == encrypted_password
+        # 验证密码（bcrypt(sha256(password))）
+        password_match = verify_password(request.user_password, user["userPassword"])
         if not password_match:
             logger.warning("登录密码错误 userAccount=%s", request.user_account)
         throw_if(
@@ -168,6 +167,21 @@ class UserService:
             createTime=user_dict["createTime"].isoformat(),
             updateTime=user_dict["updateTime"].isoformat()
         )
+
+    async def get_login_user(self, user_id: int) -> Optional[LoginUserVO]:
+        """按用户 ID 查询最新登录态（供开通会员等场景同步刷新 Redis Session 使用）。
+
+        Args:
+            user_id: 用户 ID。
+
+        Returns:
+            最新 LoginUserVO；用户不存在返回 None。
+        """
+        query = select(User).where(and_(User.id == user_id, User.is_delete == 0))
+        user = await self.db.fetch_one(query)
+        if not user:
+            return None
+        return await self._to_login_vo(dict(user))
 
     async def update_profile(
         self, user_id: int, request: UserProfileUpdateRequest
@@ -247,8 +261,8 @@ class UserService:
         assert user is not None  # type narrow: throw_if_not 保证了 user 不为 None
 
         # 校验原密码
-        old_encrypted = encrypt_password(request.old_password)
-        throw_if(user["userPassword"] != old_encrypted, ErrorCode.PASSWORD_ERROR, "原密码错误")
+        old_match = verify_password(request.old_password, user["userPassword"])
+        throw_if(not old_match, ErrorCode.PASSWORD_ERROR, "原密码错误")
 
         # 校验新密码
         throw_if(

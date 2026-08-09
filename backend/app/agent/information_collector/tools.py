@@ -113,13 +113,13 @@ async def serper_search(
     except httpx.HTTPError as e:
         logger.error(f"Serper API 请求失败: {e}")
         return json.dumps({
-            "error": f"搜索请求失败: {str(e)}",
+            "error": f"搜索请求失败",
             "news": []
         }, ensure_ascii=False)
     except Exception as e:
         logger.error(f"Serper 搜索异常: {e}", exc_info=True)
         return json.dumps({
-            "error": f"搜索过程发生异常: {str(e)}",
+            "error": f"搜索过程发生异常",
             "news": []
         }, ensure_ascii=False)
 
@@ -164,7 +164,7 @@ async def extract_article_content(
     except Exception as e:
         logger.error(f"DDGS 抓取失败 {url}: {e}")
         return json.dumps({
-            "error": f"网页抓取失败: {str(e)}",
+            "error": f"网页抓取失败",
             "url": url,
         }, ensure_ascii=False)
 
@@ -214,7 +214,7 @@ async def extract_article_content(
     except Exception as e:
         logger.error(f"摘要失败 {url}: {e}", exc_info=True)
         return json.dumps({
-            "error": f"摘要生成失败: {str(e)}",
+            "error": f"摘要生成失败",
             "url": url,
             "title": title,
         }, ensure_ascii=False)

@@ -8,8 +8,8 @@
    保证结构始终与 SQL 脚本保持一致。
 2. 种子数据（由本脚本幂等写入）：
    - 模型计价 model_pricing（INSERT IGNORE，唯一键 uk_model）
-   - 演示账号 admin / user / test：密码 12345678 使用 .env 中 PASSWORD_SALT 盐值加密
-     （MD5(password + salt)），头像默认使用
+   - 演示账号 admin / user / test：密码 12345678 由 bcrypt 加密（先 SHA-256
+     预哈希，自带随机盐），头像默认使用
      backend/static/default_avatar/0ca3d6k8f81f9dsf905949eckad953ar.png
    - 积分账户 user_points + 历史配额折算流水（1 quota = 100 积分，类型 ADMIN_ADJUST），
      并同步 user.points 冗余展示字段
@@ -115,7 +115,7 @@ def _seed_users(conn) -> None:
         print("       仍将写入头像 URL，请确保部署时包含该文件。")
 
     encrypted = encrypt_password(DEFAULT_PASSWORD)
-    print(f"[INFO] 密码 {DEFAULT_PASSWORD} + 盐值 {settings.password_salt} 加密 => {encrypted}")
+    print(f"[INFO] 密码 {DEFAULT_PASSWORD} 由 bcrypt 加密 => {encrypted}")
 
     sql = text(
         "INSERT INTO user "
@@ -237,7 +237,6 @@ def main() -> None:
     print("=" * 60)
     print("AI 文章创作平台 · 数据库初始化")
     print(f"数据库：{settings.db_user}@{settings.db_host}:{settings.db_port}/{settings.db_name}")
-    print(f"密码盐值：{settings.password_salt}")
     print("=" * 60)
 
     _create_database()

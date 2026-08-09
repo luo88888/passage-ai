@@ -4,6 +4,10 @@
 外部统一导入：`from app.config import settings`
 """
 
+import dotenv
+
+dotenv.load_dotenv(override=True)   # 确保 .env 环境变量生效
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.config.base import BaseConfig, ENV_FILE

@@ -1,5 +1,6 @@
-"""IP 提取与注册频率限制（Redis 固定窗口计数）。"""
+"""IP 提取与固定窗口限流（注册/登录防爆破、意见反馈每日限流）。"""
 
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import Request
@@ -184,3 +185,42 @@ async def record_login_ip_failure(ip: str) -> bool:
         )
         return True
     return False
+
+
+# ==================== 意见反馈每日限流（Redis 固定窗口） ====================
+# 按北京时区（Asia/Shanghai）自然日计数：中国无夏令时，固定 UTC+8，不依赖 tzdata。
+SHANGHAI_TZ = timezone(timedelta(hours=8), name="Asia/Shanghai")
+
+
+def _feedback_daily_key(user_id: int, day: str) -> str:
+    """构造意见反馈每日计数 Redis key。"""
+    return f"feedback_daily:{user_id}:{day}"
+
+
+async def check_feedback_daily_limit(user_id: int) -> bool:
+    """检查该用户当天（北京时间自然日）反馈提交次数是否超限。
+
+    固定窗口：INCR + 首建 EXPIRE（TTL 一天），key 带日期，跨天自动换窗口。
+    Redis 不可用时拦截（与注册/登录限流一致，避免限流失效）。
+
+    Args:
+        user_id: 用户 ID。
+
+    Returns:
+        True=放行；False=当天提交次数已达上限，应拒绝。
+
+    Raises:
+        BusinessException: Redis 未初始化（SYSTEM_ERROR）。
+    """
+    redis = get_client()
+    if not redis:
+        logger.error("redis 未初始化，停止反馈提交 user_id=%s", user_id)
+        throw_if(True, ErrorCode.SYSTEM_ERROR)
+        return False
+
+    day = datetime.now(SHANGHAI_TZ).strftime("%Y%m%d")
+    key = _feedback_daily_key(user_id, day)
+    count = await redis.incr(key)
+    if count == 1:
+        await redis.expire(key, settings.feedback_daily_window_seconds)
+    return count <= settings.feedback_daily_limit

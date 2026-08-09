@@ -5,12 +5,14 @@ from fastapi import APIRouter, Depends, Header, Request
 
 from app.constants.user import UserConstant
 from app.database import get_db
-from app.deps import require_login
+from app.deps import get_session_id, require_login
 from app.exceptions import BusinessException, ErrorCode, throw_if
 from app.schemas.common import BaseResponse
 from app.schemas.payment import PaymentRecordVO, VipPlanVO
 from app.schemas.user import LoginUserVO
 from app.services.payment_service import PaymentService
+from app.services.user_service import UserService
+from app.utils.session import set_session
 
 
 
@@ -37,6 +39,23 @@ async def create_vip_payment_session(
     service = PaymentService(db)
     session_url = await service.create_vip_payment_session(current_user.id)
     return BaseResponse.success(data=session_url)
+
+
+@payment_router.post("/activate-vip", response_model=BaseResponse[bool])
+async def activate_vip(
+    db: Database = Depends(get_db),
+    session_id: Optional[str] = Depends(get_session_id),
+    current_user: LoginUserVO = Depends(require_login),
+):
+    """直接开通永久会员（临时免支付：Stripe 停用期间，点击「立即开通」即开通）"""
+    service = PaymentService(db)
+    success = await service.activate_vip(current_user.id)
+    if success and session_id:
+        # 同步刷新 Redis Session，避免 GET /user/get/login 仍返回旧角色（需重新登录才生效）
+        fresh_user = await UserService(db).get_login_user(current_user.id)
+        if fresh_user:
+            await set_session(session_id, {"user": fresh_user.model_dump(by_alias=True)})
+    return BaseResponse.success(data=success)
 
 
 @payment_router.post("/refund", response_model=BaseResponse[bool])

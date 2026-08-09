@@ -24,6 +24,10 @@ from app.routers import (
     points_router,
     admin_points_router,
     model_pricing_router,
+    feedback_router,
+    admin_feedback_router,
+    message_router,
+    admin_message_router,
 )
 from app.exceptions import BusinessException, ErrorCode
 from app.redis import init_redis, close_redis
@@ -121,8 +125,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={
             "code": ErrorCode.SYSTEM_ERROR.code,
             "data": None,
-            # HACK: 不太安全，可能暴露技术细节
-            "message": f"系统内部异常：{str(exc)}"
+            "message": "系统内部错误"
         }
     )
 
@@ -137,6 +140,10 @@ app.include_router(statistics_router, prefix="/api")
 app.include_router(points_router, prefix="/api")
 app.include_router(admin_points_router, prefix="/api")
 app.include_router(model_pricing_router, prefix="/api")
+app.include_router(feedback_router, prefix="/api")
+app.include_router(admin_feedback_router, prefix="/api")
+app.include_router(message_router, prefix="/api")
+app.include_router(admin_message_router, prefix="/api")
 
 # 挂载静态文件目录（本地图片存储）
 app.mount("/static", StaticFiles(directory="static"), name="static")

@@ -54,6 +54,14 @@ export async function createVipSession(options?: { [key: string]: any }) {
   })
 }
 
+/** 直接开通永久会员（临时免支付：Stripe 停用期间，点击即开通） POST /payment/activate-vip */
+export async function activateVip(options?: { [key: string]: any }) {
+  return request<BaseResponse<boolean>>('/payment/activate-vip', {
+    method: 'POST',
+    ...(options || {}),
+  })
+}
+
 /** 获取当前用户支付记录 GET /payment/records */
 export async function getPaymentRecords(options?: { [key: string]: any }) {
   return request<BaseResponse<PaymentRecordVO[]>>('/payment/records', {

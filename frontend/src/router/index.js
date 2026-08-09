@@ -54,9 +54,33 @@ const router = createRouter({
       component: () => import('@/pages/admin/ModelPricingPage.vue'),
     },
     {
+      path: '/admin/feedback',
+      name: '意见反馈管理',
+      component: () => import('@/pages/admin/FeedbackAdminPage.vue'),
+    },
+    {
+      path: '/admin/message',
+      name: '站内信管理',
+      component: () => import('@/pages/admin/MessageAdminPage.vue'),
+    },
+    {
       path: '/points',
       name: '积分中心',
       component: () => import('@/pages/points/PointsPage.vue'),
+    },
+    {
+      path: '/feedback',
+      name: '意见反馈',
+      component: () => import('@/pages/feedback/FeedbackPage.vue'),
+    },
+    {
+      path: '/message',
+      name: '消息中心',
+      component: () => import('@/pages/message/MessagePage.vue'),
+    },    {
+      path: '/message/:id',
+      name: '通知详情',
+      component: () => import('@/pages/message/MessageDetailPage.vue'),
     },
     {
       path: '/create',

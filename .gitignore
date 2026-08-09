@@ -27,6 +27,7 @@ $RECYCLE.BIN/
 .codex
 CLAUDE.local.md
 .mcp.json
+passage-ai.code-workspace
 
 # =====================
 # 本地或临时文件
