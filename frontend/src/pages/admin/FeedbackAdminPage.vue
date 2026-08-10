@@ -165,7 +165,7 @@ const doReply = async () => {
   try {
     const res = await adminReplyFeedback({
       id: replyForm.value.id,
-      replyContent: replyForm.value.replyContent.trim(),
+      replyContent: (replyForm.value.replyContent || '').trim(),
       status: replyForm.value.status,
     } as any)
     if (res.data.code === 0) {

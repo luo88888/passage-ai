@@ -30,7 +30,7 @@ router.beforeEach(async (to, from, next) => {
   // 积分中心/个人主页/意见反馈/消息中心需要登录
   if (toUrl.startsWith('/points') || toUrl.startsWith('/user/profile') || toUrl.startsWith('/user/settings') || toUrl.startsWith('/feedback') || toUrl.startsWith('/message')) {
     if (!loginUser || !loginUser.id) {
-      next(`/user/login?redirect=${to.fullPath}`)
+      next(`/user/login?redirect=${encodeURIComponent(to.fullPath)}`)
       return
     }
   }
@@ -38,7 +38,7 @@ router.beforeEach(async (to, from, next) => {
   if (toUrl.startsWith('/admin')) {
     if (!loginUser || loginUser.userRole !== USER_ROLE_ADMIN) {
       message.error('没有权限')
-      next(`/user/login?redirect=${to.fullPath}`)
+      next(`/user/login?redirect=${encodeURIComponent(to.fullPath)}`)
       return
     }
   }

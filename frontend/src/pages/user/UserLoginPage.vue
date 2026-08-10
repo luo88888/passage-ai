@@ -118,7 +118,7 @@
 import { reactive } from 'vue'
 import { userLogin } from '@/api/userController.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
   EyeOutlined,
@@ -134,6 +134,7 @@ const formState = reactive<API.UserLoginRequest>({
   userPassword: '',
 })
 
+const route = useRoute()
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
 
@@ -142,10 +143,21 @@ const handleSubmit = async (values: any) => {
   if (res.data.code === 0 && res.data.data) {
     await loginUserStore.fetchLoginUser()
     message.success('登录成功')
-    router.push({
-      path: '/',
-      replace: true,
-    })
+    // 深链断点续作：登录后回到被踢出前的页面（?redirect=），无 redirect 才回首页
+    const redirect = route.query.redirect
+    if (typeof redirect === 'string' && redirect.trim()) {
+      let target = redirect.trim()
+      try {
+        target = decodeURIComponent(target)
+      } catch {
+        // 畸形编码：按原样跳转
+      }
+      if (target.startsWith('/')) {
+        router.replace(target)
+        return
+      }
+    }
+    router.replace('/')
   } else {
     message.error('登录失败，' + res.data.message)
   }

@@ -157,7 +157,7 @@ const onStatusChange = () => {
 onMounted(() => {
   // 登录态兜底
   if (!loginUserStore.loginUser.id) {
-    router.replace(`/user/login?redirect=${window.location.pathname + window.location.search}`)
+    router.replace(`/user/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)
     return
   }
   // 支持 /article/list?status=ACTIVE|PENDING|PROCESSING|COMPLETED|FAILED 自动设置筛选

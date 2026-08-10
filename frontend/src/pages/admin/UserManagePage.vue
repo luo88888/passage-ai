@@ -50,6 +50,9 @@
               <a-tag v-if="record.userRole === 'admin'" color="purple" class="role-tag">
                 管理员
               </a-tag>
+              <a-tag v-else-if="record.userRole === 'vip'" color="gold" class="role-tag">
+                会员
+              </a-tag>
               <a-tag v-else color="blue" class="role-tag">
                 普通用户
               </a-tag>
@@ -75,7 +78,7 @@
 </template>
 <script lang="ts" setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { deleteUser, listUserVoByPage } from '@/api/userController.ts'
+import { deleteUser, listUsersByPage } from '@/api/userController.ts'
 import { message } from 'ant-design-vue'
 import { SearchOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
@@ -121,27 +124,32 @@ const total = ref(0)
 
 // 搜索条件
 const searchParams = reactive<API.UserQueryRequest>({
-  pageNum: 1,
+  current: 1,
   pageSize: 10,
 })
 
 // 获取数据
 const fetchData = async () => {
-  const res = await listUserVoByPage({
-    ...searchParams,
-  })
-  if (res.data.data) {
-    data.value = res.data.data.records ?? []
-    total.value = res.data.data.totalRow ?? 0
-  } else {
-    message.error('获取数据失败，' + res.data.message)
+  try {
+    const res = await listUsersByPage({
+      ...searchParams,
+    })
+    if (res.data.data) {
+      data.value = res.data.data.records ?? []
+      total.value = res.data.data.total ?? 0
+    } else {
+      message.error('获取数据失败，' + res.data.message)
+    }
+  } catch (e) {
+    // 会话过期（40100 已由拦截器统一 SPA 跳转）或网络异常：静默避免未处理 Promise 拒绝
+    console.error('获取用户列表失败:', e)
   }
 }
 
 // 分页参数
 const pagination = computed(() => {
   return {
-    current: searchParams.pageNum ?? 1,
+    current: searchParams.current ?? 1,
     pageSize: searchParams.pageSize ?? 10,
     total: total.value,
     showSizeChanger: true,
@@ -151,7 +159,7 @@ const pagination = computed(() => {
 
 // 表格分页变化时的操作
 const doTableChange = (page: { current: number; pageSize: number }) => {
-  searchParams.pageNum = page.current
+  searchParams.current = page.current
   searchParams.pageSize = page.pageSize
   fetchData()
 }
@@ -159,7 +167,7 @@ const doTableChange = (page: { current: number; pageSize: number }) => {
 // 搜索数据
 const doSearch = () => {
   // 重置页码
-  searchParams.pageNum = 1
+  searchParams.current = 1
   fetchData()
 }
 

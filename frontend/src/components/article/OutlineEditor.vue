@@ -54,31 +54,83 @@ const emit = defineEmits<{
   (e: 'confirm'): void
 }>()
 
-// 本地可编辑副本：通过 v-model 与父组件同步
-const localOutline = ref<OutlineSection[]>(cloneOutline(props.outline))
+// ---------- 本地编辑态 ----------
+// 要点改用 { id, text } 对象列表、章节附加稳定 key，供 vuedraggable item-key 做可靠 diff，
+// 避免旧实现 item-key 恒为索引/占位导致拖拽后输入框内容串位、渲染错乱（P0-2）。
+interface LocalPoint {
+  id: string
+  text: string
+}
+interface LocalSection {
+  /** 本地稳定唯一 key（crypto.randomUUID），仅用于拖拽 diff，不上行提交 */
+  key: string
+  section: number
+  title: string
+  points: LocalPoint[]
+  word_count?: number
+  wordCount?: number
+}
 
-// 父组件 outline 由 SSE 回填更新时（AI 修改成功后/重连恢复时），重新同步本地副本
+/** 生成本地稳定唯一 id（crypto.randomUUID 兜底自增） */
+let localIdSeed = 0
+function newLocalId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  localIdSeed += 1
+  return `local_${Date.now()}_${localIdSeed}`
+}
+
+// 本地可编辑副本：通过 v-model 与父组件同步（持有稳定 key，供拖拽 diff）
+const localOutline = ref<LocalSection[]>(cloneOutline(props.outline))
+
+// 最近一次上行同步的 outline（JSON 序列化），用于区分「自身编辑回显」与「外部更新」：
+// v-model:outline 会把我们的编辑原样回显给 props.outline，若此时重新 cloneOutline 会生成全新 key，
+// 导致整棵 draggable 列表重建、输入框失焦（每敲一个字都要重新点击）。仅当外部更新
+// （AI 修改 SSE 回填 / 断点恢复）与上次上行内容不同时才重建本地副本。
+let lastEmittedOutline = ''
+function serializeOutline(list: OutlineSection[]): string {
+  return JSON.stringify(list || [])
+}
+
+// 父组件 outline 由外部更新时（AI 修改成功后/重连恢复时），重新同步本地副本
 watch(
   () => props.outline,
   (v) => {
+    if (serializeOutline(v) === lastEmittedOutline) return
     localOutline.value = cloneOutline(v)
   },
 )
 
-function cloneOutline(list: OutlineSection[]): OutlineSection[] {
+/** OutlineSection[] → LocalSection[]：为每个章节/要点补稳定 key */
+function cloneOutline(list: OutlineSection[]): LocalSection[] {
   // 保留 word_count（SSE 下发 snake_case）与 wordCount（前端编辑写入 camel）
   return (list || []).map((s) => ({
+    key: newLocalId(),
     section: s.section,
     title: s.title,
-    points: [...(s.points || [])],
+    points: (s.points || []).map((p) => ({ id: newLocalId(), text: p })),
     word_count: s.word_count ?? s.wordCount,
     wordCount: s.wordCount ?? s.word_count,
   }))
 }
 
-// 任何本地改动都同步回父组件（v-model 上行）
+/** LocalSection[] → OutlineSection[]：去除本地 key，要点 map 回字符串数组 */
+function toOutline(list: LocalSection[]): OutlineSection[] {
+  return list.map((s) => ({
+    section: s.section,
+    title: s.title,
+    points: s.points.map((p) => p.text),
+    word_count: s.word_count ?? s.wordCount,
+    wordCount: s.wordCount ?? s.word_count,
+  }))
+}
+
+// 任何本地改动都同步回父组件（v-model 上行），并记录快照供回显去重
 function syncUp() {
-  emit('update:outline', cloneOutline(localOutline.value))
+  const next = toOutline(localOutline.value)
+  lastEmittedOutline = serializeOutline(next)
+  emit('update:outline', next)
 }
 
 // vuedraggable 拖动结束回调：仅同步，section 编号在确认时统一重排
@@ -88,9 +140,10 @@ const onDragChange = () => syncUp()
 // 新增章节：section 暂用占位（当前长度+1），确认前会统一重排为 1..n
 const addSection = () => {
   localOutline.value.push({
+    key: newLocalId(),
     section: localOutline.value.length + 1,
     title: '',
-    points: [''],
+    points: [{ id: newLocalId(), text: '' }],
     wordCount: undefined,
   })
   syncUp()
@@ -104,7 +157,7 @@ const removeSection = (idx: number) => {
 
 // 新增要点
 const addPoint = (sIdx: number) => {
-  localOutline.value[sIdx].points.push('')
+  localOutline.value[sIdx].points.push({ id: newLocalId(), text: '' })
   syncUp()
 }
 
@@ -154,7 +207,7 @@ const validationError = computed(() => {
   for (let i = 0; i < localOutline.value.length; i++) {
     const s = localOutline.value[i]
     if (!s.title.trim()) return `第 ${i + 1} 章标题不能为空`
-    const validPoints = s.points.filter((p) => p.trim())
+    const validPoints = s.points.filter((p) => p.text.trim())
     if (!validPoints.length) return `第 ${i + 1} 章至少需要一个要点`
   }
   return ''
@@ -167,14 +220,16 @@ const handleConfirm = () => {
     message.warning(validationError.value)
     return
   }
-  // 提交前统一重排 section 编号为 1..n（拖拽/增删后编号可能乱序）
+  // 提交前统一重排 section 编号为 1..n（拖拽/增删后编号可能乱序），
+  // 要点 map 回字符串数组；本地副本重挂稳定 key 供渲染
   const normalized = localOutline.value.map((s, i) => ({
     section: i + 1,
     title: s.title.trim(),
-    points: s.points.map((p) => p.trim()).filter((p) => p),
+    points: s.points.map((p) => p.text.trim()).filter((p) => p),
   }))
-  localOutline.value = normalized
-  syncUp()
+  localOutline.value = cloneOutline(normalized)
+  lastEmittedOutline = serializeOutline(normalized)
+  emit('update:outline', normalized)
   confirming.value = true
   // 交给父组件：调用 confirmOutline + ensureSse + 推进到正文生成
   emit('confirm')
@@ -199,7 +254,7 @@ defineExpose({
     <!-- 章节列表（可拖拽排序） -->
     <draggable
       v-model="localOutline"
-      item-key="section"
+      item-key="key"
       handle=".drag-handle"
       :animation="200"
       class="section-list"
@@ -246,7 +301,7 @@ defineExpose({
           <div class="points-area">
             <draggable
               v-model="element.points"
-              item-key="idx"
+              item-key="id"
               handle=".point-handle"
               :animation="200"
               class="points-list"
@@ -257,7 +312,7 @@ defineExpose({
                   <span class="point-handle" title="拖拽调整要点顺序"><HolderOutlined /></span>
                   <span class="point-dot">•</span>
                   <a-textarea
-                    v-model:value="element.points[pIdx]"
+                    v-model:value="point.text"
                     class="point-input"
                     placeholder="请输入要点"
                     :auto-size="{ minRows: 1, maxRows: 6 }"

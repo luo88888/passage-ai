@@ -78,7 +78,11 @@ app = FastAPI(
     title="AI 文章创作平台",
     description="基于多智能体编排的 AI 文章生成平台",
     version="0.0.1",
-    lifespan=lifespan
+    lifespan=lifespan,
+    # 对齐 AGENTS.md：API 文档挂在 /api/docs，OpenAPI JSON 挂在 /api/v3/api-docs
+    # （前端 openapi2ts.config.ts 的 schemaPath 与之保持一致，可重新生成 API 客户端）
+    docs_url="/api/docs",
+    openapi_url="/api/v3/api-docs",
 )
 
 
