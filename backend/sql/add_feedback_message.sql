@@ -1,3 +1,4 @@
+-- Active: 1783421777382@@127.0.0.1@3306@ai_passage_creator
 -- 意见反馈 + 站内信功能数据层（M1）
 -- 幂等：可重复执行（建表均 CREATE TABLE IF NOT EXISTS）
 -- 相关计划：docs/local/意见反馈与站内信功能开发计划.md（v1.1）
