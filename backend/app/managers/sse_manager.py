@@ -14,6 +14,7 @@ from typing import Deque, Dict, Tuple
 
 from fastapi.responses import StreamingResponse
 
+from app.constants.article import ArticleConstant
 from app.utils.logger import logger
 
 # 每任务历史缓冲上限（条数）：超出丢最旧，防止流式片段过多占用进程内存
@@ -49,10 +50,15 @@ class SseEmitterManager:
         self._queues[task_id] = queue
 
         async def event_generator():
+            timeout_s = ArticleConstant.SSE_TIMEOUT_MS / 1000
             try:
                 while True:
-                    # 从队列获取消息（会阻塞直到有消息）
-                    seq, message = await queue.get()
+                    try:
+                        # 从队列获取消息（阻塞直到有消息，空闲超过超时则结束流）
+                        seq, message = await asyncio.wait_for(queue.get(), timeout=timeout_s)
+                    except asyncio.TimeoutError:
+                        logger.warning("SSE 连接空闲超时 taskId=%s", task_id)
+                        break
 
                     # 收到完成信号，结束流
                     if message == "__COMPLETE__":

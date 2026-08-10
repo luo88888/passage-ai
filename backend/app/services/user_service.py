@@ -105,7 +105,13 @@ class UserService:
             and_(User.user_account == request.user_account, User.is_delete == 0)
         )
         user = await self.db.fetch_one(query)
-        throw_if_not(user, ErrorCode.USER_NOT_EXIST, "用户不存在")
+        # 账号不存在与密码错误统一对外提示，防止用户枚举；internal_code 保留内部区分（账号级锁定过滤用）
+        throw_if_not(
+            user,
+            ErrorCode.PASSWORD_ERROR,
+            "账号或密码错误",
+            internal_code=ErrorCode.USER_NOT_EXIST,
+        )
         assert user is not None  # type narrow: throw_if_not 保证了 user 不为 None
         
         # 验证密码（bcrypt(sha256(password))）
@@ -115,7 +121,7 @@ class UserService:
         throw_if(
             not password_match,
             ErrorCode.PASSWORD_ERROR,
-            "密码错误"
+            "账号或密码错误"
         )
 
         user_dict = dict(user)
