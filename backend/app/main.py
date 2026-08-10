@@ -45,8 +45,7 @@ async def lifespan(app: FastAPI):
     logger.info("数据库连接成功")
     await init_redis()
     logger.info("Redis 初始化成功")
-    logger.info(f"数据库连接成功：{settings.database_url}")
-    logger.info(f"Redis 连接成功：{settings.redis_url}")
+    logger.info(f"数据库连接成功")
 
     # 确认图片生成单例就绪（单例在 image_generator 模块导入时即构造，此处仅记录已注册方式，
     # 便于把 mmdc 缺失等服务构造故障在启动期提前暴露）
@@ -79,7 +78,11 @@ app = FastAPI(
     title="AI 文章创作平台",
     description="基于多智能体编排的 AI 文章生成平台",
     version="0.0.1",
-    lifespan=lifespan
+    lifespan=lifespan,
+    # 对齐 AGENTS.md：API 文档挂在 /api/docs，OpenAPI JSON 挂在 /api/v3/api-docs
+    # （前端 openapi2ts.config.ts 的 schemaPath 与之保持一致，可重新生成 API 客户端）
+    docs_url="/api/docs",
+    openapi_url="/api/v3/api-docs",
 )
 
 

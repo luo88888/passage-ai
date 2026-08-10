@@ -20,13 +20,12 @@ import { isVip } from '@/utils/permission'
 import {
   getVipPlans,
   activateVip,
-  type VipPlanVO,
 } from '@/api/paymentController'
 
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
 
-const plans = ref<VipPlanVO[]>([])
+const plans = ref<API.VipPlanVO[]>([])
 const loadingPlans = ref(false)
 const paying = ref(false)
 

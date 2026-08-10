@@ -126,7 +126,7 @@ const openDetail = async (row: FeedbackRow) => {
   detailOpen.value = true
   detailLoading.value = true
   try {
-    const res = await adminGetFeedback(row.id)
+    const res = await adminGetFeedback({ feedbackId: row.id })
     if (res.data.code === 0 && res.data.data) {
       detail.value = res.data.data as FeedbackRow
     } else {
@@ -165,7 +165,7 @@ const doReply = async () => {
   try {
     const res = await adminReplyFeedback({
       id: replyForm.value.id,
-      replyContent: replyForm.value.replyContent.trim(),
+      replyContent: (replyForm.value.replyContent || '').trim(),
       status: replyForm.value.status,
     } as any)
     if (res.data.code === 0) {

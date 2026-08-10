@@ -47,7 +47,7 @@ const loadRecentArticles = async () => {
 
   loadingArticles.value = true
   try {
-    const res = await listArticle({ pageNum: 1, pageSize: 6 })
+    const res = await listArticle({ current: 1, pageSize: 6 })
     recentArticles.value = res.data.data?.records || []
   } catch (error) {
     console.error('加载文章失败:', error)
@@ -195,7 +195,7 @@ onMounted(() => {
                 <img
                   v-if="article.coverImage"
                   :src="article.coverImage"
-                  :alt="article.mainTitle"
+                  :alt="article.mainTitle || article.topic || ''"
                 />
                 <div v-else class="cover-placeholder">
                   <FileTextOutlined />

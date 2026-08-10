@@ -1,0 +1,7358 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI 文章创作平台",
+    "description": "基于多智能体编排的 AI 文章生成平台",
+    "version": "0.0.1"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "健康检查"
+        ],
+        "summary": "Health Check",
+        "description": "健康检查",
+        "operationId": "health_check_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_str_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/register": {
+      "post": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "Register",
+        "description": "用户注册（同一 IP 在窗口内限次）",
+        "operationId": "register_api_user_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_int_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/login": {
+      "post": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "Login",
+        "description": "用户登录（单账号失败超限后锁定 + IP 级失败限流，防密码爆破与撞库）",
+        "operationId": "login_api_user_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_LoginUserVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/logout": {
+      "post": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "Logout",
+        "description": "用户登出（清除 Cookie 与 Redis 服务端会话）",
+        "operationId": "logout_api_user_logout_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_bool_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/get/login": {
+      "get": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "Get Login User",
+        "description": "获取当前登录用户",
+        "operationId": "get_login_user_api_user_get_login_get",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_LoginUserVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/get": {
+      "get": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "Get User By Id",
+        "description": "根据 ID 获取用户",
+        "operationId": "get_user_by_id_api_user_get_get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_UserVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/profile": {
+      "get": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "Get User Profile",
+        "description": "获取当前登录用户的主页信息（个人详情页：基本信息 + 积分/配额 + 创作数量等统计）",
+        "operationId": "get_user_profile_api_user_profile_get",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_UserProfileVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/list/page": {
+      "post": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "List Users By Page",
+        "description": "分页查询用户列表（管理员）",
+        "operationId": "list_users_by_page_api_user_list_page_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserQueryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/add": {
+      "post": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "Add User",
+        "description": "添加用户（管理员）",
+        "operationId": "add_user_api_user_add_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserAddRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_int_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/update": {
+      "post": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "Update User",
+        "description": "更新用户（管理员）",
+        "operationId": "update_user_api_user_update_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_bool_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/delete": {
+      "post": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "Delete User",
+        "description": "删除用户（管理员）",
+        "operationId": "delete_user_api_user_delete_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_bool_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/profile/update": {
+      "post": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "Update User Profile",
+        "description": "更新当前登录用户的个人资料（昵称/头像/简介）\n\n更新成功后同步刷新 Redis Session 中的用户信息，\n保证下次 GET /user/get/login 返回最新资料。",
+        "operationId": "update_user_profile_api_user_profile_update_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserProfileUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_LoginUserVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/change-password": {
+      "post": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "Change Password",
+        "description": "修改当前登录用户的密码\n\n安全策略：修改成功后清除 Redis Session 与 Cookie，强制用户重新登录。",
+        "operationId": "change_password_api_user_change_password_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserChangePasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_bool_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/avatar/upload": {
+      "post": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "Upload Avatar",
+        "description": "上传用户头像（multipart/form-data，字段名 file）\n\n仅支持 JPG / PNG / WebP / GIF，大小不超过 2MB；\n文件保存到本地 static/images/avatar/，返回可访问的图片 URL。",
+        "operationId": "upload_avatar_api_user_avatar_upload_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_avatar_api_user_avatar_upload_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/article/create": {
+      "post": {
+        "tags": [
+          "文章管理"
+        ],
+        "summary": "Create Article",
+        "description": "创建文章任务（M3 后付费闸门：余额 >= 0 + 并发名额快速失败）",
+        "operationId": "create_article_api_article_create_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArticleCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/article/confirm-title": {
+      "post": {
+        "tags": [
+          "文章管理"
+        ],
+        "summary": "Confirm Title",
+        "description": "确认标题并输入补充描述",
+        "operationId": "confirm_title_api_article_confirm_title_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArticleConfirmTitleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/article/confirm-outline": {
+      "post": {
+        "tags": [
+          "文章管理"
+        ],
+        "summary": "Confirm Outline",
+        "description": "确认大纲",
+        "operationId": "confirm_outline_api_article_confirm_outline_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArticleConfirmOutlineRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/article/ai-modify-outline": {
+      "post": {
+        "tags": [
+          "文章管理"
+        ],
+        "summary": "Ai Modify Outline",
+        "description": "AI 修改大纲（fire-and-forget）\n\n路由层做前置校验（文章存在 / 归属 / 阶段为 OUTLINE_EDITING / 已有大纲 / VIP），\n通过后异步续跑图：注入 modify_suggestion → 条件边路由进 ai_modify_outline 节点，\n由节点跑 LLM + 落库 + 发 AI_MODIFY_OUTLINE_COMPLETE / FAILED SSE。\n路由只回 ack（taskId），大纲由 SSE 回填前端。",
+        "operationId": "ai_modify_outline_api_article_ai_modify_outline_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArticleAiModifyOutlineRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/article/options": {
+      "get": {
+        "tags": [
+          "文章管理"
+        ],
+        "summary": "Get Creation Options",
+        "description": "获取创作页可选项（题材 / 语言风格 / 配图方式），供前端动态渲染，避免硬编码",
+        "operationId": "get_creation_options_api_article_options_get",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_CreationOptionsVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/article/progress/{task_id}": {
+      "get": {
+        "tags": [
+          "文章管理"
+        ],
+        "summary": "Get Progress",
+        "description": "SSE 进度推送（支持 ?after= 断点续传：先重放历史，再续接实时流）",
+        "operationId": "get_progress_api_article_progress__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "After"
+            }
+          },
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/article/list": {
+      "post": {
+        "tags": [
+          "文章管理"
+        ],
+        "summary": "List Article",
+        "description": "分页查询文章列表",
+        "operationId": "list_article_api_article_list_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArticleQueryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/article/delete": {
+      "post": {
+        "tags": [
+          "文章管理"
+        ],
+        "summary": "Delete Article",
+        "description": "删除文章",
+        "operationId": "delete_article_api_article_delete_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_bool_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/article/{task_id}": {
+      "get": {
+        "tags": [
+          "文章管理"
+        ],
+        "summary": "Get Article",
+        "description": "获取文章详情",
+        "operationId": "get_article_api_article__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_ArticleVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/article/execution-logs/{task_id}": {
+      "get": {
+        "tags": [
+          "文章管理"
+        ],
+        "summary": "Get Execution Logs",
+        "description": "获取任务执行日志",
+        "operationId": "get_execution_logs_api_article_execution_logs__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_AgentExecutionStatsVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payment/plans": {
+      "get": {
+        "tags": [
+          "支付管理"
+        ],
+        "summary": "Get Vip Plans",
+        "description": "获取会员套餐列表（价格 + 特权，公开接口，无需登录）",
+        "operationId": "get_vip_plans_api_payment_plans_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_List_VipPlanVO__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payment/create-vip-session": {
+      "post": {
+        "tags": [
+          "支付管理"
+        ],
+        "summary": "Create Vip Payment Session",
+        "description": "创建 VIP 支付会话",
+        "operationId": "create_vip_payment_session_api_payment_create_vip_session_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payment/activate-vip": {
+      "post": {
+        "tags": [
+          "支付管理"
+        ],
+        "summary": "Activate Vip",
+        "description": "直接开通永久会员（临时免支付：Stripe 停用期间，点击「立即开通」即开通）",
+        "operationId": "activate_vip_api_payment_activate_vip_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_bool_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payment/refund": {
+      "post": {
+        "tags": [
+          "支付管理"
+        ],
+        "summary": "Refund",
+        "description": "申请退款",
+        "operationId": "refund_api_payment_refund_post",
+        "parameters": [
+          {
+            "name": "reason",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            }
+          },
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_bool_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payment/records": {
+      "get": {
+        "tags": [
+          "支付管理"
+        ],
+        "summary": "Get Payment Records",
+        "description": "获取当前用户支付记录",
+        "operationId": "get_payment_records_api_payment_records_get",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_List_PaymentRecordVO__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook/stripe": {
+      "post": {
+        "tags": [
+          "支付回调"
+        ],
+        "summary": "Stripe Webhook",
+        "description": "Stripe webhook 回调",
+        "operationId": "stripe_webhook_api_webhook_stripe_post",
+        "parameters": [
+          {
+            "name": "Stripe-Signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stripe-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/statistics/overview": {
+      "get": {
+        "tags": [
+          "统计分析"
+        ],
+        "summary": "Get Statistics",
+        "description": "获取系统统计数据（仅管理员）",
+        "operationId": "get_statistics_api_statistics_overview_get",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_StatisticsVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/points/balance": {
+      "get": {
+        "tags": [
+          "积分"
+        ],
+        "summary": "Get Points Balance",
+        "description": "查询当前积分余额（余额 + 累计获得/消耗 + 今日签到状态）",
+        "operationId": "get_points_balance_api_points_balance_get",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_PointsBalanceVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/points/checkin": {
+      "post": {
+        "tags": [
+          "积分"
+        ],
+        "summary": "Checkin",
+        "description": "每日签到（Redis SETNX 防重复，赠送 10 积分，记 SIGN_IN 流水）",
+        "operationId": "checkin_api_points_checkin_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_PointsCheckinVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/points/transactions": {
+      "post": {
+        "tags": [
+          "积分"
+        ],
+        "summary": "List Transactions",
+        "description": "分页查询积分明细（type/时间/金额筛选）",
+        "operationId": "list_transactions_api_points_transactions_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PointsTransactionQueryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/points/usage/stats": {
+      "get": {
+        "tags": [
+          "积分"
+        ],
+        "summary": "Get Usage Stats",
+        "description": "查询当前用户各模型用量统计（按 model 聚合次数/token/积分，可按时间范围筛选）",
+        "operationId": "get_usage_stats_api_points_usage_stats_get",
+        "parameters": [
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start Time"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Time"
+            }
+          },
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_list_ModelUsageStatsVO__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/points/overview": {
+      "get": {
+        "tags": [
+          "积分管理"
+        ],
+        "summary": "Get Points Overview",
+        "description": "全局积分/用量看板（仅管理员）",
+        "operationId": "get_points_overview_api_admin_points_overview_get",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_PointsOverviewVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/points/adjust": {
+      "post": {
+        "tags": [
+          "积分管理"
+        ],
+        "summary": "Adjust User Points",
+        "description": "手工调整用户积分（正=赠送，负=扣减，记 ADMIN_ADJUST 流水）",
+        "operationId": "adjust_user_points_api_admin_points_adjust_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPointsAdjustRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_int_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/points/transactions": {
+      "post": {
+        "tags": [
+          "积分管理"
+        ],
+        "summary": "List User Transactions",
+        "description": "分页查询指定用户的积分流水（仅管理员，用于积分管理查看流水）",
+        "operationId": "list_user_transactions_api_admin_points_transactions_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPointsTransactionsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/points/usage": {
+      "post": {
+        "tags": [
+          "积分管理"
+        ],
+        "summary": "List Usage",
+        "description": "分页查询模型用量记录（按用户/类别/模型/时间筛选，仅管理员）",
+        "operationId": "list_usage_api_admin_points_usage_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUsageQueryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/model-pricing": {
+      "get": {
+        "tags": [
+          "模型计价管理"
+        ],
+        "summary": "List Model Pricing",
+        "description": "查询全部模型计价配置（仅管理员）",
+        "operationId": "list_model_pricing_api_admin_model_pricing_get",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_list_ModelPricingVO__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "模型计价管理"
+        ],
+        "summary": "Create Model Pricing",
+        "description": "新增模型计价配置（仅管理员）",
+        "operationId": "create_model_pricing_api_admin_model_pricing_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelPricingSaveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_int_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "模型计价管理"
+        ],
+        "summary": "Update Model Pricing",
+        "description": "更新模型计价配置（按 id，仅管理员）",
+        "operationId": "update_model_pricing_api_admin_model_pricing_put",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelPricingUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_bool_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feedback/upload": {
+      "post": {
+        "tags": [
+          "意见反馈"
+        ],
+        "summary": "Upload Feedback Image",
+        "description": "上传反馈截图（multipart/form-data，字段名 file）\n\n仅支持 JPG / PNG / WebP / GIF，大小不超过 2MB，不接受 SVG（防存储型 XSS）；\n单张上传返回可访问 URL，同一反馈可多次调用（提交时最多 5 张，由提交接口兜底校验）。\n文件保存到本地 static/images/feedback/。",
+        "operationId": "upload_feedback_image_api_feedback_upload_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_feedback_image_api_feedback_upload_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feedback/submit": {
+      "post": {
+        "tags": [
+          "意见反馈"
+        ],
+        "summary": "Submit Feedback",
+        "description": "提交意见反馈（每日限流：每用户每天最多 feedback_daily_limit 条，超限返回 REQUEST_TOO_FREQUENT）",
+        "operationId": "submit_feedback_api_feedback_submit_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackSubmitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_int_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feedback/page": {
+      "get": {
+        "tags": [
+          "意见反馈"
+        ],
+        "summary": "Page My Feedback",
+        "description": "我的反馈分页（type/status 筛选，仅本人）",
+        "operationId": "page_my_feedback_api_feedback_page_get",
+        "parameters": [
+          {
+            "name": "current",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "当前页码",
+              "default": 1,
+              "title": "Current"
+            },
+            "description": "当前页码"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "每页大小",
+              "default": 10,
+              "title": "Pagesize"
+            },
+            "description": "每页大小"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "反馈类型筛选：BUG/FEATURE/COMPLAINT/OTHER",
+              "title": "Type"
+            },
+            "description": "反馈类型筛选：BUG/FEATURE/COMPLAINT/OTHER"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "处理状态筛选：PENDING/PROCESSING/RESOLVED",
+              "title": "Status"
+            },
+            "description": "处理状态筛选：PENDING/PROCESSING/RESOLVED"
+          },
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feedback/{feedback_id}": {
+      "get": {
+        "tags": [
+          "意见反馈"
+        ],
+        "summary": "Get Feedback",
+        "description": "反馈详情（仅本人，归属校验）",
+        "operationId": "get_feedback_api_feedback__feedback_id__get",
+        "parameters": [
+          {
+            "name": "feedback_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Feedback Id"
+            }
+          },
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_FeedbackVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/feedback/page": {
+      "get": {
+        "tags": [
+          "意见反馈管理"
+        ],
+        "summary": "Admin Page Feedback",
+        "description": "管理端全量分页（关键字/类型/状态/时间筛选，含提交用户信息）",
+        "operationId": "admin_page_feedback_api_admin_feedback_page_get",
+        "parameters": [
+          {
+            "name": "current",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "当前页码",
+              "default": 1,
+              "title": "Current"
+            },
+            "description": "当前页码"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "每页大小",
+              "default": 10,
+              "title": "Pagesize"
+            },
+            "description": "每页大小"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "关键字（匹配用户账号/昵称/反馈内容）",
+              "title": "Keyword"
+            },
+            "description": "关键字（匹配用户账号/昵称/反馈内容）"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "反馈类型筛选",
+              "title": "Type"
+            },
+            "description": "反馈类型筛选"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "处理状态筛选",
+              "title": "Status"
+            },
+            "description": "处理状态筛选"
+          },
+          {
+            "name": "startTime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "起始时间（含）",
+              "title": "Starttime"
+            },
+            "description": "起始时间（含）"
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "结束时间（含）",
+              "title": "Endtime"
+            },
+            "description": "结束时间（含）"
+          },
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/feedback/{feedback_id}": {
+      "get": {
+        "tags": [
+          "意见反馈管理"
+        ],
+        "summary": "Admin Get Feedback",
+        "description": "管理端反馈详情（含提交用户信息）",
+        "operationId": "admin_get_feedback_api_admin_feedback__feedback_id__get",
+        "parameters": [
+          {
+            "name": "feedback_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Feedback Id"
+            }
+          },
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_AdminFeedbackVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/feedback/reply": {
+      "post": {
+        "tags": [
+          "意见反馈管理"
+        ],
+        "summary": "Admin Reply Feedback",
+        "description": "管理员回复反馈（回复内容 + 状态，默认置 RESOLVED；联动发送 FEEDBACK 站内信）",
+        "operationId": "admin_reply_feedback_api_admin_feedback_reply_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackReplyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_FeedbackVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/feedback/status": {
+      "post": {
+        "tags": [
+          "意见反馈管理"
+        ],
+        "summary": "Admin Update Feedback Status",
+        "description": "管理员仅改状态（不回复）",
+        "operationId": "admin_update_feedback_status_api_admin_feedback_status_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_FeedbackVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/message/page": {
+      "get": {
+        "tags": [
+          "站内信"
+        ],
+        "summary": "Page Message",
+        "description": "站内信分页（未读优先 + createTime 倒序，type 可选筛选，仅本人）",
+        "operationId": "page_message_api_message_page_get",
+        "parameters": [
+          {
+            "name": "current",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "当前页码",
+              "default": 1,
+              "title": "Current"
+            },
+            "description": "当前页码"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "每页大小",
+              "default": 10,
+              "title": "Pagesize"
+            },
+            "description": "每页大小"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "消息类型筛选：SYSTEM/FEEDBACK/VIP/POINTS",
+              "title": "Type"
+            },
+            "description": "消息类型筛选：SYSTEM/FEEDBACK/VIP/POINTS"
+          },
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/message/unread-count": {
+      "get": {
+        "tags": [
+          "站内信"
+        ],
+        "summary": "Get Unread Count",
+        "description": "未读站内信数（DB count 实时查询，供头部铃铛角标轮询）",
+        "operationId": "get_unread_count_api_message_unread_count_get",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_MessageUnreadCountVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/message/{message_id}": {
+      "get": {
+        "tags": [
+          "站内信"
+        ],
+        "summary": "Get Message Detail",
+        "description": "站内信详情（仅本人，归属校验）",
+        "operationId": "get_message_detail_api_message__message_id__get",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_MessageVO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/message/read": {
+      "post": {
+        "tags": [
+          "站内信"
+        ],
+        "summary": "Mark Message Read",
+        "description": "标记已读（{ids: []} 或 {all: true}，仅本人）",
+        "operationId": "mark_message_read_api_message_read_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageReadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_int_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/message/delete": {
+      "post": {
+        "tags": [
+          "站内信"
+        ],
+        "summary": "Delete Message",
+        "description": "删除站内信（软删，仅本人）",
+        "operationId": "delete_message_api_message_delete_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageDeleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_int_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/message/send": {
+      "post": {
+        "tags": [
+          "站内信管理"
+        ],
+        "summary": "Admin Send Message",
+        "description": "管理员发送站内信（targetType: SINGLE/BATCH/ALL + userIds[]，写时展开）",
+        "operationId": "admin_send_message_api_admin_message_send_post",
+        "parameters": [
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminMessageSendRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_int_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/message/page": {
+      "get": {
+        "tags": [
+          "站内信管理"
+        ],
+        "summary": "Admin Page Message",
+        "description": "管理端已发消息分页（senderId 非空 = 管理员主动发信）",
+        "operationId": "admin_page_message_api_admin_message_page_get",
+        "parameters": [
+          {
+            "name": "current",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "当前页码",
+              "default": 1,
+              "title": "Current"
+            },
+            "description": "当前页码"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "每页大小",
+              "default": 10,
+              "title": "Pagesize"
+            },
+            "description": "每页大小"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "消息类型筛选",
+              "title": "Type"
+            },
+            "description": "消息类型筛选"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "关键字（匹配标题/内容）",
+              "title": "Keyword"
+            },
+            "description": "关键字（匹配标题/内容）"
+          },
+          {
+            "name": "SESSION",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdminFeedbackVO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "userId": {
+            "type": "integer",
+            "title": "Userid"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "contact": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact"
+          },
+          "imageUrls": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurls"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "replyContent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replycontent"
+          },
+          "replyUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replyuserid"
+          },
+          "replyTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replytime"
+          },
+          "createTime": {
+            "type": "string",
+            "title": "Createtime"
+          },
+          "updateTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatetime"
+          },
+          "userAccount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Useraccount",
+            "description": "提交用户账号"
+          },
+          "userName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username",
+            "description": "提交用户昵称"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "type",
+          "content",
+          "status",
+          "createTime"
+        ],
+        "title": "AdminFeedbackVO",
+        "description": "管理端反馈视图对象（在 FeedbackVO 基础上附带提交用户信息）。\n\nAttributes:\n    user_account: 提交用户账号。\n    user_name: 提交用户昵称。"
+      },
+      "AdminMessageSendRequest": {
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "title": "Targettype",
+            "description": "收件人类型：SINGLE/BATCH/ALL"
+          },
+          "userIds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userids",
+            "description": "目标用户ID列表（ALL 时忽略）"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "消息类型：SYSTEM/FEEDBACK/VIP/POINTS",
+            "default": "SYSTEM"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "description": "标题"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content",
+            "description": "内容"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link",
+            "description": "跳转链接（前端路由）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "targetType",
+          "title"
+        ],
+        "title": "AdminMessageSendRequest",
+        "description": "管理员发送站内信请求（SINGLE/BATCH/ALL 写时展开）。\n\nAttributes:\n    target_type: 收件人类型（SINGLE/BATCH/ALL）。\n    user_ids: 目标用户 ID 列表（SINGLE 传 1 个、BATCH 传多个；ALL 时忽略）。\n    type: 消息类型（默认 SYSTEM）。\n    title: 标题（1~200 字）。\n    content: 内容。\n    link: 跳转链接（可选）。"
+      },
+      "AdminPointsAdjustRequest": {
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "title": "Userid",
+            "description": "目标用户 ID"
+          },
+          "amount": {
+            "type": "integer",
+            "title": "Amount",
+            "description": "调整积分（正=赠送，负=扣减）"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "调整说明"
+          }
+        },
+        "type": "object",
+        "required": [
+          "userId",
+          "amount",
+          "description"
+        ],
+        "title": "AdminPointsAdjustRequest",
+        "description": "管理员手工调整用户积分请求。\n\nAttributes:\n    user_id: 目标用户 ID。\n    amount: 调整积分（正=赠送，负=扣减，不允许 0）。\n    description: 调整说明（展示在流水描述）。"
+      },
+      "AdminPointsTransactionsRequest": {
+        "properties": {
+          "current": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Current",
+            "description": "当前页码",
+            "default": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "description": "每页大小",
+            "default": 10
+          },
+          "sortField": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortfield",
+            "description": "排序字段"
+          },
+          "sortOrder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortorder",
+            "description": "排序顺序",
+            "default": "descend"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type",
+            "description": "流水类型筛选"
+          },
+          "startTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starttime",
+            "description": "起始时间（含）"
+          },
+          "endTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endtime",
+            "description": "结束时间（含）"
+          },
+          "minAmount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minamount",
+            "description": "最小变动积分"
+          },
+          "maxAmount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxamount",
+            "description": "最大变动积分"
+          },
+          "userId": {
+            "type": "integer",
+            "title": "Userid",
+            "description": "目标用户 ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "userId"
+        ],
+        "title": "AdminPointsTransactionsRequest",
+        "description": "管理端按用户查询积分流水请求。\n\nAttributes:\n    user_id: 目标用户 ID（必填）。"
+      },
+      "AdminUsageQueryRequest": {
+        "properties": {
+          "current": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Current",
+            "description": "当前页码",
+            "default": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "description": "每页大小",
+            "default": 10
+          },
+          "sortField": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortfield",
+            "description": "排序字段"
+          },
+          "sortOrder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortorder",
+            "description": "排序顺序",
+            "default": "descend"
+          },
+          "userId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userid",
+            "description": "按用户筛选"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "类别：LLM / IMAGE"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "模型名"
+          },
+          "startTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starttime",
+            "description": "起始时间（含）"
+          },
+          "endTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endtime",
+            "description": "结束时间（含）"
+          }
+        },
+        "type": "object",
+        "title": "AdminUsageQueryRequest",
+        "description": "管理端模型用量查询请求。\n\nAttributes:\n    user_id: 按用户筛选（可选）。\n    category: 按类别筛选（LLM / IMAGE，可选）。\n    model: 按模型筛选（可选）。\n    start_time: 起始时间（含）。\n    end_time: 结束时间（含）。"
+      },
+      "AgentExecutionStatsVO": {
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "title": "Taskid"
+          },
+          "userId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userid"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "模型名"
+          },
+          "totalDurationMs": {
+            "type": "integer",
+            "title": "Totaldurationms"
+          },
+          "agentCount": {
+            "type": "integer",
+            "title": "Agentcount"
+          },
+          "agentDurations": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Agentdurations"
+          },
+          "overallStatus": {
+            "type": "string",
+            "title": "Overallstatus"
+          },
+          "logs": {
+            "items": {
+              "$ref": "#/components/schemas/AgentLogVO"
+            },
+            "type": "array",
+            "title": "Logs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "taskId",
+          "totalDurationMs",
+          "agentCount",
+          "overallStatus"
+        ],
+        "title": "AgentExecutionStatsVO",
+        "description": "任务执行统计"
+      },
+      "AgentLogVO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "taskId": {
+            "type": "string",
+            "title": "Taskid"
+          },
+          "userId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userid"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "模型名"
+          },
+          "agentName": {
+            "type": "string",
+            "title": "Agentname"
+          },
+          "startTime": {
+            "type": "string",
+            "title": "Starttime"
+          },
+          "endTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endtime"
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Durationms"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "errorMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errormessage"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt"
+          },
+          "inputData": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputdata"
+          },
+          "outputData": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outputdata"
+          },
+          "createTime": {
+            "type": "string",
+            "title": "Createtime"
+          },
+          "updateTime": {
+            "type": "string",
+            "title": "Updatetime"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "taskId",
+          "agentName",
+          "startTime",
+          "status",
+          "createTime",
+          "updateTime"
+        ],
+        "title": "AgentLogVO",
+        "description": "智能体执行日志视图对象（单个智能体）"
+      },
+      "ArticleAiModifyOutlineRequest": {
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Taskid",
+            "description": "任务 ID"
+          },
+          "modifySuggestion": {
+            "type": "string",
+            "title": "Modifysuggestion",
+            "description": "用户的修改建议"
+          }
+        },
+        "type": "object",
+        "required": [
+          "taskId",
+          "modifySuggestion"
+        ],
+        "title": "ArticleAiModifyOutlineRequest",
+        "description": "AI 修改大纲请求，传修改建议"
+      },
+      "ArticleConfirmOutlineRequest": {
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Taskid",
+            "description": "任务 ID"
+          },
+          "outline": {
+            "items": {
+              "$ref": "#/components/schemas/OutlineSection"
+            },
+            "type": "array",
+            "title": "Outline",
+            "description": "用户选择的大纲"
+          }
+        },
+        "type": "object",
+        "required": [
+          "taskId",
+          "outline"
+        ],
+        "title": "ArticleConfirmOutlineRequest",
+        "description": "确认大纲请求，传用户编辑后的完整大纲"
+      },
+      "ArticleConfirmTitleRequest": {
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Taskid",
+            "description": "任务 ID"
+          },
+          "selectedMainTitle": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Selectedmaintitle",
+            "description": "用户选择的主标题"
+          },
+          "selectedSubTitle": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Selectedsubtitle",
+            "description": "用户选择的副标题"
+          },
+          "userDescription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userdescription",
+            "description": "用户语言描述"
+          }
+        },
+        "type": "object",
+        "required": [
+          "taskId",
+          "selectedMainTitle",
+          "selectedSubTitle"
+        ],
+        "title": "ArticleConfirmTitleRequest",
+        "description": "确认标题请求"
+      },
+      "ArticleCreateRequest": {
+        "properties": {
+          "topic": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Topic",
+            "description": "选题"
+          },
+          "style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style",
+            "description": "文章风格（已弃用，保留兼容前端旧请求）"
+          },
+          "genre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Genre",
+            "description": "题材：news/knowledge/product/tutorial/opinion/story"
+          },
+          "languageStyle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Languagestyle",
+            "description": "语言风格：professional/accessible/humorous/literary/formal"
+          },
+          "wordCount": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 200.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wordcount",
+            "description": "目标字数（<=10000，为空走默认 2000）"
+          },
+          "enabledImageMethods": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabledimagemethods",
+            "description": "允许使用的配图方式列表（为空表示可以使用全部方式）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "topic"
+        ],
+        "title": "ArticleCreateRequest",
+        "description": "创建文章请求"
+      },
+      "ArticleQueryRequest": {
+        "properties": {
+          "current": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Current",
+            "description": "当前页码",
+            "default": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "description": "每页大小",
+            "default": 10
+          },
+          "sortField": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortfield",
+            "description": "排序字段"
+          },
+          "sortOrder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortorder",
+            "description": "排序顺序",
+            "default": "descend"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "文章 ID"
+          },
+          "taskId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taskid",
+            "description": "任务 ID"
+          },
+          "userId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userid",
+            "description": "用户 ID"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic",
+            "description": "选题"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "状态（单状态，与 statuses 二选一）"
+          },
+          "statuses": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statuses",
+            "description": "状态列表（多状态筛选，例如“进行中”=过滤 PENDING+PROCESSING，与 status 二选一）"
+          }
+        },
+        "type": "object",
+        "title": "ArticleQueryRequest",
+        "description": "文章查询请求"
+      },
+      "ArticleVO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "taskId": {
+            "type": "string",
+            "title": "Taskid"
+          },
+          "userId": {
+            "type": "integer",
+            "title": "Userid"
+          },
+          "topic": {
+            "type": "string",
+            "title": "Topic"
+          },
+          "userDescription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userdescription"
+          },
+          "style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style"
+          },
+          "genre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Genre"
+          },
+          "languageStyle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Languagestyle"
+          },
+          "wordCount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wordcount"
+          },
+          "mainTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maintitle"
+          },
+          "subTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          },
+          "titleOptions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TitleOption"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titleoptions"
+          },
+          "outline": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outline"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "fullContent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fullcontent"
+          },
+          "researchData": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResearchDataVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "信息采集结果（结构化）"
+          },
+          "coverImage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverimage"
+          },
+          "images": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Images"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "errorMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errormessage"
+          },
+          "createTime": {
+            "type": "string",
+            "title": "Createtime"
+          },
+          "completedTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completedtime"
+          },
+          "updateTime": {
+            "type": "string",
+            "title": "Updatetime"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "taskId",
+          "userId",
+          "topic",
+          "status",
+          "createTime",
+          "updateTime"
+        ],
+        "title": "ArticleVO",
+        "description": "文章视图对象"
+      },
+      "BaseResponse_AdminFeedbackVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminFeedbackVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[AdminFeedbackVO]"
+      },
+      "BaseResponse_AgentExecutionStatsVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentExecutionStatsVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[AgentExecutionStatsVO]"
+      },
+      "BaseResponse_ArticleVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArticleVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[ArticleVO]"
+      },
+      "BaseResponse_CreationOptionsVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CreationOptionsVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[CreationOptionsVO]"
+      },
+      "BaseResponse_FeedbackVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeedbackVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[FeedbackVO]"
+      },
+      "BaseResponse_List_PaymentRecordVO__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PaymentRecordVO"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[List[PaymentRecordVO]]"
+      },
+      "BaseResponse_List_VipPlanVO__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/VipPlanVO"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[List[VipPlanVO]]"
+      },
+      "BaseResponse_LoginUserVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoginUserVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[LoginUserVO]"
+      },
+      "BaseResponse_MessageUnreadCountVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MessageUnreadCountVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[MessageUnreadCountVO]"
+      },
+      "BaseResponse_MessageVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MessageVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[MessageVO]"
+      },
+      "BaseResponse_NoneType_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "type": "null",
+            "title": "Data",
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[NoneType]"
+      },
+      "BaseResponse_PointsBalanceVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PointsBalanceVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[PointsBalanceVO]"
+      },
+      "BaseResponse_PointsCheckinVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PointsCheckinVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[PointsCheckinVO]"
+      },
+      "BaseResponse_PointsOverviewVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PointsOverviewVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[PointsOverviewVO]"
+      },
+      "BaseResponse_StatisticsVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StatisticsVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[StatisticsVO]"
+      },
+      "BaseResponse_UserProfileVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserProfileVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[UserProfileVO]"
+      },
+      "BaseResponse_UserVO_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserVO"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[UserVO]"
+      },
+      "BaseResponse_bool_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[bool]"
+      },
+      "BaseResponse_dict_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[dict]"
+      },
+      "BaseResponse_int_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[int]"
+      },
+      "BaseResponse_list_ModelPricingVO__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ModelPricingVO"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[list[ModelPricingVO]]"
+      },
+      "BaseResponse_list_ModelUsageStatsVO__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ModelUsageStatsVO"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[list[ModelUsageStatsVO]]"
+      },
+      "BaseResponse_str_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 0
+          },
+          "data": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "响应数据"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "响应消息",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "BaseResponse[str]"
+      },
+      "Body_upload_avatar_api_user_avatar_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_avatar_api_user_avatar_upload_post"
+      },
+      "Body_upload_feedback_image_api_feedback_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_feedback_image_api_feedback_upload_post"
+      },
+      "CreationOptionsVO": {
+        "properties": {
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/OptionItem"
+            },
+            "type": "array",
+            "title": "Genres",
+            "description": "题材可选项"
+          },
+          "languageStyles": {
+            "items": {
+              "$ref": "#/components/schemas/OptionItem"
+            },
+            "type": "array",
+            "title": "Languagestyles",
+            "description": "语言风格可选项"
+          },
+          "imageMethods": {
+            "items": {
+              "$ref": "#/components/schemas/OptionItem"
+            },
+            "type": "array",
+            "title": "Imagemethods",
+            "description": "配图方式可选项"
+          }
+        },
+        "type": "object",
+        "required": [
+          "languageStyles",
+          "imageMethods"
+        ],
+        "title": "CreationOptionsVO",
+        "description": "创作页可选项：题材 / 语言风格 / 配图方式"
+      },
+      "DeleteRequest": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "要删除的 ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "DeleteRequest",
+        "description": "删除请求"
+      },
+      "FeedbackReplyRequest": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "反馈 ID"
+          },
+          "replyContent": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replycontent",
+            "description": "回复内容（前端驼峰 replyContent）"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "处理状态（默认 RESOLVED）",
+            "default": "RESOLVED"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "FeedbackReplyRequest",
+        "description": "管理员回复反馈请求（回复内容 + 状态，默认置 RESOLVED）。\n\nAttributes:\n    id: 反馈 ID。\n    reply_content: 回复内容（选填；不填则仅更新状态）。\n    status: 处理状态（PENDING/PROCESSING/RESOLVED，默认 RESOLVED）。"
+      },
+      "FeedbackStatusRequest": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "反馈 ID"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "处理状态：PENDING/PROCESSING/RESOLVED"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "FeedbackStatusRequest",
+        "description": "管理员仅改状态请求（不回复）。\n\nAttributes:\n    id: 反馈 ID。\n    status: 处理状态（PENDING/PROCESSING/RESOLVED）。"
+      },
+      "FeedbackSubmitRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "反馈类型：BUG/FEATURE/COMPLAINT/OTHER"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Content",
+            "description": "反馈内容（1~2000字）"
+          },
+          "contact": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact",
+            "description": "联系方式（电话或邮箱）"
+          },
+          "imageUrls": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 5
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurls",
+            "description": "截图URL列表（最多5张）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "content"
+        ],
+        "title": "FeedbackSubmitRequest",
+        "description": "提交意见反馈请求。\n\nAttributes:\n    type: 反馈类型（BUG/FEATURE/COMPLAINT/OTHER）。\n    content: 反馈内容（1~2000 字）。\n    contact: 联系方式（选填，电话或邮箱，≤128 字，后端正则校验）。\n    image_urls: 截图 URL 列表（选填，最多 5 张）。"
+      },
+      "FeedbackVO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "userId": {
+            "type": "integer",
+            "title": "Userid"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "contact": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact"
+          },
+          "imageUrls": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurls"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "replyContent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replycontent"
+          },
+          "replyUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replyuserid"
+          },
+          "replyTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replytime"
+          },
+          "createTime": {
+            "type": "string",
+            "title": "Createtime"
+          },
+          "updateTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatetime"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "type",
+          "content",
+          "status",
+          "createTime"
+        ],
+        "title": "FeedbackVO",
+        "description": "反馈视图对象。\n\nAttributes:\n    id: 反馈 ID。\n    user_id: 提交用户 ID。\n    type: 反馈类型。\n    content: 反馈内容。\n    contact: 联系方式。\n    image_urls: 截图 URL 列表。\n    status: 处理状态。\n    reply_content: 管理员回复内容。\n    reply_user_id: 回复管理员 ID。\n    reply_time: 回复时间。\n    create_time: 创建时间。\n    update_time: 更新时间。"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LoginUserVO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "userAccount": {
+            "type": "string",
+            "title": "Useraccount"
+          },
+          "userName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "userAvatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Useravatar"
+          },
+          "userProfile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userprofile"
+          },
+          "userRole": {
+            "type": "string",
+            "title": "Userrole"
+          },
+          "quota": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quota",
+            "description": "剩余配额"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points",
+            "description": "积分余额"
+          },
+          "pointsVersion": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pointsversion",
+            "description": "积分账户乐观锁版本（前端实时刷新余额用）"
+          },
+          "activeTaskCount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activetaskcount",
+            "description": "进行中创作任务数（含挂起，并发限制计数）"
+          },
+          "vipTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viptime",
+            "description": "成为会员时间"
+          },
+          "createTime": {
+            "type": "string",
+            "title": "Createtime"
+          },
+          "updateTime": {
+            "type": "string",
+            "title": "Updatetime"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "userAccount",
+          "userRole",
+          "createTime",
+          "updateTime"
+        ],
+        "title": "LoginUserVO",
+        "description": "登录用户视图对象"
+      },
+      "MessageDeleteRequest": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Ids",
+            "description": "要删除的消息 ID 列表"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "title": "MessageDeleteRequest",
+        "description": "删除站内信请求（软删，仅本人）。\n\nAttributes:\n    ids: 要删除的消息 ID 列表。"
+      },
+      "MessageReadRequest": {
+        "properties": {
+          "ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ids",
+            "description": "要标记已读的消息 ID 列表"
+          },
+          "all": {
+            "type": "boolean",
+            "title": "All",
+            "description": "是否全部标记已读",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "MessageReadRequest",
+        "description": "标记已读请求（单条 ids 或全部 all，仅本人）。\n\nAttributes:\n    ids: 要标记已读的消息 ID 列表（all 为 true 时忽略）。\n    all: 是否全部标记已读。"
+      },
+      "MessageUnreadCountVO": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "未读消息数",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "MessageUnreadCountVO",
+        "description": "站内信未读数视图对象。\n\nAttributes:\n    count: 未读消息数。"
+      },
+      "MessageVO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "userId": {
+            "type": "integer",
+            "title": "Userid"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "relatedId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relatedid"
+          },
+          "isRead": {
+            "type": "boolean",
+            "title": "Isread"
+          },
+          "readTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readtime"
+          },
+          "createTime": {
+            "type": "string",
+            "title": "Createtime"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "type",
+          "title",
+          "isRead",
+          "createTime"
+        ],
+        "title": "MessageVO",
+        "description": "站内信视图对象。\n\nAttributes:\n    id: 消息 ID。\n    user_id: 收件用户 ID。\n    type: 消息类型。\n    title: 标题。\n    content: 内容。\n    link: 跳转链接（前端路由）。\n    related_id: 关联业务 ID。\n    is_read: 是否已读。\n    read_time: 阅读时间。\n    create_time: 创建时间。"
+      },
+      "ModelPricingSaveRequest": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "description": "类别：LLM / IMAGE"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "description": "提供商"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "模型名（LLM 用 * 通配兜底）"
+          },
+          "agentName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentname",
+            "description": "按 Agent 细分（空=不限）"
+          },
+          "inputPricePer1k": {
+            "type": "number",
+            "title": "Inputpriceper1K",
+            "description": "输入 token 单价（积分/1k token）",
+            "default": 0
+          },
+          "outputPricePer1k": {
+            "type": "number",
+            "title": "Outputpriceper1K",
+            "description": "输出 token 单价（积分/1k token）",
+            "default": 0
+          },
+          "pricePerImage": {
+            "type": "number",
+            "title": "Priceperimage",
+            "description": "每张图积分（IMAGE）",
+            "default": 0
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "是否启用",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "provider",
+          "model"
+        ],
+        "title": "ModelPricingSaveRequest",
+        "description": "模型计价新增请求。\n\nAttributes:\n    category: 类别（LLM / IMAGE）。\n    provider: 提供商。\n    model: 模型名（LLM 用 * 通配兜底）。\n    agent_name: 按 Agent 细分（空=不限）。\n    input_price_per_1k: 输入 token 单价（积分/1k token）。\n    output_price_per_1k: 输出 token 单价（积分/1k token）。\n    price_per_image: 每张图积分（IMAGE）。\n    enabled: 是否启用。"
+      },
+      "ModelPricingUpdateRequest": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "计价配置 ID"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "description": "类别：LLM / IMAGE"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "description": "提供商"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "模型名"
+          },
+          "agentName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentname",
+            "description": "按 Agent 细分（空=不限）"
+          },
+          "inputPricePer1k": {
+            "type": "number",
+            "title": "Inputpriceper1K",
+            "description": "输入 token 单价（积分/1k token）",
+            "default": 0
+          },
+          "outputPricePer1k": {
+            "type": "number",
+            "title": "Outputpriceper1K",
+            "description": "输出 token 单价（积分/1k token）",
+            "default": 0
+          },
+          "pricePerImage": {
+            "type": "number",
+            "title": "Priceperimage",
+            "description": "每张图积分（IMAGE）",
+            "default": 0
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "是否启用",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "provider",
+          "model"
+        ],
+        "title": "ModelPricingUpdateRequest",
+        "description": "模型计价更新请求（按 id 更新）。\n\nAttributes:\n    id: 计价配置 ID。\n    category: 类别（LLM / IMAGE）。\n    provider: 提供商。\n    model: 模型名。\n    agent_name: 按 Agent 细分（空=不限）。\n    input_price_per_1k: 输入 token 单价（积分/1k token）。\n    output_price_per_1k: 输出 token 单价（积分/1k token）。\n    price_per_image: 每张图积分（IMAGE）。\n    enabled: 是否启用。"
+      },
+      "ModelPricingVO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "agentName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentname"
+          },
+          "inputPricePer1k": {
+            "type": "number",
+            "title": "Inputpriceper1K",
+            "default": 0
+          },
+          "outputPricePer1k": {
+            "type": "number",
+            "title": "Outputpriceper1K",
+            "default": 0
+          },
+          "pricePerImage": {
+            "type": "number",
+            "title": "Priceperimage",
+            "default": 0
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "provider",
+          "model"
+        ],
+        "title": "ModelPricingVO",
+        "description": "模型计价视图对象。\n\nAttributes:\n    id: 计价配置 ID。\n    category: 类别（LLM / IMAGE）。\n    provider: 提供商。\n    model: 模型名。\n    agent_name: 按 Agent 细分（空=不限）。\n    input_price_per_1k: 输入 token 单价（积分/1k token）。\n    output_price_per_1k: 输出 token 单价（积分/1k token）。\n    price_per_image: 每张图积分。\n    enabled: 是否启用。"
+      },
+      "ModelUsageStatsVO": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "callCount": {
+            "type": "integer",
+            "title": "Callcount",
+            "default": 0
+          },
+          "inputTokens": {
+            "type": "integer",
+            "title": "Inputtokens",
+            "default": 0
+          },
+          "outputTokens": {
+            "type": "integer",
+            "title": "Outputtokens",
+            "default": 0
+          },
+          "imageCount": {
+            "type": "integer",
+            "title": "Imagecount",
+            "default": 0
+          },
+          "costPoints": {
+            "type": "integer",
+            "title": "Costpoints",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "provider",
+          "model"
+        ],
+        "title": "ModelUsageStatsVO",
+        "description": "用户各模型用量聚合视图对象。\n\n按 (category, provider, model) 聚合一个用户在某时间范围内的用量汇总。\n\nAttributes:\n    category: 类别（LLM / IMAGE）。\n    provider: 提供商。\n    model: 模型名。\n    call_count: 总调用次数。\n    input_tokens: 总输入 token 数。\n    output_tokens: 总输出 token 数。\n    image_count: 总生成图片张数。\n    cost_points: 总消耗积分。"
+      },
+      "OptionItem": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "vipOnly": {
+            "type": "boolean",
+            "title": "Viponly",
+            "description": "是否为会员专属（配图方式中高级项为 True）",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "OptionItem",
+        "description": "通用可选项（value=后端枚举值，label=前端展示文案，description=可选说明）"
+      },
+      "OutlineSection": {
+        "properties": {
+          "section": {
+            "type": "integer",
+            "title": "Section"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "points": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "wordCount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wordcount",
+            "description": "本章目标字数（由大纲生成/用户编辑，驱动正文逐章字数）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "section",
+          "title",
+          "points"
+        ],
+        "title": "OutlineSection",
+        "description": "大纲章节"
+      },
+      "PaymentRecordVO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "userId": {
+            "type": "integer",
+            "title": "Userid"
+          },
+          "stripeSessionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripesessionid"
+          },
+          "stripePaymentIntentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripepaymentintentid"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "productType": {
+            "type": "string",
+            "title": "Producttype"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "refundTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refundtime"
+          },
+          "refundReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refundreason"
+          },
+          "createTime": {
+            "type": "string",
+            "title": "Createtime"
+          },
+          "updateTime": {
+            "type": "string",
+            "title": "Updatetime"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "amount",
+          "currency",
+          "status",
+          "productType",
+          "createTime",
+          "updateTime"
+        ],
+        "title": "PaymentRecordVO",
+        "description": "支付记录视图"
+      },
+      "PointsBalanceVO": {
+        "properties": {
+          "balance": {
+            "type": "integer",
+            "title": "Balance",
+            "description": "当前积分余额",
+            "default": 0
+          },
+          "totalEarned": {
+            "type": "integer",
+            "title": "Totalearned",
+            "description": "累计获得积分",
+            "default": 0
+          },
+          "totalConsumed": {
+            "type": "integer",
+            "title": "Totalconsumed",
+            "description": "累计消耗积分",
+            "default": 0
+          },
+          "checkedInToday": {
+            "type": "boolean",
+            "title": "Checkedintoday",
+            "description": "今日是否已签到",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "PointsBalanceVO",
+        "description": "积分余额视图对象。\n\nAttributes:\n    balance: 当前积分余额。\n    total_earned: 累计获得积分。\n    total_consumed: 累计消耗积分。\n    checked_in_today: 今日是否已签到（M4 签到）。"
+      },
+      "PointsCheckinVO": {
+        "properties": {
+          "checkedIn": {
+            "type": "boolean",
+            "title": "Checkedin",
+            "description": "本次是否签到成功",
+            "default": false
+          },
+          "gained": {
+            "type": "integer",
+            "title": "Gained",
+            "description": "本次赠送积分",
+            "default": 0
+          },
+          "balance": {
+            "type": "integer",
+            "title": "Balance",
+            "description": "签到后积分余额",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "PointsCheckinVO",
+        "description": "每日签到结果视图对象。\n\nAttributes:\n    checked_in: 本次是否签到成功。\n    gained: 本次赠送积分。\n    balance: 签到后积分余额。"
+      },
+      "PointsOverviewVO": {
+        "properties": {
+          "userCount": {
+            "type": "integer",
+            "title": "Usercount",
+            "description": "积分账户数",
+            "default": 0
+          },
+          "totalEarned": {
+            "type": "integer",
+            "title": "Totalearned",
+            "description": "累计发放积分",
+            "default": 0
+          },
+          "totalConsumed": {
+            "type": "integer",
+            "title": "Totalconsumed",
+            "description": "累计消耗积分",
+            "default": 0
+          },
+          "totalBalance": {
+            "type": "integer",
+            "title": "Totalbalance",
+            "description": "全体用户当前余额合计",
+            "default": 0
+          },
+          "usageRecordCount": {
+            "type": "integer",
+            "title": "Usagerecordcount",
+            "description": "模型用量记录条数",
+            "default": 0
+          },
+          "totalCostPoints": {
+            "type": "integer",
+            "title": "Totalcostpoints",
+            "description": "用量累计折算积分",
+            "default": 0
+          },
+          "todayCheckinCount": {
+            "type": "integer",
+            "title": "Todaycheckincount",
+            "description": "今日签到人数",
+            "default": 0
+          },
+          "todayCheckinPoints": {
+            "type": "integer",
+            "title": "Todaycheckinpoints",
+            "description": "今日签到发放积分合计",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "PointsOverviewVO",
+        "description": "全局积分/用量看板视图对象（管理端）。\n\nAttributes:\n    user_count: 积分账户数。\n    total_earned: 累计发放积分。\n    total_consumed: 累计消耗积分。\n    total_balance: 全体用户当前余额合计。\n    usage_record_count: 模型用量记录条数。\n    total_cost_points: 用量累计折算积分。\n    today_checkin_count: 今日签到人数。\n    today_checkin_points: 今日签到发放积分合计。"
+      },
+      "PointsTransactionQueryRequest": {
+        "properties": {
+          "current": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Current",
+            "description": "当前页码",
+            "default": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "description": "每页大小",
+            "default": 10
+          },
+          "sortField": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortfield",
+            "description": "排序字段"
+          },
+          "sortOrder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortorder",
+            "description": "排序顺序",
+            "default": "descend"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type",
+            "description": "流水类型筛选"
+          },
+          "startTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starttime",
+            "description": "起始时间（含）"
+          },
+          "endTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endtime",
+            "description": "结束时间（含）"
+          },
+          "minAmount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minamount",
+            "description": "最小变动积分"
+          },
+          "maxAmount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxamount",
+            "description": "最大变动积分"
+          }
+        },
+        "type": "object",
+        "title": "PointsTransactionQueryRequest",
+        "description": "积分流水分页查询请求。\n\nAttributes:\n    type: 流水类型筛选（REGISTER/SIGN_IN/USAGE_SETTLE/ADMIN_ADJUST 等）。\n    start_time: 起始时间（含）。\n    end_time: 结束时间（含）。\n    min_amount: 最小变动积分。\n    max_amount: 最大变动积分。"
+      },
+      "ResearchArticleVO": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "文章标题"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "文章原始链接"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "description": "基于全文内容的摘要"
+          },
+          "publishTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publishtime",
+            "description": "发布时间"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "来源媒体"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "作者/机构"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "标签"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "url",
+          "summary"
+        ],
+        "title": "ResearchArticleVO",
+        "description": "单条信息采集结果（新闻/文章摘要，对应 information_collector.schemas.NewsArticleSummary）"
+      },
+      "ResearchDataVO": {
+        "properties": {
+          "requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement",
+            "description": "原始信息需求"
+          },
+          "searchQueriesUsed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Searchqueriesused",
+            "description": "实际使用的搜索词"
+          },
+          "articles": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchArticleVO"
+            },
+            "type": "array",
+            "title": "Articles",
+            "description": "相关新闻条目"
+          }
+        },
+        "type": "object",
+        "title": "ResearchDataVO",
+        "description": "信息采集结果（对应 article.researchData JSON 列 / RESEARCH_COMPLETE SSE 载荷）"
+      },
+      "StatisticsVO": {
+        "properties": {
+          "todayCount": {
+            "type": "integer",
+            "title": "Todaycount"
+          },
+          "weekCount": {
+            "type": "integer",
+            "title": "Weekcount"
+          },
+          "monthCount": {
+            "type": "integer",
+            "title": "Monthcount"
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "Totalcount"
+          },
+          "successRate": {
+            "type": "number",
+            "title": "Successrate"
+          },
+          "avgDurationMs": {
+            "type": "integer",
+            "title": "Avgdurationms"
+          },
+          "activeUserCount": {
+            "type": "integer",
+            "title": "Activeusercount"
+          },
+          "totalUserCount": {
+            "type": "integer",
+            "title": "Totalusercount"
+          },
+          "vipUserCount": {
+            "type": "integer",
+            "title": "Vipusercount"
+          },
+          "quotaUsed": {
+            "type": "integer",
+            "title": "Quotaused"
+          },
+          "totalQuota": {
+            "type": "integer",
+            "title": "Totalquota",
+            "default": 100
+          }
+        },
+        "type": "object",
+        "required": [
+          "todayCount",
+          "weekCount",
+          "monthCount",
+          "totalCount",
+          "successRate",
+          "avgDurationMs",
+          "activeUserCount",
+          "totalUserCount",
+          "vipUserCount",
+          "quotaUsed"
+        ],
+        "title": "StatisticsVO",
+        "description": "系统统计数据"
+      },
+      "TitleOption": {
+        "properties": {
+          "mainTitle": {
+            "type": "string",
+            "title": "Maintitle"
+          },
+          "subTitle": {
+            "type": "string",
+            "title": "Subtitle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mainTitle",
+          "subTitle"
+        ],
+        "title": "TitleOption",
+        "description": "标题结果"
+      },
+      "UserAddRequest": {
+        "properties": {
+          "userAccount": {
+            "type": "string",
+            "title": "Useraccount",
+            "description": "账号"
+          },
+          "userPassword": {
+            "type": "string",
+            "title": "Userpassword",
+            "description": "密码"
+          },
+          "userName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username",
+            "description": "用户昵称"
+          },
+          "userAvatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Useravatar",
+            "description": "用户头像"
+          },
+          "userProfile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userprofile",
+            "description": "用户简介"
+          },
+          "userRole": {
+            "type": "string",
+            "title": "Userrole",
+            "description": "用户角色",
+            "default": "user"
+          }
+        },
+        "type": "object",
+        "required": [
+          "userAccount",
+          "userPassword"
+        ],
+        "title": "UserAddRequest",
+        "description": "添加用户请求（管理员）"
+      },
+      "UserChangePasswordRequest": {
+        "properties": {
+          "oldPassword": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 8,
+            "title": "Oldpassword",
+            "description": "原密码"
+          },
+          "newPassword": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 8,
+            "title": "Newpassword",
+            "description": "新密码"
+          },
+          "checkPassword": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 8,
+            "title": "Checkpassword",
+            "description": "确认新密码"
+          }
+        },
+        "type": "object",
+        "required": [
+          "oldPassword",
+          "newPassword",
+          "checkPassword"
+        ],
+        "title": "UserChangePasswordRequest",
+        "description": "修改密码请求"
+      },
+      "UserLoginRequest": {
+        "properties": {
+          "userAccount": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 4,
+            "title": "Useraccount",
+            "description": "账号"
+          },
+          "userPassword": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 8,
+            "title": "Userpassword",
+            "description": "密码"
+          }
+        },
+        "type": "object",
+        "required": [
+          "userAccount",
+          "userPassword"
+        ],
+        "title": "UserLoginRequest",
+        "description": "用户登录请求"
+      },
+      "UserProfileUpdateRequest": {
+        "properties": {
+          "userName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username",
+            "description": "用户昵称"
+          },
+          "userAvatar": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Useravatar",
+            "description": "用户头像 URL"
+          },
+          "userProfile": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userprofile",
+            "description": "用户简介"
+          }
+        },
+        "type": "object",
+        "title": "UserProfileUpdateRequest",
+        "description": "当前用户更新个人资料请求（昵称/头像/简介，至少一项非空）"
+      },
+      "UserProfileVO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "userAccount": {
+            "type": "string",
+            "title": "Useraccount"
+          },
+          "userName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "userAvatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Useravatar"
+          },
+          "userProfile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userprofile"
+          },
+          "userRole": {
+            "type": "string",
+            "title": "Userrole"
+          },
+          "quota": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quota",
+            "description": "剩余配额（历史兼容，不再作为创作门槛）"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points",
+            "description": "积分余额（权威 user_points）"
+          },
+          "activeTaskCount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activetaskcount",
+            "description": "进行中创作任务数（含挂起）"
+          },
+          "vipTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viptime",
+            "description": "成为会员时间"
+          },
+          "createTime": {
+            "type": "string",
+            "title": "Createtime",
+            "description": "注册时间"
+          },
+          "articleCount": {
+            "type": "integer",
+            "title": "Articlecount",
+            "description": "创作文章总数（未删除）",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "userAccount",
+          "userRole",
+          "createTime"
+        ],
+        "title": "UserProfileVO",
+        "description": "用户主页视图对象（个人详情页展示：基本信息 + 积分/配额 + 创作统计）"
+      },
+      "UserQueryRequest": {
+        "properties": {
+          "current": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Current",
+            "description": "当前页码",
+            "default": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "description": "每页大小",
+            "default": 10
+          },
+          "sortField": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortfield",
+            "description": "排序字段"
+          },
+          "sortOrder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortorder",
+            "description": "排序顺序",
+            "default": "descend"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "用户 ID"
+          },
+          "userAccount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Useraccount",
+            "description": "账号"
+          },
+          "userName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username",
+            "description": "用户昵称"
+          },
+          "userProfile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userprofile",
+            "description": "用户简介"
+          },
+          "userRole": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userrole",
+            "description": "用户角色"
+          }
+        },
+        "type": "object",
+        "title": "UserQueryRequest",
+        "description": "用户查询请求"
+      },
+      "UserRegisterRequest": {
+        "properties": {
+          "userAccount": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 4,
+            "title": "Useraccount",
+            "description": "账号"
+          },
+          "userPassword": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 8,
+            "title": "Userpassword",
+            "description": "密码"
+          },
+          "checkPassword": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 8,
+            "title": "Checkpassword",
+            "description": "确认密码"
+          }
+        },
+        "type": "object",
+        "required": [
+          "userAccount",
+          "userPassword",
+          "checkPassword"
+        ],
+        "title": "UserRegisterRequest",
+        "description": "用户注册请求"
+      },
+      "UserUpdateRequest": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "用户 ID"
+          },
+          "userName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username",
+            "description": "用户昵称"
+          },
+          "userAvatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Useravatar",
+            "description": "用户头像"
+          },
+          "userProfile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userprofile",
+            "description": "用户简介"
+          },
+          "userRole": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userrole",
+            "description": "用户角色"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "UserUpdateRequest",
+        "description": "更新用户请求（管理员）"
+      },
+      "UserVO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "userAccount": {
+            "type": "string",
+            "title": "Useraccount"
+          },
+          "userName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "userAvatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Useravatar"
+          },
+          "userProfile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userprofile"
+          },
+          "userRole": {
+            "type": "string",
+            "title": "Userrole"
+          },
+          "quota": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quota",
+            "description": "剩余配额"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points",
+            "description": "积分余额"
+          },
+          "vipTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viptime",
+            "description": "成为会员时间"
+          },
+          "createTime": {
+            "type": "string",
+            "title": "Createtime"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "userAccount",
+          "userRole",
+          "createTime"
+        ],
+        "title": "UserVO",
+        "description": "用户视图对象"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VipPlanVO": {
+        "properties": {
+          "productType": {
+            "type": "string",
+            "title": "Producttype",
+            "description": "产品类型枚举值，如 VIP_PERMANENT"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price",
+            "description": "价格（美元）"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "description": "货币，如 usd"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "套餐名称"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "套餐简短描述"
+          },
+          "privileges": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Privileges",
+            "description": "会员特权文案列表"
+          }
+        },
+        "type": "object",
+        "required": [
+          "productType",
+          "price",
+          "currency",
+          "title",
+          "description",
+          "privileges"
+        ],
+        "title": "VipPlanVO",
+        "description": "会员套餐视图（价格 + 特权清单，供前端开通页渲染）\n\n价格取自后端 ProductTypeEnum.VIP_PERMANENT.price（单一来源），\n特权文案在此处硬编码，与 article_service 中会员专属能力保持一致。"
+      }
+    }
+  }
+}

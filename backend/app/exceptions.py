@@ -37,19 +37,35 @@ class ErrorCode(Enum):
 class BusinessException(Exception):
     """业务异常"""
     
-    def __init__(self, error_code: ErrorCode, message: Optional[str] = None):
+    def __init__(
+        self,
+        error_code: ErrorCode,
+        message: Optional[str] = None,
+        internal_code: Optional[ErrorCode] = None,
+    ):
         self.error_code = error_code
+        self.internal_code = internal_code
         self.message = message or error_code.message
         super().__init__(self.message)
 
 
-def throw_if(condition: Any, error_code: ErrorCode, message: Optional[str] = None):
+def throw_if(
+    condition: Any,
+    error_code: ErrorCode,
+    message: Optional[str] = None,
+    internal_code: Optional[ErrorCode] = None,
+):
     """条件为真时抛出异常"""
     if condition:
-        raise BusinessException(error_code, message)
+        raise BusinessException(error_code, message, internal_code)
 
 
-def throw_if_not(condition: Any, error_code: ErrorCode, message: Optional[str] = None):
+def throw_if_not(
+    condition: Any,
+    error_code: ErrorCode,
+    message: Optional[str] = None,
+    internal_code: Optional[ErrorCode] = None,
+):
     """条件为假时抛出异常"""
     if not condition:
-        raise BusinessException(error_code, message)
+        raise BusinessException(error_code, message, internal_code)

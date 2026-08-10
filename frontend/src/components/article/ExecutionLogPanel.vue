@@ -11,8 +11,6 @@ import dayjs from 'dayjs'
 
 import {
   getExecutionLogs,
-  type AgentExecutionStatsVO,
-  type AgentLogVO,
 } from '@/api/articleController'
 
 const props = defineProps<{
@@ -23,7 +21,7 @@ const props = defineProps<{
 
 const activeKey = ref<string[]>([]) // 默认收起
 const loading = ref(false)
-const stats = ref<AgentExecutionStatsVO | null>(null)
+const stats = ref<API.AgentExecutionStatsVO | null>(null)
 
 // 智能体名称 -> 中文友好展示
 const AGENT_NAME_LABEL: Record<string, string> = {
@@ -46,7 +44,7 @@ const STATUS_META: Record<string, { color: string; text: string }> = {
 }
 const statusMeta = (s: string) => STATUS_META[s] || { color: '#94A3B8', text: s || '未知' }
 
-const sortedLogs = computed<AgentLogVO[]>(() => {
+const sortedLogs = computed<API.AgentLogVO[]>(() => {
   return [...(stats.value?.logs || [])].sort((a, b) => {
     // 按开始时间升序，无开始时间兜底排到末尾
     const ta = a.startTime ? dayjs(a.startTime).valueOf() : 0

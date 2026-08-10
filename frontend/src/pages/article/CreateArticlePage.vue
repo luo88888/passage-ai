@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -32,7 +32,6 @@ import {
   confirmOutline,
   aiModifyOutline,
   getCreationOptions,
-  type CreationOptionItem,
 } from '@/api/articleController'
 import { subscribeArticleProgress, type SseMessage, type OutlineSection, type TitleOption, type ResearchData } from '@/utils/sse'
 import { getPointsBalance, checkin as pointsCheckin } from '@/api/pointsController.ts'
@@ -65,9 +64,9 @@ const researchLoading = ref(false)
 
 // 题材 / 语言风格 / 配图方式 可选项（由后端 /article/options 动态返回，不在前端硬编码）
 // 题材 / 语言风格均为单选：'default' 表示"默认"项（前端写死，后端不返回，提交时映射为 null）。
-const genreOptions = ref<CreationOptionItem[]>([])
-const languageStyleOptions = ref<CreationOptionItem[]>([])
-const imageMethodOptions = ref<CreationOptionItem[]>([])
+const genreOptions = ref<API.OptionItem[]>([])
+const languageStyleOptions = ref<API.OptionItem[]>([])
+const imageMethodOptions = ref<API.OptionItem[]>([])
 const selectedGenre = ref<string>('default')
 const selectedLanguageStyle = ref<string>('default')
 const selectedImageMethods = ref<string[]>([])
@@ -125,8 +124,12 @@ let lastSseSeq = 0
 const NO_REPLAY_AFTER = Number.MAX_SAFE_INTEGER
 // 是否处于「详情页 → 去创作页观察进度」的恢复态（顶部展示恢复提示条）
 const isRecovering = ref(false)
-let reconnecting = false // 重连防递归标志
+// SSE 断线重连：指数退避（1s/2s/4s/8s/16s/30s 封顶），最多 5 次后停止并给出手动重连入口（P1-5）
+const MAX_RECONNECT_ATTEMPTS = 5
+const RECONNECT_BACKOFF = [1000, 2000, 4000, 8000, 16000, 30000]
+let reconnectAttempt = 0
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+const sseInterrupted = ref(false) // 重连耗尽：展示「点击重连」按钮
 
 // ==================== 计算属性 ====================
 const canSubmit = computed(() => !!topic.value.trim() && !creating.value)
@@ -145,7 +148,7 @@ const isAdminUser = computed(() => isAdmin(loginUserStore.loginUser))
 const isVipUser = computed(() => isVip(loginUserStore.loginUser))
 
 // 判断某配图方式是否对该用户锁定：vipOnly 且非会员时为不可选
-const isImageMethodLocked = (item: CreationOptionItem) => !!item.vipOnly && !isVipUser.value
+const isImageMethodLocked = (item: API.OptionItem) => !!item.vipOnly && !isVipUser.value
 
 // ==================== 积分卡（M5） ====================
 // 积分余额（/points/balance；后端创建闸门：balance >= 0，admin 豁免）
@@ -226,9 +229,34 @@ const showPointsGuide = (debt: number) => {
   })
 }
 
-// 文章正文 markdown HTML
-const contentHtml = computed(() => renderMarkdown(contentRaw.value))
-const outlineHtml = computed(() => renderMarkdown(outlineRaw.value))
+// 文章正文 markdown HTML（流式期间节流渲染：约每 100ms 刷新一次 + 尾缘兜底，
+// 避免每帧对整篇 markdown 全量 marked.parse + DOMPurify 造成主线程卡顿，同时保证流式输出连续可见，P1-6）
+const contentHtml = ref('')
+const outlineHtml = ref('')
+let renderTimer: ReturnType<typeof setTimeout> | null = null
+let lastRenderAt = 0
+const RENDER_THROTTLE_MS = 100
+function renderStreamingMarkdown() {
+  contentHtml.value = renderMarkdown(contentRaw.value)
+  outlineHtml.value = renderMarkdown(outlineRaw.value)
+}
+watch([contentRaw, outlineRaw], () => {
+  const now = Date.now()
+  const elapsed = now - lastRenderAt
+  if (elapsed >= RENDER_THROTTLE_MS) {
+    // 距上次渲染已超过节流窗口：立即渲染（流式过程中约每 100ms 刷新一次，正文保持打字机式输出）
+    lastRenderAt = now
+    renderStreamingMarkdown()
+    return
+  }
+  // 窗口内到达的帧：合并，仅调度一次尾缘渲染（捕捉停止前最后一段增量）
+  if (renderTimer) return
+  renderTimer = setTimeout(() => {
+    renderTimer = null
+    lastRenderAt = Date.now()
+    renderStreamingMarkdown()
+  }, RENDER_THROTTLE_MS - elapsed)
+})
 
 // 热门选题
 const hotTopics = [
@@ -256,7 +284,8 @@ const resetAll = () => {
     clearTimeout(reconnectTimer)
     reconnectTimer = null
   }
-  reconnecting = false
+  reconnectAttempt = 0
+  sseInterrupted.value = false
   stage.value = 'input'
   taskId.value = ''
   completed.value = false
@@ -293,28 +322,48 @@ const ensureSse = (after: number = 0) => {
     taskId.value,
     {
       onMessage: (data) => {
+        // 收到消息说明连接已恢复：重置重连计数与中断提示
+        reconnectAttempt = 0
+        sseInterrupted.value = false
         // 记录最近事件序号，供断线重连 after=lastSeq 续传
         const seq = sseHandle?.getLastSeq() ?? 0
         if (seq > lastSseSeq) lastSseSeq = seq
         handleSse(data)
+        // 重连成功后若任务已终态（ALL_COMPLETE/ERROR 可能已错过），兜底拉取最终详情
+        if (completed.value || stage.value === 'done') {
+          fetchFinalDetail()
+        }
       },
       onError: () => {
-        // 连接断开：置空句柄以便可重连；未到终态时延迟自动重连一次
+        // 连接断开：置空句柄以便可重连；未到终态时按指数退避自动重连（最多 5 次）
         sseHandle = null
-        if (completed.value || stage.value === 'done' || reconnecting) return
-        reconnecting = true
-        errorMsg.value = '生成进度连接中断，正在自动重连…'
-        message.warning(errorMsg.value)
+        if (completed.value || stage.value === 'done') return
+        if (reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
+          // 重连耗尽：停止自动重连，展示「点击重连」入口，避免后端故障时持续打请求
+          sseInterrupted.value = true
+          errorMsg.value = '生成进度连接中断，请点击下方按钮重连'
+          return
+        }
+        const delay = RECONNECT_BACKOFF[reconnectAttempt] ?? RECONNECT_BACKOFF[RECONNECT_BACKOFF.length - 1]
+        reconnectAttempt += 1
+        errorMsg.value = `生成进度连接中断，${Math.round(delay / 1000)}s 后自动重连…`
         // 延迟重连：携带 after=lastSseSeq 续传，避免重复追加已收到的流式片段
         reconnectTimer = setTimeout(() => {
-          reconnecting = false
           reconnectTimer = null
           ensureSse(lastSseSeq)
-        }, 2000)
+        }, delay)
       },
     },
     { after }
   )
+}
+
+// 手动重连（重试耗尽后的按钮入口）：重置计数后按 lastSseSeq 续传重新订阅
+const manualReconnect = () => {
+  reconnectAttempt = 0
+  sseInterrupted.value = false
+  errorMsg.value = ''
+  ensureSse(lastSseSeq)
 }
 
 // SSE 事件分派（多阶段）
@@ -806,6 +855,10 @@ onBeforeUnmount(() => {
     clearTimeout(reconnectTimer)
     reconnectTimer = null
   }
+  if (renderTimer) {
+    clearTimeout(renderTimer)
+    renderTimer = null
+  }
   sseHandle?.close()
   sseHandle = null
 })
@@ -1187,7 +1240,13 @@ onBeforeUnmount(() => {
             <span>文章创作完成！</span>
           </div>
           <div v-if="errorMsg && !completed" class="error-banner">
-            <a-alert :message="errorMsg" type="error" show-icon />
+            <a-alert :message="errorMsg" type="error" show-icon>
+              <template v-if="sseInterrupted" #action>
+                <a-button size="small" type="primary" ghost @click="manualReconnect">
+                  <ReloadOutlined /> 点击重连
+                </a-button>
+              </template>
+            </a-alert>
           </div>
 
           <!-- 标题区 -->

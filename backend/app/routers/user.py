@@ -118,8 +118,9 @@ async def login(
     try:
         user = await service.login(request)
     except BusinessException as e:
-        # 账号级：仅密码错误时计数锁定（避免攻击者用不同账号名放大锁定）
-        if e.error_code == ErrorCode.PASSWORD_ERROR:
+        # 账号级：仅密码错误时计数锁定（避免攻击者用不同账号名放大锁定）；
+        # 对外已统一为「账号或密码错误」，internal_code=USER_NOT_EXIST 的账号不存在场景不计数
+        if (e.internal_code or e.error_code) == ErrorCode.PASSWORD_ERROR:
             locked = await record_login_failure(request.user_account)
             if locked:
                 logger.warning("登录失败超限，账号已锁定 userAccount=%s", request.user_account)
@@ -155,13 +156,16 @@ async def login(
 @router.post("/logout", response_model=BaseResponse[bool])
 async def logout(
     response: Response,
+    session_id: Optional[str] = Depends(get_session_id),
     current_user: Optional[LoginUserVO] = Depends(get_current_user)
 ):
-    """用户登出"""
+    """用户登出（清除 Cookie 与 Redis 服务端会话）"""
+    # 删除 Redis 服务端会话，使已派发的 Session ID 立即失效
+    if session_id:
+        await remove_session(session_id)
     # 删除 Cookie
-    # HACK: 未清除 Redis 缓存
     response.delete_cookie(key="SESSION")
-    
+
     return BaseResponse.success(data=True, message="登出成功")
 
 

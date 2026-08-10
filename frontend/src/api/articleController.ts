@@ -1,190 +1,153 @@
 // @ts-ignore
 /* eslint-disable */
-import request from '@/request'
+import request from "@/request";
 
-/** 获取文章详情 GET /article/${param0} */
+/** Get Article 获取文章详情 GET /article/${param0} */
 export async function getArticle(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.getArticleParams,
   options?: { [key: string]: any }
 ) {
-  const { taskId: param0, ...queryParams } = params
-  return request<API.BaseResponseArticleVO>(`/article/${param0}`, {
-    method: 'GET',
+  const { taskId: param0, ...queryParams } = params;
+  return request<API.BaseResponseArticleVO_>(`/article/${param0}`, {
+    method: "GET",
     params: { ...queryParams },
     ...(options || {}),
-  })
+  });
 }
 
-/** AI 修改大纲 POST /article/ai-modify-outline
- *  fire-and-forget:仅回 ack {taskId};新大纲由 SSE AI_MODIFY_OUTLINE_COMPLETE 回填前端。
- *  body: { taskId, modifySuggestion };响应:{ code, data:{taskId}, message }。
- */
+/** Ai Modify Outline AI 修改大纲（fire-and-forget）
+
+路由层做前置校验（文章存在 / 归属 / 阶段为 OUTLINE_EDITING / 已有大纲 / VIP），
+通过后异步续跑图：注入 modify_suggestion → 条件边路由进 ai_modify_outline 节点，
+由节点跑 LLM + 落库 + 发 AI_MODIFY_OUTLINE_COMPLETE / FAILED SSE。
+路由只回 ack（taskId），大纲由 SSE 回填前端。 POST /article/ai-modify-outline */
 export async function aiModifyOutline(
   body: API.ArticleAiModifyOutlineRequest,
   options?: { [key: string]: any }
 ) {
-  return request<{ code: number; data: { taskId: string }; message?: string }>(
-    '/article/ai-modify-outline',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      data: body,
-      ...(options || {}),
-    }
-  )
+  return request<API.BaseResponseDict_>("/article/ai-modify-outline", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
 }
 
-/** 确认大纲 POST /article/confirm-outline */
+/** Confirm Outline 确认大纲 POST /article/confirm-outline */
 export async function confirmOutline(
   body: API.ArticleConfirmOutlineRequest,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponseVoid>('/article/confirm-outline', {
-    method: 'POST',
+  return request<API.BaseResponseNoneType_>("/article/confirm-outline", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     data: body,
     ...(options || {}),
-  })
+  });
 }
 
-/** 确认标题并输入补充描述 POST /article/confirm-title */
+/** Confirm Title 确认标题并输入补充描述 POST /article/confirm-title */
 export async function confirmTitle(
   body: API.ArticleConfirmTitleRequest,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponseVoid>('/article/confirm-title', {
-    method: 'POST',
+  return request<API.BaseResponseNoneType_>("/article/confirm-title", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     data: body,
     ...(options || {}),
-  })
+  });
 }
 
-/** 创建文章任务 POST /article/create */
+/** Create Article 创建文章任务（M3 后付费闸门：余额 >= 0 + 并发名额快速失败） POST /article/create */
 export async function createArticle(
   body: API.ArticleCreateRequest,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponseString>('/article/create', {
-    method: 'POST',
+  return request<API.BaseResponseStr_>("/article/create", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     data: body,
     ...(options || {}),
-  })
+  });
 }
 
-/** 删除文章 POST /article/delete */
-export async function deleteArticle(body: API.DeleteRequest, options?: { [key: string]: any }) {
-  return request<API.BaseResponseBoolean>('/article/delete', {
-    method: 'POST',
+/** Delete Article 删除文章 POST /article/delete */
+export async function deleteArticle(
+  body: API.DeleteRequest,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBool_>("/article/delete", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     data: body,
     ...(options || {}),
-  })
+  });
 }
 
-/** 分页查询文章列表 POST /article/list */
-export async function listArticle(body: API.ArticleQueryRequest, options?: { [key: string]: any }) {
-  return request<API.BaseResponsePageArticleVO>('/article/list', {
-    method: 'POST',
+/** Get Execution Logs 获取任务执行日志 GET /article/execution-logs/${param0} */
+export async function getExecutionLogs(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getExecutionLogsParams,
+  options?: { [key: string]: any }
+) {
+  const { taskId: param0, ...queryParams } = params;
+  return request<API.BaseResponseAgentExecutionStatsVO_>(
+    `/article/execution-logs/${param0}`,
+    {
+      method: "GET",
+      params: { ...queryParams },
+      ...(options || {}),
+    }
+  );
+}
+
+/** List Article 分页查询文章列表 POST /article/list */
+export async function listArticle(
+  body: API.ArticleQueryRequest,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseDict_>("/article/list", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     data: body,
     ...(options || {}),
-  })
+  });
 }
 
-// NOTE: 以下 getCreationOptions 为手写补充——后端 OpenAPI 暴露在默认 /openapi.json，
-// 而 openapi2ts.config.ts 指向的 /api/v3/api-docs 路径后端未提供，openapi2ts 无法直接生成。
-// 类型 API.CreationOptionsVO / API.OptionItem 未生成，故这里内联最小类型。
-export interface CreationOptionItem {
-  value: string
-  label: string
-  description?: string
-  vipOnly?: boolean
-}
-export interface CreationOptionsVO {
-  genres: CreationOptionItem[]
-  languageStyles: CreationOptionItem[]
-  imageMethods: CreationOptionItem[]
-}
-
-/** 获取创作页可选项（文章风格 / 配图方式） GET /article/options */
+/** Get Creation Options 获取创作页可选项（题材 / 语言风格 / 配图方式），供前端动态渲染，避免硬编码 GET /article/options */
 export async function getCreationOptions(options?: { [key: string]: any }) {
-  return request<{ code: number; data: CreationOptionsVO; message?: string }>('/article/options', {
-    method: 'GET',
+  return request<API.BaseResponseCreationOptionsVO_>("/article/options", {
+    method: "GET",
     ...(options || {}),
-  })
+  });
 }
 
-/** 获取文章生成进度(SSE) GET /article/progress/${param0} */
+/** Get Progress SSE 进度推送（支持 ?after= 断点续传：先重放历史，再续接实时流） GET /article/progress/${param0} */
 export async function getProgress(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.getProgressParams,
   options?: { [key: string]: any }
 ) {
-  const { taskId: param0, ...queryParams } = params
-  return request<API.SseEmitter>(`/article/progress/${param0}`, {
-    method: 'GET',
-    params: { ...queryParams },
+  const { taskId: param0, ...queryParams } = params;
+  return request<any>(`/article/progress/${param0}`, {
+    method: "GET",
+    params: {
+      ...queryParams,
+    },
     ...(options || {}),
-  })
-}
-
-// NOTE: 以下 getExecutionLogs 为手写补充——同 getCreationOptions，后端 OpenAPI 路径与
-// openapi2ts.config.ts 指向的 /api/v3/api-docs 不一致，故无法自动生成，类型内联最小定义。
-// 后端对应：GET /article/execution-logs/{taskId}，返回 BaseResponse<AgentExecutionStatsVO>。
-
-/** 单个智能体执行日志 */
-export interface AgentLogVO {
-  id: number
-  taskId: string
-  agentName: string
-  startTime: string
-  endTime?: string | null
-  durationMs?: number | null
-  status: 'RUNNING' | 'SUCCESS' | 'FAILED' | string
-  errorMessage?: string | null
-  prompt?: string | null
-  inputData?: string | null
-  outputData?: string | null
-  createTime: string
-  updateTime: string
-}
-
-/** 任务执行统计（含全部日志） */
-export interface AgentExecutionStatsVO {
-  taskId: string
-  totalDurationMs: number
-  agentCount: number
-  agentDurations: Record<string, number>
-  overallStatus: 'RUNNING' | 'SUCCESS' | 'FAILED' | 'NOT_FOUND' | string
-  logs: AgentLogVO[]
-}
-
-/** 获取任务执行日志 GET /article/execution-logs/${param0} */
-export async function getExecutionLogs(
-  params: { taskId: string },
-  options?: { [key: string]: any }
-) {
-  const { taskId: param0 } = params
-  return request<{ code: number; data: AgentExecutionStatsVO; message?: string }>(
-    `/article/execution-logs/${param0}`,
-    {
-      method: 'GET',
-      ...(options || {}),
-    }
-  )
+  });
 }
