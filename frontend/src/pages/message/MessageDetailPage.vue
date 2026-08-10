@@ -63,7 +63,7 @@ const goBack = () => {
 const fetchDetail = async () => {
   loading.value = true
   try {
-    const res = await getMessageDetail(messageId)
+    const res = await getMessageDetail({ messageId })
     if (res.data.code === 0 && res.data.data) {
       detail.value = res.data.data as MessageDetail
       // 未读自动标记已读

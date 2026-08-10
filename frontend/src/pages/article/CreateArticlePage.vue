@@ -32,7 +32,6 @@ import {
   confirmOutline,
   aiModifyOutline,
   getCreationOptions,
-  type CreationOptionItem,
 } from '@/api/articleController'
 import { subscribeArticleProgress, type SseMessage, type OutlineSection, type TitleOption, type ResearchData } from '@/utils/sse'
 import { getPointsBalance, checkin as pointsCheckin } from '@/api/pointsController.ts'
@@ -65,9 +64,9 @@ const researchLoading = ref(false)
 
 // 题材 / 语言风格 / 配图方式 可选项（由后端 /article/options 动态返回，不在前端硬编码）
 // 题材 / 语言风格均为单选：'default' 表示"默认"项（前端写死，后端不返回，提交时映射为 null）。
-const genreOptions = ref<CreationOptionItem[]>([])
-const languageStyleOptions = ref<CreationOptionItem[]>([])
-const imageMethodOptions = ref<CreationOptionItem[]>([])
+const genreOptions = ref<API.OptionItem[]>([])
+const languageStyleOptions = ref<API.OptionItem[]>([])
+const imageMethodOptions = ref<API.OptionItem[]>([])
 const selectedGenre = ref<string>('default')
 const selectedLanguageStyle = ref<string>('default')
 const selectedImageMethods = ref<string[]>([])
@@ -149,7 +148,7 @@ const isAdminUser = computed(() => isAdmin(loginUserStore.loginUser))
 const isVipUser = computed(() => isVip(loginUserStore.loginUser))
 
 // 判断某配图方式是否对该用户锁定：vipOnly 且非会员时为不可选
-const isImageMethodLocked = (item: CreationOptionItem) => !!item.vipOnly && !isVipUser.value
+const isImageMethodLocked = (item: API.OptionItem) => !!item.vipOnly && !isVipUser.value
 
 // ==================== 积分卡（M5） ====================
 // 积分余额（/points/balance；后端创建闸门：balance >= 0，admin 豁免）

@@ -228,7 +228,7 @@ const openDetailById = async (id: number) => {
   detailLoading.value = true
   detailOpen.value = true
   try {
-    const res = await getFeedback(id)
+    const res = await getFeedback({ feedbackId: id })
     if (res.data.code === 0 && res.data.data) {
       detail.value = res.data.data as FeedbackRow
     } else {

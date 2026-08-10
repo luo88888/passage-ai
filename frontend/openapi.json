@@ -1,18 +1,18 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "AI æç« åä½å¹³å°",
-    "description": "åºäºå¤æºè½ä½ç¼æç AI æç« çæå¹³å°",
+    "title": "AI 文章创作平台",
+    "description": "基于多智能体编排的 AI 文章生成平台",
     "version": "0.0.1"
   },
   "paths": {
     "/health": {
       "get": {
         "tags": [
-          "å¥åº·æ£æ¥"
+          "健康检查"
         ],
         "summary": "Health Check",
-        "description": "å¥åº·æ£æ¥",
+        "description": "健康检查",
         "operationId": "health_check_api_health_get",
         "responses": {
           "200": {
@@ -31,10 +31,10 @@
     "/user/register": {
       "post": {
         "tags": [
-          "ç¨æ·ç®¡ç"
+          "用户管理"
         ],
         "summary": "Register",
-        "description": "ç¨æ·æ³¨åï¼åä¸ IP å¨çªå£åéæ¬¡ï¼",
+        "description": "用户注册（同一 IP 在窗口内限次）",
         "operationId": "register_api_user_register_post",
         "requestBody": {
           "content": {
@@ -73,10 +73,10 @@
     "/user/login": {
       "post": {
         "tags": [
-          "ç¨æ·ç®¡ç"
+          "用户管理"
         ],
         "summary": "Login",
-        "description": "ç¨æ·ç»å½ï¼åè´¦å·å¤±è´¥è¶éåéå® + IP çº§å¤±è´¥éæµï¼é²å¯ç çç ´ä¸æåºï¼",
+        "description": "用户登录（单账号失败超限后锁定 + IP 级失败限流，防密码爆破与撞库）",
         "operationId": "login_api_user_login_post",
         "requestBody": {
           "content": {
@@ -115,10 +115,10 @@
     "/user/logout": {
       "post": {
         "tags": [
-          "ç¨æ·ç®¡ç"
+          "用户管理"
         ],
         "summary": "Logout",
-        "description": "ç¨æ·ç»åºï¼æ¸é¤ Cookie ä¸ Redis æå¡ç«¯ä¼è¯ï¼",
+        "description": "用户登出（清除 Cookie 与 Redis 服务端会话）",
         "operationId": "logout_api_user_logout_post",
         "parameters": [
           {
@@ -165,10 +165,10 @@
     "/user/get/login": {
       "get": {
         "tags": [
-          "ç¨æ·ç®¡ç"
+          "用户管理"
         ],
         "summary": "Get Login User",
-        "description": "è·åå½åç»å½ç¨æ·",
+        "description": "获取当前登录用户",
         "operationId": "get_login_user_api_user_get_login_get",
         "parameters": [
           {
@@ -215,10 +215,10 @@
     "/user/get": {
       "get": {
         "tags": [
-          "ç¨æ·ç®¡ç"
+          "用户管理"
         ],
         "summary": "Get User By Id",
-        "description": "æ ¹æ® ID è·åç¨æ·",
+        "description": "根据 ID 获取用户",
         "operationId": "get_user_by_id_api_user_get_get",
         "parameters": [
           {
@@ -258,10 +258,10 @@
     "/user/profile": {
       "get": {
         "tags": [
-          "ç¨æ·ç®¡ç"
+          "用户管理"
         ],
         "summary": "Get User Profile",
-        "description": "è·åå½åç»å½ç¨æ·çä¸»é¡µä¿¡æ¯ï¼ä¸ªäººè¯¦æé¡µï¼åºæ¬ä¿¡æ¯ + ç§¯å/éé¢ + åä½æ°éç­ç»è®¡ï¼",
+        "description": "获取当前登录用户的主页信息（个人详情页：基本信息 + 积分/配额 + 创作数量等统计）",
         "operationId": "get_user_profile_api_user_profile_get",
         "parameters": [
           {
@@ -308,10 +308,10 @@
     "/user/list/page": {
       "post": {
         "tags": [
-          "ç¨æ·ç®¡ç"
+          "用户管理"
         ],
         "summary": "List Users By Page",
-        "description": "åé¡µæ¥è¯¢ç¨æ·åè¡¨ï¼ç®¡çåï¼",
+        "description": "分页查询用户列表（管理员）",
         "operationId": "list_users_by_page_api_user_list_page_post",
         "parameters": [
           {
@@ -368,10 +368,10 @@
     "/user/add": {
       "post": {
         "tags": [
-          "ç¨æ·ç®¡ç"
+          "用户管理"
         ],
         "summary": "Add User",
-        "description": "æ·»å ç¨æ·ï¼ç®¡çåï¼",
+        "description": "添加用户（管理员）",
         "operationId": "add_user_api_user_add_post",
         "parameters": [
           {
@@ -428,10 +428,10 @@
     "/user/update": {
       "post": {
         "tags": [
-          "ç¨æ·ç®¡ç"
+          "用户管理"
         ],
         "summary": "Update User",
-        "description": "æ´æ°ç¨æ·ï¼ç®¡çåï¼",
+        "description": "更新用户（管理员）",
         "operationId": "update_user_api_user_update_post",
         "parameters": [
           {
@@ -488,10 +488,10 @@
     "/user/delete": {
       "post": {
         "tags": [
-          "ç¨æ·ç®¡ç"
+          "用户管理"
         ],
         "summary": "Delete User",
-        "description": "å é¤ç¨æ·ï¼ç®¡çåï¼",
+        "description": "删除用户（管理员）",
         "operationId": "delete_user_api_user_delete_post",
         "parameters": [
           {
@@ -548,10 +548,10 @@
     "/user/profile/update": {
       "post": {
         "tags": [
-          "ç¨æ·ç®¡ç"
+          "用户管理"
         ],
         "summary": "Update User Profile",
-        "description": "æ´æ°å½åç»å½ç¨æ·çä¸ªäººèµæï¼æµç§°/å¤´å/ç®ä»ï¼\n\næ´æ°æåååæ­¥å·æ° Redis Session ä¸­çç¨æ·ä¿¡æ¯ï¼\nä¿è¯ä¸æ¬¡ GET /user/get/login è¿åææ°èµæã",
+        "description": "更新当前登录用户的个人资料（昵称/头像/简介）\n\n更新成功后同步刷新 Redis Session 中的用户信息，\n保证下次 GET /user/get/login 返回最新资料。",
         "operationId": "update_user_profile_api_user_profile_update_post",
         "parameters": [
           {
@@ -608,10 +608,10 @@
     "/user/change-password": {
       "post": {
         "tags": [
-          "ç¨æ·ç®¡ç"
+          "用户管理"
         ],
         "summary": "Change Password",
-        "description": "ä¿®æ¹å½åç»å½ç¨æ·çå¯ç \n\nå®å¨ç­ç¥ï¼ä¿®æ¹æååæ¸é¤ Redis Session ä¸ Cookieï¼å¼ºå¶ç¨æ·éæ°ç»å½ã",
+        "description": "修改当前登录用户的密码\n\n安全策略：修改成功后清除 Redis Session 与 Cookie，强制用户重新登录。",
         "operationId": "change_password_api_user_change_password_post",
         "parameters": [
           {
@@ -668,10 +668,10 @@
     "/user/avatar/upload": {
       "post": {
         "tags": [
-          "ç¨æ·ç®¡ç"
+          "用户管理"
         ],
         "summary": "Upload Avatar",
-        "description": "ä¸ä¼ ç¨æ·å¤´åï¼multipart/form-dataï¼å­æ®µå fileï¼\n\nä»æ¯æ JPG / PNG / WebP / GIFï¼å¤§å°ä¸è¶è¿ 2MBï¼\næä»¶ä¿å­å°æ¬å° static/images/avatar/ï¼è¿åå¯è®¿é®çå¾ç URLã",
+        "description": "上传用户头像（multipart/form-data，字段名 file）\n\n仅支持 JPG / PNG / WebP / GIF，大小不超过 2MB；\n文件保存到本地 static/images/avatar/，返回可访问的图片 URL。",
         "operationId": "upload_avatar_api_user_avatar_upload_post",
         "parameters": [
           {
@@ -728,10 +728,10 @@
     "/article/create": {
       "post": {
         "tags": [
-          "æç« ç®¡ç"
+          "文章管理"
         ],
         "summary": "Create Article",
-        "description": "åå»ºæç« ä»»å¡ï¼M3 åä»è´¹é¸é¨ï¼ä½é¢ >= 0 + å¹¶ååé¢å¿«éå¤±è´¥ï¼",
+        "description": "创建文章任务（M3 后付费闸门：余额 >= 0 + 并发名额快速失败）",
         "operationId": "create_article_api_article_create_post",
         "parameters": [
           {
@@ -788,10 +788,10 @@
     "/article/confirm-title": {
       "post": {
         "tags": [
-          "æç« ç®¡ç"
+          "文章管理"
         ],
         "summary": "Confirm Title",
-        "description": "ç¡®è®¤æ é¢å¹¶è¾å¥è¡¥åæè¿°",
+        "description": "确认标题并输入补充描述",
         "operationId": "confirm_title_api_article_confirm_title_post",
         "parameters": [
           {
@@ -848,10 +848,10 @@
     "/article/confirm-outline": {
       "post": {
         "tags": [
-          "æç« ç®¡ç"
+          "文章管理"
         ],
         "summary": "Confirm Outline",
-        "description": "ç¡®è®¤å¤§çº²",
+        "description": "确认大纲",
         "operationId": "confirm_outline_api_article_confirm_outline_post",
         "parameters": [
           {
@@ -908,10 +908,10 @@
     "/article/ai-modify-outline": {
       "post": {
         "tags": [
-          "æç« ç®¡ç"
+          "文章管理"
         ],
         "summary": "Ai Modify Outline",
-        "description": "AI ä¿®æ¹å¤§çº²ï¼fire-and-forgetï¼\n\nè·¯ç±å±ååç½®æ ¡éªï¼æç« å­å¨ / å½å± / é¶æ®µä¸º OUTLINE_EDITING / å·²æå¤§çº² / VIPï¼ï¼\néè¿åå¼æ­¥ç»­è·å¾ï¼æ³¨å¥ modify_suggestion â æ¡ä»¶è¾¹è·¯ç±è¿ ai_modify_outline èç¹ï¼\nç±èç¹è· LLM + è½åº + å AI_MODIFY_OUTLINE_COMPLETE / FAILED SSEã\nè·¯ç±åªå ackï¼taskIdï¼ï¼å¤§çº²ç± SSE åå¡«åç«¯ã",
+        "description": "AI 修改大纲（fire-and-forget）\n\n路由层做前置校验（文章存在 / 归属 / 阶段为 OUTLINE_EDITING / 已有大纲 / VIP），\n通过后异步续跑图：注入 modify_suggestion → 条件边路由进 ai_modify_outline 节点，\n由节点跑 LLM + 落库 + 发 AI_MODIFY_OUTLINE_COMPLETE / FAILED SSE。\n路由只回 ack（taskId），大纲由 SSE 回填前端。",
         "operationId": "ai_modify_outline_api_article_ai_modify_outline_post",
         "parameters": [
           {
@@ -968,10 +968,10 @@
     "/article/options": {
       "get": {
         "tags": [
-          "æç« ç®¡ç"
+          "文章管理"
         ],
         "summary": "Get Creation Options",
-        "description": "è·ååä½é¡µå¯éé¡¹ï¼é¢æ / è¯­è¨é£æ ¼ / éå¾æ¹å¼ï¼ï¼ä¾åç«¯å¨ææ¸²æï¼é¿åç¡¬ç¼ç ",
+        "description": "获取创作页可选项（题材 / 语言风格 / 配图方式），供前端动态渲染，避免硬编码",
         "operationId": "get_creation_options_api_article_options_get",
         "parameters": [
           {
@@ -1018,10 +1018,10 @@
     "/article/progress/{task_id}": {
       "get": {
         "tags": [
-          "æç« ç®¡ç"
+          "文章管理"
         ],
         "summary": "Get Progress",
-        "description": "SSE è¿åº¦æ¨éï¼æ¯æ ?after= æ­ç¹ç»­ä¼ ï¼åéæ¾åå²ï¼åç»­æ¥å®æ¶æµï¼",
+        "description": "SSE 进度推送（支持 ?after= 断点续传：先重放历史，再续接实时流）",
         "operationId": "get_progress_api_article_progress__task_id__get",
         "parameters": [
           {
@@ -1085,10 +1085,10 @@
     "/article/list": {
       "post": {
         "tags": [
-          "æç« ç®¡ç"
+          "文章管理"
         ],
         "summary": "List Article",
-        "description": "åé¡µæ¥è¯¢æç« åè¡¨",
+        "description": "分页查询文章列表",
         "operationId": "list_article_api_article_list_post",
         "parameters": [
           {
@@ -1145,10 +1145,10 @@
     "/article/delete": {
       "post": {
         "tags": [
-          "æç« ç®¡ç"
+          "文章管理"
         ],
         "summary": "Delete Article",
-        "description": "å é¤æç« ",
+        "description": "删除文章",
         "operationId": "delete_article_api_article_delete_post",
         "parameters": [
           {
@@ -1205,10 +1205,10 @@
     "/article/{task_id}": {
       "get": {
         "tags": [
-          "æç« ç®¡ç"
+          "文章管理"
         ],
         "summary": "Get Article",
-        "description": "è·åæç« è¯¦æ",
+        "description": "获取文章详情",
         "operationId": "get_article_api_article__task_id__get",
         "parameters": [
           {
@@ -1264,10 +1264,10 @@
     "/article/execution-logs/{task_id}": {
       "get": {
         "tags": [
-          "æç« ç®¡ç"
+          "文章管理"
         ],
         "summary": "Get Execution Logs",
-        "description": "è·åä»»å¡æ§è¡æ¥å¿",
+        "description": "获取任务执行日志",
         "operationId": "get_execution_logs_api_article_execution_logs__task_id__get",
         "parameters": [
           {
@@ -1323,10 +1323,10 @@
     "/payment/plans": {
       "get": {
         "tags": [
-          "æ¯ä»ç®¡ç"
+          "支付管理"
         ],
         "summary": "Get Vip Plans",
-        "description": "è·åä¼åå¥é¤åè¡¨ï¼ä»·æ ¼ + ç¹æï¼å¬å¼æ¥å£ï¼æ éç»å½ï¼",
+        "description": "获取会员套餐列表（价格 + 特权，公开接口，无需登录）",
         "operationId": "get_vip_plans_api_payment_plans_get",
         "responses": {
           "200": {
@@ -1345,10 +1345,10 @@
     "/payment/create-vip-session": {
       "post": {
         "tags": [
-          "æ¯ä»ç®¡ç"
+          "支付管理"
         ],
         "summary": "Create Vip Payment Session",
-        "description": "åå»º VIP æ¯ä»ä¼è¯",
+        "description": "创建 VIP 支付会话",
         "operationId": "create_vip_payment_session_api_payment_create_vip_session_post",
         "parameters": [
           {
@@ -1395,10 +1395,10 @@
     "/payment/activate-vip": {
       "post": {
         "tags": [
-          "æ¯ä»ç®¡ç"
+          "支付管理"
         ],
         "summary": "Activate Vip",
-        "description": "ç´æ¥å¼éæ°¸ä¹ä¼åï¼ä¸´æ¶åæ¯ä»ï¼Stripe åç¨æé´ï¼ç¹å»ãç«å³å¼éãå³å¼éï¼",
+        "description": "直接开通永久会员（临时免支付：Stripe 停用期间，点击「立即开通」即开通）",
         "operationId": "activate_vip_api_payment_activate_vip_post",
         "parameters": [
           {
@@ -1445,10 +1445,10 @@
     "/payment/refund": {
       "post": {
         "tags": [
-          "æ¯ä»ç®¡ç"
+          "支付管理"
         ],
         "summary": "Refund",
-        "description": "ç³è¯·éæ¬¾",
+        "description": "申请退款",
         "operationId": "refund_api_payment_refund_post",
         "parameters": [
           {
@@ -1511,10 +1511,10 @@
     "/payment/records": {
       "get": {
         "tags": [
-          "æ¯ä»ç®¡ç"
+          "支付管理"
         ],
         "summary": "Get Payment Records",
-        "description": "è·åå½åç¨æ·æ¯ä»è®°å½",
+        "description": "获取当前用户支付记录",
         "operationId": "get_payment_records_api_payment_records_get",
         "parameters": [
           {
@@ -1561,10 +1561,10 @@
     "/webhook/stripe": {
       "post": {
         "tags": [
-          "æ¯ä»åè°"
+          "支付回调"
         ],
         "summary": "Stripe Webhook",
-        "description": "Stripe webhook åè°",
+        "description": "Stripe webhook 回调",
         "operationId": "stripe_webhook_api_webhook_stripe_post",
         "parameters": [
           {
@@ -1602,10 +1602,10 @@
     "/statistics/overview": {
       "get": {
         "tags": [
-          "ç»è®¡åæ"
+          "统计分析"
         ],
         "summary": "Get Statistics",
-        "description": "è·åç³»ç»ç»è®¡æ°æ®ï¼ä»ç®¡çåï¼",
+        "description": "获取系统统计数据（仅管理员）",
         "operationId": "get_statistics_api_statistics_overview_get",
         "parameters": [
           {
@@ -1652,10 +1652,10 @@
     "/points/balance": {
       "get": {
         "tags": [
-          "ç§¯å"
+          "积分"
         ],
         "summary": "Get Points Balance",
-        "description": "æ¥è¯¢å½åç§¯åä½é¢ï¼ä½é¢ + ç´¯è®¡è·å¾/æ¶è + ä»æ¥ç­¾å°ç¶æï¼",
+        "description": "查询当前积分余额（余额 + 累计获得/消耗 + 今日签到状态）",
         "operationId": "get_points_balance_api_points_balance_get",
         "parameters": [
           {
@@ -1702,10 +1702,10 @@
     "/points/checkin": {
       "post": {
         "tags": [
-          "ç§¯å"
+          "积分"
         ],
         "summary": "Checkin",
-        "description": "æ¯æ¥ç­¾å°ï¼Redis SETNX é²éå¤ï¼èµ é 10 ç§¯åï¼è®° SIGN_IN æµæ°´ï¼",
+        "description": "每日签到（Redis SETNX 防重复，赠送 10 积分，记 SIGN_IN 流水）",
         "operationId": "checkin_api_points_checkin_post",
         "parameters": [
           {
@@ -1752,10 +1752,10 @@
     "/points/transactions": {
       "post": {
         "tags": [
-          "ç§¯å"
+          "积分"
         ],
         "summary": "List Transactions",
-        "description": "åé¡µæ¥è¯¢ç§¯åæç»ï¼type/æ¶é´/éé¢ç­éï¼",
+        "description": "分页查询积分明细（type/时间/金额筛选）",
         "operationId": "list_transactions_api_points_transactions_post",
         "parameters": [
           {
@@ -1812,10 +1812,10 @@
     "/points/usage/stats": {
       "get": {
         "tags": [
-          "ç§¯å"
+          "积分"
         ],
         "summary": "Get Usage Stats",
-        "description": "æ¥è¯¢å½åç¨æ·åæ¨¡åç¨éç»è®¡ï¼æ model èåæ¬¡æ°/token/ç§¯åï¼å¯ææ¶é´èå´ç­éï¼",
+        "description": "查询当前用户各模型用量统计（按 model 聚合次数/token/积分，可按时间范围筛选）",
         "operationId": "get_usage_stats_api_points_usage_stats_get",
         "parameters": [
           {
@@ -1894,10 +1894,10 @@
     "/admin/points/overview": {
       "get": {
         "tags": [
-          "ç§¯åç®¡ç"
+          "积分管理"
         ],
         "summary": "Get Points Overview",
-        "description": "å¨å±ç§¯å/ç¨éçæ¿ï¼ä»ç®¡çåï¼",
+        "description": "全局积分/用量看板（仅管理员）",
         "operationId": "get_points_overview_api_admin_points_overview_get",
         "parameters": [
           {
@@ -1944,10 +1944,10 @@
     "/admin/points/adjust": {
       "post": {
         "tags": [
-          "ç§¯åç®¡ç"
+          "积分管理"
         ],
         "summary": "Adjust User Points",
-        "description": "æå·¥è°æ´ç¨æ·ç§¯åï¼æ­£=èµ éï¼è´=æ£åï¼è®° ADMIN_ADJUST æµæ°´ï¼",
+        "description": "手工调整用户积分（正=赠送，负=扣减，记 ADMIN_ADJUST 流水）",
         "operationId": "adjust_user_points_api_admin_points_adjust_post",
         "parameters": [
           {
@@ -2004,10 +2004,10 @@
     "/admin/points/transactions": {
       "post": {
         "tags": [
-          "ç§¯åç®¡ç"
+          "积分管理"
         ],
         "summary": "List User Transactions",
-        "description": "åé¡µæ¥è¯¢æå®ç¨æ·çç§¯åæµæ°´ï¼ä»ç®¡çåï¼ç¨äºç§¯åç®¡çæ¥çæµæ°´ï¼",
+        "description": "分页查询指定用户的积分流水（仅管理员，用于积分管理查看流水）",
         "operationId": "list_user_transactions_api_admin_points_transactions_post",
         "parameters": [
           {
@@ -2064,10 +2064,10 @@
     "/admin/points/usage": {
       "post": {
         "tags": [
-          "ç§¯åç®¡ç"
+          "积分管理"
         ],
         "summary": "List Usage",
-        "description": "åé¡µæ¥è¯¢æ¨¡åç¨éè®°å½ï¼æç¨æ·/ç±»å«/æ¨¡å/æ¶é´ç­éï¼ä»ç®¡çåï¼",
+        "description": "分页查询模型用量记录（按用户/类别/模型/时间筛选，仅管理员）",
         "operationId": "list_usage_api_admin_points_usage_post",
         "parameters": [
           {
@@ -2124,10 +2124,10 @@
     "/admin/model-pricing": {
       "get": {
         "tags": [
-          "æ¨¡åè®¡ä»·ç®¡ç"
+          "模型计价管理"
         ],
         "summary": "List Model Pricing",
-        "description": "æ¥è¯¢å¨é¨æ¨¡åè®¡ä»·éç½®ï¼ä»ç®¡çåï¼",
+        "description": "查询全部模型计价配置（仅管理员）",
         "operationId": "list_model_pricing_api_admin_model_pricing_get",
         "parameters": [
           {
@@ -2172,10 +2172,10 @@
       },
       "post": {
         "tags": [
-          "æ¨¡åè®¡ä»·ç®¡ç"
+          "模型计价管理"
         ],
         "summary": "Create Model Pricing",
-        "description": "æ°å¢æ¨¡åè®¡ä»·éç½®ï¼ä»ç®¡çåï¼",
+        "description": "新增模型计价配置（仅管理员）",
         "operationId": "create_model_pricing_api_admin_model_pricing_post",
         "parameters": [
           {
@@ -2230,10 +2230,10 @@
       },
       "put": {
         "tags": [
-          "æ¨¡åè®¡ä»·ç®¡ç"
+          "模型计价管理"
         ],
         "summary": "Update Model Pricing",
-        "description": "æ´æ°æ¨¡åè®¡ä»·éç½®ï¼æ idï¼ä»ç®¡çåï¼",
+        "description": "更新模型计价配置（按 id，仅管理员）",
         "operationId": "update_model_pricing_api_admin_model_pricing_put",
         "parameters": [
           {
@@ -2290,10 +2290,10 @@
     "/feedback/upload": {
       "post": {
         "tags": [
-          "æè§åé¦"
+          "意见反馈"
         ],
         "summary": "Upload Feedback Image",
-        "description": "ä¸ä¼ åé¦æªå¾ï¼multipart/form-dataï¼å­æ®µå fileï¼\n\nä»æ¯æ JPG / PNG / WebP / GIFï¼å¤§å°ä¸è¶è¿ 2MBï¼ä¸æ¥å SVGï¼é²å­å¨å XSSï¼ï¼\nåå¼ ä¸ä¼ è¿åå¯è®¿é® URLï¼åä¸åé¦å¯å¤æ¬¡è°ç¨ï¼æäº¤æ¶æå¤ 5 å¼ ï¼ç±æäº¤æ¥å£ååºæ ¡éªï¼ã\næä»¶ä¿å­å°æ¬å° static/images/feedback/ã",
+        "description": "上传反馈截图（multipart/form-data，字段名 file）\n\n仅支持 JPG / PNG / WebP / GIF，大小不超过 2MB，不接受 SVG（防存储型 XSS）；\n单张上传返回可访问 URL，同一反馈可多次调用（提交时最多 5 张，由提交接口兜底校验）。\n文件保存到本地 static/images/feedback/。",
         "operationId": "upload_feedback_image_api_feedback_upload_post",
         "parameters": [
           {
@@ -2350,10 +2350,10 @@
     "/feedback/submit": {
       "post": {
         "tags": [
-          "æè§åé¦"
+          "意见反馈"
         ],
         "summary": "Submit Feedback",
-        "description": "æäº¤æè§åé¦ï¼æ¯æ¥éæµï¼æ¯ç¨æ·æ¯å¤©æå¤ feedback_daily_limit æ¡ï¼è¶éè¿å REQUEST_TOO_FREQUENTï¼",
+        "description": "提交意见反馈（每日限流：每用户每天最多 feedback_daily_limit 条，超限返回 REQUEST_TOO_FREQUENT）",
         "operationId": "submit_feedback_api_feedback_submit_post",
         "parameters": [
           {
@@ -2410,10 +2410,10 @@
     "/feedback/page": {
       "get": {
         "tags": [
-          "æè§åé¦"
+          "意见反馈"
         ],
         "summary": "Page My Feedback",
-        "description": "æçåé¦åé¡µï¼type/status ç­éï¼ä»æ¬äººï¼",
+        "description": "我的反馈分页（type/status 筛选，仅本人）",
         "operationId": "page_my_feedback_api_feedback_page_get",
         "parameters": [
           {
@@ -2423,11 +2423,11 @@
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "description": "å½åé¡µç ",
+              "description": "当前页码",
               "default": 1,
               "title": "Current"
             },
-            "description": "å½åé¡µç "
+            "description": "当前页码"
           },
           {
             "name": "pageSize",
@@ -2437,11 +2437,11 @@
               "type": "integer",
               "maximum": 100,
               "minimum": 1,
-              "description": "æ¯é¡µå¤§å°",
+              "description": "每页大小",
               "default": 10,
               "title": "Pagesize"
             },
-            "description": "æ¯é¡µå¤§å°"
+            "description": "每页大小"
           },
           {
             "name": "type",
@@ -2456,10 +2456,10 @@
                   "type": "null"
                 }
               ],
-              "description": "åé¦ç±»åç­éï¼BUG/FEATURE/COMPLAINT/OTHER",
+              "description": "反馈类型筛选：BUG/FEATURE/COMPLAINT/OTHER",
               "title": "Type"
             },
-            "description": "åé¦ç±»åç­éï¼BUG/FEATURE/COMPLAINT/OTHER"
+            "description": "反馈类型筛选：BUG/FEATURE/COMPLAINT/OTHER"
           },
           {
             "name": "status",
@@ -2474,10 +2474,10 @@
                   "type": "null"
                 }
               ],
-              "description": "å¤çç¶æç­éï¼PENDING/PROCESSING/RESOLVED",
+              "description": "处理状态筛选：PENDING/PROCESSING/RESOLVED",
               "title": "Status"
             },
-            "description": "å¤çç¶æç­éï¼PENDING/PROCESSING/RESOLVED"
+            "description": "处理状态筛选：PENDING/PROCESSING/RESOLVED"
           },
           {
             "name": "SESSION",
@@ -2523,10 +2523,10 @@
     "/feedback/{feedback_id}": {
       "get": {
         "tags": [
-          "æè§åé¦"
+          "意见反馈"
         ],
         "summary": "Get Feedback",
-        "description": "åé¦è¯¦æï¼ä»æ¬äººï¼å½å±æ ¡éªï¼",
+        "description": "反馈详情（仅本人，归属校验）",
         "operationId": "get_feedback_api_feedback__feedback_id__get",
         "parameters": [
           {
@@ -2582,10 +2582,10 @@
     "/admin/feedback/page": {
       "get": {
         "tags": [
-          "æè§åé¦ç®¡ç"
+          "意见反馈管理"
         ],
         "summary": "Admin Page Feedback",
-        "description": "ç®¡çç«¯å¨éåé¡µï¼å³é®å­/ç±»å/ç¶æ/æ¶é´ç­éï¼å«æäº¤ç¨æ·ä¿¡æ¯ï¼",
+        "description": "管理端全量分页（关键字/类型/状态/时间筛选，含提交用户信息）",
         "operationId": "admin_page_feedback_api_admin_feedback_page_get",
         "parameters": [
           {
@@ -2595,11 +2595,11 @@
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "description": "å½åé¡µç ",
+              "description": "当前页码",
               "default": 1,
               "title": "Current"
             },
-            "description": "å½åé¡µç "
+            "description": "当前页码"
           },
           {
             "name": "pageSize",
@@ -2609,11 +2609,11 @@
               "type": "integer",
               "maximum": 100,
               "minimum": 1,
-              "description": "æ¯é¡µå¤§å°",
+              "description": "每页大小",
               "default": 10,
               "title": "Pagesize"
             },
-            "description": "æ¯é¡µå¤§å°"
+            "description": "每页大小"
           },
           {
             "name": "keyword",
@@ -2628,10 +2628,10 @@
                   "type": "null"
                 }
               ],
-              "description": "å³é®å­ï¼å¹éç¨æ·è´¦å·/æµç§°/åé¦åå®¹ï¼",
+              "description": "关键字（匹配用户账号/昵称/反馈内容）",
               "title": "Keyword"
             },
-            "description": "å³é®å­ï¼å¹éç¨æ·è´¦å·/æµç§°/åé¦åå®¹ï¼"
+            "description": "关键字（匹配用户账号/昵称/反馈内容）"
           },
           {
             "name": "type",
@@ -2646,10 +2646,10 @@
                   "type": "null"
                 }
               ],
-              "description": "åé¦ç±»åç­é",
+              "description": "反馈类型筛选",
               "title": "Type"
             },
-            "description": "åé¦ç±»åç­é"
+            "description": "反馈类型筛选"
           },
           {
             "name": "status",
@@ -2664,10 +2664,10 @@
                   "type": "null"
                 }
               ],
-              "description": "å¤çç¶æç­é",
+              "description": "处理状态筛选",
               "title": "Status"
             },
-            "description": "å¤çç¶æç­é"
+            "description": "处理状态筛选"
           },
           {
             "name": "startTime",
@@ -2682,10 +2682,10 @@
                   "type": "null"
                 }
               ],
-              "description": "èµ·å§æ¶é´ï¼å«ï¼",
+              "description": "起始时间（含）",
               "title": "Starttime"
             },
-            "description": "èµ·å§æ¶é´ï¼å«ï¼"
+            "description": "起始时间（含）"
           },
           {
             "name": "endTime",
@@ -2700,10 +2700,10 @@
                   "type": "null"
                 }
               ],
-              "description": "ç»ææ¶é´ï¼å«ï¼",
+              "description": "结束时间（含）",
               "title": "Endtime"
             },
-            "description": "ç»ææ¶é´ï¼å«ï¼"
+            "description": "结束时间（含）"
           },
           {
             "name": "SESSION",
@@ -2749,10 +2749,10 @@
     "/admin/feedback/{feedback_id}": {
       "get": {
         "tags": [
-          "æè§åé¦ç®¡ç"
+          "意见反馈管理"
         ],
         "summary": "Admin Get Feedback",
-        "description": "ç®¡çç«¯åé¦è¯¦æï¼å«æäº¤ç¨æ·ä¿¡æ¯ï¼",
+        "description": "管理端反馈详情（含提交用户信息）",
         "operationId": "admin_get_feedback_api_admin_feedback__feedback_id__get",
         "parameters": [
           {
@@ -2808,10 +2808,10 @@
     "/admin/feedback/reply": {
       "post": {
         "tags": [
-          "æè§åé¦ç®¡ç"
+          "意见反馈管理"
         ],
         "summary": "Admin Reply Feedback",
-        "description": "ç®¡çååå¤åé¦ï¼åå¤åå®¹ + ç¶æï¼é»è®¤ç½® RESOLVEDï¼èå¨åé FEEDBACK ç«åä¿¡ï¼",
+        "description": "管理员回复反馈（回复内容 + 状态，默认置 RESOLVED；联动发送 FEEDBACK 站内信）",
         "operationId": "admin_reply_feedback_api_admin_feedback_reply_post",
         "parameters": [
           {
@@ -2868,10 +2868,10 @@
     "/admin/feedback/status": {
       "post": {
         "tags": [
-          "æè§åé¦ç®¡ç"
+          "意见反馈管理"
         ],
         "summary": "Admin Update Feedback Status",
-        "description": "ç®¡çåä»æ¹ç¶æï¼ä¸åå¤ï¼",
+        "description": "管理员仅改状态（不回复）",
         "operationId": "admin_update_feedback_status_api_admin_feedback_status_post",
         "parameters": [
           {
@@ -2928,10 +2928,10 @@
     "/message/page": {
       "get": {
         "tags": [
-          "ç«åä¿¡"
+          "站内信"
         ],
         "summary": "Page Message",
-        "description": "ç«åä¿¡åé¡µï¼æªè¯»ä¼å + createTime ååºï¼type å¯éç­éï¼ä»æ¬äººï¼",
+        "description": "站内信分页（未读优先 + createTime 倒序，type 可选筛选，仅本人）",
         "operationId": "page_message_api_message_page_get",
         "parameters": [
           {
@@ -2941,11 +2941,11 @@
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "description": "å½åé¡µç ",
+              "description": "当前页码",
               "default": 1,
               "title": "Current"
             },
-            "description": "å½åé¡µç "
+            "description": "当前页码"
           },
           {
             "name": "pageSize",
@@ -2955,11 +2955,11 @@
               "type": "integer",
               "maximum": 100,
               "minimum": 1,
-              "description": "æ¯é¡µå¤§å°",
+              "description": "每页大小",
               "default": 10,
               "title": "Pagesize"
             },
-            "description": "æ¯é¡µå¤§å°"
+            "description": "每页大小"
           },
           {
             "name": "type",
@@ -2974,10 +2974,10 @@
                   "type": "null"
                 }
               ],
-              "description": "æ¶æ¯ç±»åç­éï¼SYSTEM/FEEDBACK/VIP/POINTS",
+              "description": "消息类型筛选：SYSTEM/FEEDBACK/VIP/POINTS",
               "title": "Type"
             },
-            "description": "æ¶æ¯ç±»åç­éï¼SYSTEM/FEEDBACK/VIP/POINTS"
+            "description": "消息类型筛选：SYSTEM/FEEDBACK/VIP/POINTS"
           },
           {
             "name": "SESSION",
@@ -3023,10 +3023,10 @@
     "/message/unread-count": {
       "get": {
         "tags": [
-          "ç«åä¿¡"
+          "站内信"
         ],
         "summary": "Get Unread Count",
-        "description": "æªè¯»ç«åä¿¡æ°ï¼DB count å®æ¶æ¥è¯¢ï¼ä¾å¤´é¨ééè§æ è½®è¯¢ï¼",
+        "description": "未读站内信数（DB count 实时查询，供头部铃铛角标轮询）",
         "operationId": "get_unread_count_api_message_unread_count_get",
         "parameters": [
           {
@@ -3073,10 +3073,10 @@
     "/message/{message_id}": {
       "get": {
         "tags": [
-          "ç«åä¿¡"
+          "站内信"
         ],
         "summary": "Get Message Detail",
-        "description": "ç«åä¿¡è¯¦æï¼ä»æ¬äººï¼å½å±æ ¡éªï¼",
+        "description": "站内信详情（仅本人，归属校验）",
         "operationId": "get_message_detail_api_message__message_id__get",
         "parameters": [
           {
@@ -3132,10 +3132,10 @@
     "/message/read": {
       "post": {
         "tags": [
-          "ç«åä¿¡"
+          "站内信"
         ],
         "summary": "Mark Message Read",
-        "description": "æ è®°å·²è¯»ï¼{ids: []} æ {all: true}ï¼ä»æ¬äººï¼",
+        "description": "标记已读（{ids: []} 或 {all: true}，仅本人）",
         "operationId": "mark_message_read_api_message_read_post",
         "parameters": [
           {
@@ -3192,10 +3192,10 @@
     "/message/delete": {
       "post": {
         "tags": [
-          "ç«åä¿¡"
+          "站内信"
         ],
         "summary": "Delete Message",
-        "description": "å é¤ç«åä¿¡ï¼è½¯å ï¼ä»æ¬äººï¼",
+        "description": "删除站内信（软删，仅本人）",
         "operationId": "delete_message_api_message_delete_post",
         "parameters": [
           {
@@ -3252,10 +3252,10 @@
     "/admin/message/send": {
       "post": {
         "tags": [
-          "ç«åä¿¡ç®¡ç"
+          "站内信管理"
         ],
         "summary": "Admin Send Message",
-        "description": "ç®¡çååéç«åä¿¡ï¼targetType: SINGLE/BATCH/ALL + userIds[]ï¼åæ¶å±å¼ï¼",
+        "description": "管理员发送站内信（targetType: SINGLE/BATCH/ALL + userIds[]，写时展开）",
         "operationId": "admin_send_message_api_admin_message_send_post",
         "parameters": [
           {
@@ -3312,10 +3312,10 @@
     "/admin/message/page": {
       "get": {
         "tags": [
-          "ç«åä¿¡ç®¡ç"
+          "站内信管理"
         ],
         "summary": "Admin Page Message",
-        "description": "ç®¡çç«¯å·²åæ¶æ¯åé¡µï¼senderId éç©º = ç®¡çåä¸»å¨åä¿¡ï¼",
+        "description": "管理端已发消息分页（senderId 非空 = 管理员主动发信）",
         "operationId": "admin_page_message_api_admin_message_page_get",
         "parameters": [
           {
@@ -3325,11 +3325,11 @@
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "description": "å½åé¡µç ",
+              "description": "当前页码",
               "default": 1,
               "title": "Current"
             },
-            "description": "å½åé¡µç "
+            "description": "当前页码"
           },
           {
             "name": "pageSize",
@@ -3339,11 +3339,11 @@
               "type": "integer",
               "maximum": 100,
               "minimum": 1,
-              "description": "æ¯é¡µå¤§å°",
+              "description": "每页大小",
               "default": 10,
               "title": "Pagesize"
             },
-            "description": "æ¯é¡µå¤§å°"
+            "description": "每页大小"
           },
           {
             "name": "type",
@@ -3358,10 +3358,10 @@
                   "type": "null"
                 }
               ],
-              "description": "æ¶æ¯ç±»åç­é",
+              "description": "消息类型筛选",
               "title": "Type"
             },
-            "description": "æ¶æ¯ç±»åç­é"
+            "description": "消息类型筛选"
           },
           {
             "name": "keyword",
@@ -3376,10 +3376,10 @@
                   "type": "null"
                 }
               ],
-              "description": "å³é®å­ï¼å¹éæ é¢/åå®¹ï¼",
+              "description": "关键字（匹配标题/内容）",
               "title": "Keyword"
             },
-            "description": "å³é®å­ï¼å¹éæ é¢/åå®¹ï¼"
+            "description": "关键字（匹配标题/内容）"
           },
           {
             "name": "SESSION",
@@ -3530,7 +3530,7 @@
               }
             ],
             "title": "Useraccount",
-            "description": "æäº¤ç¨æ·è´¦å·"
+            "description": "提交用户账号"
           },
           "userName": {
             "anyOf": [
@@ -3542,7 +3542,7 @@
               }
             ],
             "title": "Username",
-            "description": "æäº¤ç¨æ·æµç§°"
+            "description": "提交用户昵称"
           }
         },
         "type": "object",
@@ -3555,14 +3555,14 @@
           "createTime"
         ],
         "title": "AdminFeedbackVO",
-        "description": "ç®¡çç«¯åé¦è§å¾å¯¹è±¡ï¼å¨ FeedbackVO åºç¡ä¸éå¸¦æäº¤ç¨æ·ä¿¡æ¯ï¼ã\n\nAttributes:\n    user_account: æäº¤ç¨æ·è´¦å·ã\n    user_name: æäº¤ç¨æ·æµç§°ã"
+        "description": "管理端反馈视图对象（在 FeedbackVO 基础上附带提交用户信息）。\n\nAttributes:\n    user_account: 提交用户账号。\n    user_name: 提交用户昵称。"
       },
       "AdminMessageSendRequest": {
         "properties": {
           "targetType": {
             "type": "string",
             "title": "Targettype",
-            "description": "æ¶ä»¶äººç±»åï¼SINGLE/BATCH/ALL"
+            "description": "收件人类型：SINGLE/BATCH/ALL"
           },
           "userIds": {
             "anyOf": [
@@ -3577,12 +3577,12 @@
               }
             ],
             "title": "Userids",
-            "description": "ç®æ ç¨æ·IDåè¡¨ï¼ALL æ¶å¿½ç¥ï¼"
+            "description": "目标用户ID列表（ALL 时忽略）"
           },
           "type": {
             "type": "string",
             "title": "Type",
-            "description": "æ¶æ¯ç±»åï¼SYSTEM/FEEDBACK/VIP/POINTS",
+            "description": "消息类型：SYSTEM/FEEDBACK/VIP/POINTS",
             "default": "SYSTEM"
           },
           "title": {
@@ -3590,7 +3590,7 @@
             "maxLength": 200,
             "minLength": 1,
             "title": "Title",
-            "description": "æ é¢"
+            "description": "标题"
           },
           "content": {
             "anyOf": [
@@ -3603,7 +3603,7 @@
               }
             ],
             "title": "Content",
-            "description": "åå®¹"
+            "description": "内容"
           },
           "link": {
             "anyOf": [
@@ -3616,7 +3616,7 @@
               }
             ],
             "title": "Link",
-            "description": "è·³è½¬é¾æ¥ï¼åç«¯è·¯ç±ï¼"
+            "description": "跳转链接（前端路由）"
           }
         },
         "type": "object",
@@ -3625,24 +3625,24 @@
           "title"
         ],
         "title": "AdminMessageSendRequest",
-        "description": "ç®¡çååéç«åä¿¡è¯·æ±ï¼SINGLE/BATCH/ALL åæ¶å±å¼ï¼ã\n\nAttributes:\n    target_type: æ¶ä»¶äººç±»åï¼SINGLE/BATCH/ALLï¼ã\n    user_ids: ç®æ ç¨æ· ID åè¡¨ï¼SINGLE ä¼  1 ä¸ªãBATCH ä¼ å¤ä¸ªï¼ALL æ¶å¿½ç¥ï¼ã\n    type: æ¶æ¯ç±»åï¼é»è®¤ SYSTEMï¼ã\n    title: æ é¢ï¼1~200 å­ï¼ã\n    content: åå®¹ã\n    link: è·³è½¬é¾æ¥ï¼å¯éï¼ã"
+        "description": "管理员发送站内信请求（SINGLE/BATCH/ALL 写时展开）。\n\nAttributes:\n    target_type: 收件人类型（SINGLE/BATCH/ALL）。\n    user_ids: 目标用户 ID 列表（SINGLE 传 1 个、BATCH 传多个；ALL 时忽略）。\n    type: 消息类型（默认 SYSTEM）。\n    title: 标题（1~200 字）。\n    content: 内容。\n    link: 跳转链接（可选）。"
       },
       "AdminPointsAdjustRequest": {
         "properties": {
           "userId": {
             "type": "integer",
             "title": "Userid",
-            "description": "ç®æ ç¨æ· ID"
+            "description": "目标用户 ID"
           },
           "amount": {
             "type": "integer",
             "title": "Amount",
-            "description": "è°æ´ç§¯åï¼æ­£=èµ éï¼è´=æ£åï¼"
+            "description": "调整积分（正=赠送，负=扣减）"
           },
           "description": {
             "type": "string",
             "title": "Description",
-            "description": "è°æ´è¯´æ"
+            "description": "调整说明"
           }
         },
         "type": "object",
@@ -3652,7 +3652,7 @@
           "description"
         ],
         "title": "AdminPointsAdjustRequest",
-        "description": "ç®¡çåæå·¥è°æ´ç¨æ·ç§¯åè¯·æ±ã\n\nAttributes:\n    user_id: ç®æ ç¨æ· IDã\n    amount: è°æ´ç§¯åï¼æ­£=èµ éï¼è´=æ£åï¼ä¸åè®¸ 0ï¼ã\n    description: è°æ´è¯´æï¼å±ç¤ºå¨æµæ°´æè¿°ï¼ã"
+        "description": "管理员手工调整用户积分请求。\n\nAttributes:\n    user_id: 目标用户 ID。\n    amount: 调整积分（正=赠送，负=扣减，不允许 0）。\n    description: 调整说明（展示在流水描述）。"
       },
       "AdminPointsTransactionsRequest": {
         "properties": {
@@ -3660,7 +3660,7 @@
             "type": "integer",
             "minimum": 1.0,
             "title": "Current",
-            "description": "å½åé¡µç ",
+            "description": "当前页码",
             "default": 1
           },
           "pageSize": {
@@ -3668,7 +3668,7 @@
             "maximum": 100.0,
             "minimum": 1.0,
             "title": "Pagesize",
-            "description": "æ¯é¡µå¤§å°",
+            "description": "每页大小",
             "default": 10
           },
           "sortField": {
@@ -3681,7 +3681,7 @@
               }
             ],
             "title": "Sortfield",
-            "description": "æåºå­æ®µ"
+            "description": "排序字段"
           },
           "sortOrder": {
             "anyOf": [
@@ -3693,7 +3693,7 @@
               }
             ],
             "title": "Sortorder",
-            "description": "æåºé¡ºåº",
+            "description": "排序顺序",
             "default": "descend"
           },
           "type": {
@@ -3706,7 +3706,7 @@
               }
             ],
             "title": "Type",
-            "description": "æµæ°´ç±»åç­é"
+            "description": "流水类型筛选"
           },
           "startTime": {
             "anyOf": [
@@ -3718,7 +3718,7 @@
               }
             ],
             "title": "Starttime",
-            "description": "èµ·å§æ¶é´ï¼å«ï¼"
+            "description": "起始时间（含）"
           },
           "endTime": {
             "anyOf": [
@@ -3730,7 +3730,7 @@
               }
             ],
             "title": "Endtime",
-            "description": "ç»ææ¶é´ï¼å«ï¼"
+            "description": "结束时间（含）"
           },
           "minAmount": {
             "anyOf": [
@@ -3742,7 +3742,7 @@
               }
             ],
             "title": "Minamount",
-            "description": "æå°åå¨ç§¯å"
+            "description": "最小变动积分"
           },
           "maxAmount": {
             "anyOf": [
@@ -3754,12 +3754,12 @@
               }
             ],
             "title": "Maxamount",
-            "description": "æå¤§åå¨ç§¯å"
+            "description": "最大变动积分"
           },
           "userId": {
             "type": "integer",
             "title": "Userid",
-            "description": "ç®æ ç¨æ· ID"
+            "description": "目标用户 ID"
           }
         },
         "type": "object",
@@ -3767,7 +3767,7 @@
           "userId"
         ],
         "title": "AdminPointsTransactionsRequest",
-        "description": "ç®¡çç«¯æç¨æ·æ¥è¯¢ç§¯åæµæ°´è¯·æ±ã\n\nAttributes:\n    user_id: ç®æ ç¨æ· IDï¼å¿å¡«ï¼ã"
+        "description": "管理端按用户查询积分流水请求。\n\nAttributes:\n    user_id: 目标用户 ID（必填）。"
       },
       "AdminUsageQueryRequest": {
         "properties": {
@@ -3775,7 +3775,7 @@
             "type": "integer",
             "minimum": 1.0,
             "title": "Current",
-            "description": "å½åé¡µç ",
+            "description": "当前页码",
             "default": 1
           },
           "pageSize": {
@@ -3783,7 +3783,7 @@
             "maximum": 100.0,
             "minimum": 1.0,
             "title": "Pagesize",
-            "description": "æ¯é¡µå¤§å°",
+            "description": "每页大小",
             "default": 10
           },
           "sortField": {
@@ -3796,7 +3796,7 @@
               }
             ],
             "title": "Sortfield",
-            "description": "æåºå­æ®µ"
+            "description": "排序字段"
           },
           "sortOrder": {
             "anyOf": [
@@ -3808,7 +3808,7 @@
               }
             ],
             "title": "Sortorder",
-            "description": "æåºé¡ºåº",
+            "description": "排序顺序",
             "default": "descend"
           },
           "userId": {
@@ -3821,7 +3821,7 @@
               }
             ],
             "title": "Userid",
-            "description": "æç¨æ·ç­é"
+            "description": "按用户筛选"
           },
           "category": {
             "anyOf": [
@@ -3833,7 +3833,7 @@
               }
             ],
             "title": "Category",
-            "description": "ç±»å«ï¼LLM / IMAGE"
+            "description": "类别：LLM / IMAGE"
           },
           "model": {
             "anyOf": [
@@ -3845,7 +3845,7 @@
               }
             ],
             "title": "Model",
-            "description": "æ¨¡åå"
+            "description": "模型名"
           },
           "startTime": {
             "anyOf": [
@@ -3857,7 +3857,7 @@
               }
             ],
             "title": "Starttime",
-            "description": "èµ·å§æ¶é´ï¼å«ï¼"
+            "description": "起始时间（含）"
           },
           "endTime": {
             "anyOf": [
@@ -3869,12 +3869,12 @@
               }
             ],
             "title": "Endtime",
-            "description": "ç»ææ¶é´ï¼å«ï¼"
+            "description": "结束时间（含）"
           }
         },
         "type": "object",
         "title": "AdminUsageQueryRequest",
-        "description": "ç®¡çç«¯æ¨¡åç¨éæ¥è¯¢è¯·æ±ã\n\nAttributes:\n    user_id: æç¨æ·ç­éï¼å¯éï¼ã\n    category: æç±»å«ç­éï¼LLM / IMAGEï¼å¯éï¼ã\n    model: ææ¨¡åç­éï¼å¯éï¼ã\n    start_time: èµ·å§æ¶é´ï¼å«ï¼ã\n    end_time: ç»ææ¶é´ï¼å«ï¼ã"
+        "description": "管理端模型用量查询请求。\n\nAttributes:\n    user_id: 按用户筛选（可选）。\n    category: 按类别筛选（LLM / IMAGE，可选）。\n    model: 按模型筛选（可选）。\n    start_time: 起始时间（含）。\n    end_time: 结束时间（含）。"
       },
       "AgentExecutionStatsVO": {
         "properties": {
@@ -3903,7 +3903,7 @@
               }
             ],
             "title": "Model",
-            "description": "æ¨¡åå"
+            "description": "模型名"
           },
           "totalDurationMs": {
             "type": "integer",
@@ -3940,7 +3940,7 @@
           "overallStatus"
         ],
         "title": "AgentExecutionStatsVO",
-        "description": "ä»»å¡æ§è¡ç»è®¡"
+        "description": "任务执行统计"
       },
       "AgentLogVO": {
         "properties": {
@@ -3973,7 +3973,7 @@
               }
             ],
             "title": "Model",
-            "description": "æ¨¡åå"
+            "description": "模型名"
           },
           "agentName": {
             "type": "string",
@@ -4073,7 +4073,7 @@
           "updateTime"
         ],
         "title": "AgentLogVO",
-        "description": "æºè½ä½æ§è¡æ¥å¿è§å¾å¯¹è±¡ï¼åä¸ªæºè½ä½ï¼"
+        "description": "智能体执行日志视图对象（单个智能体）"
       },
       "ArticleAiModifyOutlineRequest": {
         "properties": {
@@ -4081,12 +4081,12 @@
             "type": "string",
             "minLength": 1,
             "title": "Taskid",
-            "description": "ä»»å¡ ID"
+            "description": "任务 ID"
           },
           "modifySuggestion": {
             "type": "string",
             "title": "Modifysuggestion",
-            "description": "ç¨æ·çä¿®æ¹å»ºè®®"
+            "description": "用户的修改建议"
           }
         },
         "type": "object",
@@ -4095,7 +4095,7 @@
           "modifySuggestion"
         ],
         "title": "ArticleAiModifyOutlineRequest",
-        "description": "AI ä¿®æ¹å¤§çº²è¯·æ±ï¼ä¼ ä¿®æ¹å»ºè®®"
+        "description": "AI 修改大纲请求，传修改建议"
       },
       "ArticleConfirmOutlineRequest": {
         "properties": {
@@ -4103,7 +4103,7 @@
             "type": "string",
             "minLength": 1,
             "title": "Taskid",
-            "description": "ä»»å¡ ID"
+            "description": "任务 ID"
           },
           "outline": {
             "items": {
@@ -4111,7 +4111,7 @@
             },
             "type": "array",
             "title": "Outline",
-            "description": "ç¨æ·éæ©çå¤§çº²"
+            "description": "用户选择的大纲"
           }
         },
         "type": "object",
@@ -4120,7 +4120,7 @@
           "outline"
         ],
         "title": "ArticleConfirmOutlineRequest",
-        "description": "ç¡®è®¤å¤§çº²è¯·æ±ï¼ä¼ ç¨æ·ç¼è¾åçå®æ´å¤§çº²"
+        "description": "确认大纲请求，传用户编辑后的完整大纲"
       },
       "ArticleConfirmTitleRequest": {
         "properties": {
@@ -4128,19 +4128,19 @@
             "type": "string",
             "minLength": 1,
             "title": "Taskid",
-            "description": "ä»»å¡ ID"
+            "description": "任务 ID"
           },
           "selectedMainTitle": {
             "type": "string",
             "minLength": 1,
             "title": "Selectedmaintitle",
-            "description": "ç¨æ·éæ©çä¸»æ é¢"
+            "description": "用户选择的主标题"
           },
           "selectedSubTitle": {
             "type": "string",
             "minLength": 1,
             "title": "Selectedsubtitle",
-            "description": "ç¨æ·éæ©çå¯æ é¢"
+            "description": "用户选择的副标题"
           },
           "userDescription": {
             "anyOf": [
@@ -4152,7 +4152,7 @@
               }
             ],
             "title": "Userdescription",
-            "description": "ç¨æ·è¯­è¨æè¿°"
+            "description": "用户语言描述"
           }
         },
         "type": "object",
@@ -4162,7 +4162,7 @@
           "selectedSubTitle"
         ],
         "title": "ArticleConfirmTitleRequest",
-        "description": "ç¡®è®¤æ é¢è¯·æ±"
+        "description": "确认标题请求"
       },
       "ArticleCreateRequest": {
         "properties": {
@@ -4170,7 +4170,7 @@
             "type": "string",
             "minLength": 1,
             "title": "Topic",
-            "description": "éé¢"
+            "description": "选题"
           },
           "style": {
             "anyOf": [
@@ -4182,7 +4182,7 @@
               }
             ],
             "title": "Style",
-            "description": "æç« é£æ ¼ï¼å·²å¼ç¨ï¼ä¿çå¼å®¹åç«¯æ§è¯·æ±ï¼"
+            "description": "文章风格（已弃用，保留兼容前端旧请求）"
           },
           "genre": {
             "anyOf": [
@@ -4194,7 +4194,7 @@
               }
             ],
             "title": "Genre",
-            "description": "é¢æï¼news/knowledge/product/tutorial/opinion/story"
+            "description": "题材：news/knowledge/product/tutorial/opinion/story"
           },
           "languageStyle": {
             "anyOf": [
@@ -4206,7 +4206,7 @@
               }
             ],
             "title": "Languagestyle",
-            "description": "è¯­è¨é£æ ¼ï¼professional/accessible/humorous/literary/formal"
+            "description": "语言风格：professional/accessible/humorous/literary/formal"
           },
           "wordCount": {
             "anyOf": [
@@ -4220,7 +4220,7 @@
               }
             ],
             "title": "Wordcount",
-            "description": "ç®æ å­æ°ï¼<=10000ï¼ä¸ºç©ºèµ°é»è®¤ 2000ï¼"
+            "description": "目标字数（<=10000，为空走默认 2000）"
           },
           "enabledImageMethods": {
             "anyOf": [
@@ -4235,7 +4235,7 @@
               }
             ],
             "title": "Enabledimagemethods",
-            "description": "åè®¸ä½¿ç¨çéå¾æ¹å¼åè¡¨ï¼ä¸ºç©ºè¡¨ç¤ºå¯ä»¥ä½¿ç¨å¨é¨æ¹å¼ï¼"
+            "description": "允许使用的配图方式列表（为空表示可以使用全部方式）"
           }
         },
         "type": "object",
@@ -4243,7 +4243,7 @@
           "topic"
         ],
         "title": "ArticleCreateRequest",
-        "description": "åå»ºæç« è¯·æ±"
+        "description": "创建文章请求"
       },
       "ArticleQueryRequest": {
         "properties": {
@@ -4251,7 +4251,7 @@
             "type": "integer",
             "minimum": 1.0,
             "title": "Current",
-            "description": "å½åé¡µç ",
+            "description": "当前页码",
             "default": 1
           },
           "pageSize": {
@@ -4259,7 +4259,7 @@
             "maximum": 100.0,
             "minimum": 1.0,
             "title": "Pagesize",
-            "description": "æ¯é¡µå¤§å°",
+            "description": "每页大小",
             "default": 10
           },
           "sortField": {
@@ -4272,7 +4272,7 @@
               }
             ],
             "title": "Sortfield",
-            "description": "æåºå­æ®µ"
+            "description": "排序字段"
           },
           "sortOrder": {
             "anyOf": [
@@ -4284,7 +4284,7 @@
               }
             ],
             "title": "Sortorder",
-            "description": "æåºé¡ºåº",
+            "description": "排序顺序",
             "default": "descend"
           },
           "id": {
@@ -4297,7 +4297,7 @@
               }
             ],
             "title": "Id",
-            "description": "æç«  ID"
+            "description": "文章 ID"
           },
           "taskId": {
             "anyOf": [
@@ -4309,7 +4309,7 @@
               }
             ],
             "title": "Taskid",
-            "description": "ä»»å¡ ID"
+            "description": "任务 ID"
           },
           "userId": {
             "anyOf": [
@@ -4321,7 +4321,7 @@
               }
             ],
             "title": "Userid",
-            "description": "ç¨æ· ID"
+            "description": "用户 ID"
           },
           "topic": {
             "anyOf": [
@@ -4333,7 +4333,7 @@
               }
             ],
             "title": "Topic",
-            "description": "éé¢"
+            "description": "选题"
           },
           "status": {
             "anyOf": [
@@ -4345,7 +4345,7 @@
               }
             ],
             "title": "Status",
-            "description": "ç¶æï¼åç¶æï¼ä¸ statuses äºéä¸ï¼"
+            "description": "状态（单状态，与 statuses 二选一）"
           },
           "statuses": {
             "anyOf": [
@@ -4360,12 +4360,12 @@
               }
             ],
             "title": "Statuses",
-            "description": "ç¶æåè¡¨ï¼å¤ç¶æç­éï¼ä¾å¦âè¿è¡ä¸­â=è¿æ»¤ PENDING+PROCESSINGï¼ä¸ status äºéä¸ï¼"
+            "description": "状态列表（多状态筛选，例如“进行中”=过滤 PENDING+PROCESSING，与 status 二选一）"
           }
         },
         "type": "object",
         "title": "ArticleQueryRequest",
-        "description": "æç« æ¥è¯¢è¯·æ±"
+        "description": "文章查询请求"
       },
       "ArticleVO": {
         "properties": {
@@ -4519,7 +4519,7 @@
                 "type": "null"
               }
             ],
-            "description": "ä¿¡æ¯ééç»æï¼ç»æåï¼"
+            "description": "信息采集结果（结构化）"
           },
           "coverImage": {
             "anyOf": [
@@ -4601,14 +4601,14 @@
           "updateTime"
         ],
         "title": "ArticleVO",
-        "description": "æç« è§å¾å¯¹è±¡"
+        "description": "文章视图对象"
       },
       "BaseResponse_AdminFeedbackVO_": {
         "properties": {
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -4620,12 +4620,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -4637,7 +4637,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -4649,12 +4649,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -4666,7 +4666,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -4678,12 +4678,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -4695,7 +4695,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -4707,12 +4707,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -4724,7 +4724,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -4736,12 +4736,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -4753,7 +4753,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -4769,12 +4769,12 @@
               }
             ],
             "title": "Data",
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -4786,7 +4786,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -4802,12 +4802,12 @@
               }
             ],
             "title": "Data",
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -4819,7 +4819,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -4831,12 +4831,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -4848,7 +4848,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -4860,12 +4860,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -4877,7 +4877,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -4889,12 +4889,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -4906,18 +4906,18 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
             "type": "null",
             "title": "Data",
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -4929,7 +4929,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -4941,12 +4941,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -4958,7 +4958,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -4970,12 +4970,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -4987,7 +4987,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -4999,12 +4999,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -5016,7 +5016,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -5028,12 +5028,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -5045,7 +5045,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -5057,12 +5057,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -5074,7 +5074,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -5086,12 +5086,12 @@
                 "type": "null"
               }
             ],
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -5103,7 +5103,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -5116,12 +5116,12 @@
               }
             ],
             "title": "Data",
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -5133,7 +5133,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -5146,12 +5146,12 @@
               }
             ],
             "title": "Data",
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -5163,7 +5163,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -5176,12 +5176,12 @@
               }
             ],
             "title": "Data",
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -5193,7 +5193,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -5209,12 +5209,12 @@
               }
             ],
             "title": "Data",
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -5226,7 +5226,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -5242,12 +5242,12 @@
               }
             ],
             "title": "Data",
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -5259,7 +5259,7 @@
           "code": {
             "type": "integer",
             "title": "Code",
-            "description": "ç¶æç ",
+            "description": "状态码",
             "default": 0
           },
           "data": {
@@ -5272,12 +5272,12 @@
               }
             ],
             "title": "Data",
-            "description": "ååºæ°æ®"
+            "description": "响应数据"
           },
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "ååºæ¶æ¯",
+            "description": "响应消息",
             "default": "ok"
           }
         },
@@ -5320,7 +5320,7 @@
             },
             "type": "array",
             "title": "Genres",
-            "description": "é¢æå¯éé¡¹"
+            "description": "题材可选项"
           },
           "languageStyles": {
             "items": {
@@ -5328,7 +5328,7 @@
             },
             "type": "array",
             "title": "Languagestyles",
-            "description": "è¯­è¨é£æ ¼å¯éé¡¹"
+            "description": "语言风格可选项"
           },
           "imageMethods": {
             "items": {
@@ -5336,7 +5336,7 @@
             },
             "type": "array",
             "title": "Imagemethods",
-            "description": "éå¾æ¹å¼å¯éé¡¹"
+            "description": "配图方式可选项"
           }
         },
         "type": "object",
@@ -5345,14 +5345,14 @@
           "imageMethods"
         ],
         "title": "CreationOptionsVO",
-        "description": "åä½é¡µå¯éé¡¹ï¼é¢æ / è¯­è¨é£æ ¼ / éå¾æ¹å¼"
+        "description": "创作页可选项：题材 / 语言风格 / 配图方式"
       },
       "DeleteRequest": {
         "properties": {
           "id": {
             "type": "integer",
             "title": "Id",
-            "description": "è¦å é¤ç ID"
+            "description": "要删除的 ID"
           }
         },
         "type": "object",
@@ -5360,14 +5360,14 @@
           "id"
         ],
         "title": "DeleteRequest",
-        "description": "å é¤è¯·æ±"
+        "description": "删除请求"
       },
       "FeedbackReplyRequest": {
         "properties": {
           "id": {
             "type": "integer",
             "title": "Id",
-            "description": "åé¦ ID"
+            "description": "反馈 ID"
           },
           "replyContent": {
             "anyOf": [
@@ -5380,12 +5380,12 @@
               }
             ],
             "title": "Replycontent",
-            "description": "åå¤åå®¹ï¼åç«¯é©¼å³° replyContentï¼"
+            "description": "回复内容（前端驼峰 replyContent）"
           },
           "status": {
             "type": "string",
             "title": "Status",
-            "description": "å¤çç¶æï¼é»è®¤ RESOLVEDï¼",
+            "description": "处理状态（默认 RESOLVED）",
             "default": "RESOLVED"
           }
         },
@@ -5394,19 +5394,19 @@
           "id"
         ],
         "title": "FeedbackReplyRequest",
-        "description": "ç®¡çååå¤åé¦è¯·æ±ï¼åå¤åå®¹ + ç¶æï¼é»è®¤ç½® RESOLVEDï¼ã\n\nAttributes:\n    id: åé¦ IDã\n    reply_content: åå¤åå®¹ï¼éå¡«ï¼ä¸å¡«åä»æ´æ°ç¶æï¼ã\n    status: å¤çç¶æï¼PENDING/PROCESSING/RESOLVEDï¼é»è®¤ RESOLVEDï¼ã"
+        "description": "管理员回复反馈请求（回复内容 + 状态，默认置 RESOLVED）。\n\nAttributes:\n    id: 反馈 ID。\n    reply_content: 回复内容（选填；不填则仅更新状态）。\n    status: 处理状态（PENDING/PROCESSING/RESOLVED，默认 RESOLVED）。"
       },
       "FeedbackStatusRequest": {
         "properties": {
           "id": {
             "type": "integer",
             "title": "Id",
-            "description": "åé¦ ID"
+            "description": "反馈 ID"
           },
           "status": {
             "type": "string",
             "title": "Status",
-            "description": "å¤çç¶æï¼PENDING/PROCESSING/RESOLVED"
+            "description": "处理状态：PENDING/PROCESSING/RESOLVED"
           }
         },
         "type": "object",
@@ -5415,21 +5415,21 @@
           "status"
         ],
         "title": "FeedbackStatusRequest",
-        "description": "ç®¡çåä»æ¹ç¶æè¯·æ±ï¼ä¸åå¤ï¼ã\n\nAttributes:\n    id: åé¦ IDã\n    status: å¤çç¶æï¼PENDING/PROCESSING/RESOLVEDï¼ã"
+        "description": "管理员仅改状态请求（不回复）。\n\nAttributes:\n    id: 反馈 ID。\n    status: 处理状态（PENDING/PROCESSING/RESOLVED）。"
       },
       "FeedbackSubmitRequest": {
         "properties": {
           "type": {
             "type": "string",
             "title": "Type",
-            "description": "åé¦ç±»åï¼BUG/FEATURE/COMPLAINT/OTHER"
+            "description": "反馈类型：BUG/FEATURE/COMPLAINT/OTHER"
           },
           "content": {
             "type": "string",
             "maxLength": 2000,
             "minLength": 1,
             "title": "Content",
-            "description": "åé¦åå®¹ï¼1~2000å­ï¼"
+            "description": "反馈内容（1~2000字）"
           },
           "contact": {
             "anyOf": [
@@ -5442,7 +5442,7 @@
               }
             ],
             "title": "Contact",
-            "description": "èç³»æ¹å¼ï¼çµè¯æé®ç®±ï¼"
+            "description": "联系方式（电话或邮箱）"
           },
           "imageUrls": {
             "anyOf": [
@@ -5458,7 +5458,7 @@
               }
             ],
             "title": "Imageurls",
-            "description": "æªå¾URLåè¡¨ï¼æå¤5å¼ ï¼"
+            "description": "截图URL列表（最多5张）"
           }
         },
         "type": "object",
@@ -5467,7 +5467,7 @@
           "content"
         ],
         "title": "FeedbackSubmitRequest",
-        "description": "æäº¤æè§åé¦è¯·æ±ã\n\nAttributes:\n    type: åé¦ç±»åï¼BUG/FEATURE/COMPLAINT/OTHERï¼ã\n    content: åé¦åå®¹ï¼1~2000 å­ï¼ã\n    contact: èç³»æ¹å¼ï¼éå¡«ï¼çµè¯æé®ç®±ï¼â¤128 å­ï¼åç«¯æ­£åæ ¡éªï¼ã\n    image_urls: æªå¾ URL åè¡¨ï¼éå¡«ï¼æå¤ 5 å¼ ï¼ã"
+        "description": "提交意见反馈请求。\n\nAttributes:\n    type: 反馈类型（BUG/FEATURE/COMPLAINT/OTHER）。\n    content: 反馈内容（1~2000 字）。\n    contact: 联系方式（选填，电话或邮箱，≤128 字，后端正则校验）。\n    image_urls: 截图 URL 列表（选填，最多 5 张）。"
       },
       "FeedbackVO": {
         "properties": {
@@ -5575,7 +5575,7 @@
           "createTime"
         ],
         "title": "FeedbackVO",
-        "description": "åé¦è§å¾å¯¹è±¡ã\n\nAttributes:\n    id: åé¦ IDã\n    user_id: æäº¤ç¨æ· IDã\n    type: åé¦ç±»åã\n    content: åé¦åå®¹ã\n    contact: èç³»æ¹å¼ã\n    image_urls: æªå¾ URL åè¡¨ã\n    status: å¤çç¶æã\n    reply_content: ç®¡çååå¤åå®¹ã\n    reply_user_id: åå¤ç®¡çå IDã\n    reply_time: åå¤æ¶é´ã\n    create_time: åå»ºæ¶é´ã\n    update_time: æ´æ°æ¶é´ã"
+        "description": "反馈视图对象。\n\nAttributes:\n    id: 反馈 ID。\n    user_id: 提交用户 ID。\n    type: 反馈类型。\n    content: 反馈内容。\n    contact: 联系方式。\n    image_urls: 截图 URL 列表。\n    status: 处理状态。\n    reply_content: 管理员回复内容。\n    reply_user_id: 回复管理员 ID。\n    reply_time: 回复时间。\n    create_time: 创建时间。\n    update_time: 更新时间。"
       },
       "HTTPValidationError": {
         "properties": {
@@ -5647,7 +5647,7 @@
               }
             ],
             "title": "Quota",
-            "description": "å©ä½éé¢"
+            "description": "剩余配额"
           },
           "points": {
             "anyOf": [
@@ -5659,7 +5659,7 @@
               }
             ],
             "title": "Points",
-            "description": "ç§¯åä½é¢"
+            "description": "积分余额"
           },
           "pointsVersion": {
             "anyOf": [
@@ -5671,7 +5671,7 @@
               }
             ],
             "title": "Pointsversion",
-            "description": "ç§¯åè´¦æ·ä¹è§éçæ¬ï¼åç«¯å®æ¶å·æ°ä½é¢ç¨ï¼"
+            "description": "积分账户乐观锁版本（前端实时刷新余额用）"
           },
           "activeTaskCount": {
             "anyOf": [
@@ -5683,7 +5683,7 @@
               }
             ],
             "title": "Activetaskcount",
-            "description": "è¿è¡ä¸­åä½ä»»å¡æ°ï¼å«æèµ·ï¼å¹¶åéå¶è®¡æ°ï¼"
+            "description": "进行中创作任务数（含挂起，并发限制计数）"
           },
           "vipTime": {
             "anyOf": [
@@ -5695,7 +5695,7 @@
               }
             ],
             "title": "Viptime",
-            "description": "æä¸ºä¼åæ¶é´"
+            "description": "成为会员时间"
           },
           "createTime": {
             "type": "string",
@@ -5715,7 +5715,7 @@
           "updateTime"
         ],
         "title": "LoginUserVO",
-        "description": "ç»å½ç¨æ·è§å¾å¯¹è±¡"
+        "description": "登录用户视图对象"
       },
       "MessageDeleteRequest": {
         "properties": {
@@ -5726,7 +5726,7 @@
             "type": "array",
             "minItems": 1,
             "title": "Ids",
-            "description": "è¦å é¤çæ¶æ¯ ID åè¡¨"
+            "description": "要删除的消息 ID 列表"
           }
         },
         "type": "object",
@@ -5734,7 +5734,7 @@
           "ids"
         ],
         "title": "MessageDeleteRequest",
-        "description": "å é¤ç«åä¿¡è¯·æ±ï¼è½¯å ï¼ä»æ¬äººï¼ã\n\nAttributes:\n    ids: è¦å é¤çæ¶æ¯ ID åè¡¨ã"
+        "description": "删除站内信请求（软删，仅本人）。\n\nAttributes:\n    ids: 要删除的消息 ID 列表。"
       },
       "MessageReadRequest": {
         "properties": {
@@ -5751,31 +5751,31 @@
               }
             ],
             "title": "Ids",
-            "description": "è¦æ è®°å·²è¯»çæ¶æ¯ ID åè¡¨"
+            "description": "要标记已读的消息 ID 列表"
           },
           "all": {
             "type": "boolean",
             "title": "All",
-            "description": "æ¯å¦å¨é¨æ è®°å·²è¯»",
+            "description": "是否全部标记已读",
             "default": false
           }
         },
         "type": "object",
         "title": "MessageReadRequest",
-        "description": "æ è®°å·²è¯»è¯·æ±ï¼åæ¡ ids æå¨é¨ allï¼ä»æ¬äººï¼ã\n\nAttributes:\n    ids: è¦æ è®°å·²è¯»çæ¶æ¯ ID åè¡¨ï¼all ä¸º true æ¶å¿½ç¥ï¼ã\n    all: æ¯å¦å¨é¨æ è®°å·²è¯»ã"
+        "description": "标记已读请求（单条 ids 或全部 all，仅本人）。\n\nAttributes:\n    ids: 要标记已读的消息 ID 列表（all 为 true 时忽略）。\n    all: 是否全部标记已读。"
       },
       "MessageUnreadCountVO": {
         "properties": {
           "count": {
             "type": "integer",
             "title": "Count",
-            "description": "æªè¯»æ¶æ¯æ°",
+            "description": "未读消息数",
             "default": 0
           }
         },
         "type": "object",
         "title": "MessageUnreadCountVO",
-        "description": "ç«åä¿¡æªè¯»æ°è§å¾å¯¹è±¡ã\n\nAttributes:\n    count: æªè¯»æ¶æ¯æ°ã"
+        "description": "站内信未读数视图对象。\n\nAttributes:\n    count: 未读消息数。"
       },
       "MessageVO": {
         "properties": {
@@ -5858,24 +5858,24 @@
           "createTime"
         ],
         "title": "MessageVO",
-        "description": "ç«åä¿¡è§å¾å¯¹è±¡ã\n\nAttributes:\n    id: æ¶æ¯ IDã\n    user_id: æ¶ä»¶ç¨æ· IDã\n    type: æ¶æ¯ç±»åã\n    title: æ é¢ã\n    content: åå®¹ã\n    link: è·³è½¬é¾æ¥ï¼åç«¯è·¯ç±ï¼ã\n    related_id: å³èä¸å¡ IDã\n    is_read: æ¯å¦å·²è¯»ã\n    read_time: éè¯»æ¶é´ã\n    create_time: åå»ºæ¶é´ã"
+        "description": "站内信视图对象。\n\nAttributes:\n    id: 消息 ID。\n    user_id: 收件用户 ID。\n    type: 消息类型。\n    title: 标题。\n    content: 内容。\n    link: 跳转链接（前端路由）。\n    related_id: 关联业务 ID。\n    is_read: 是否已读。\n    read_time: 阅读时间。\n    create_time: 创建时间。"
       },
       "ModelPricingSaveRequest": {
         "properties": {
           "category": {
             "type": "string",
             "title": "Category",
-            "description": "ç±»å«ï¼LLM / IMAGE"
+            "description": "类别：LLM / IMAGE"
           },
           "provider": {
             "type": "string",
             "title": "Provider",
-            "description": "æä¾å"
+            "description": "提供商"
           },
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "æ¨¡ååï¼LLM ç¨ * ééååºï¼"
+            "description": "模型名（LLM 用 * 通配兜底）"
           },
           "agentName": {
             "anyOf": [
@@ -5887,30 +5887,30 @@
               }
             ],
             "title": "Agentname",
-            "description": "æ Agent ç»åï¼ç©º=ä¸éï¼"
+            "description": "按 Agent 细分（空=不限）"
           },
           "inputPricePer1k": {
             "type": "number",
             "title": "Inputpriceper1K",
-            "description": "è¾å¥ token åä»·ï¼ç§¯å/1k tokenï¼",
+            "description": "输入 token 单价（积分/1k token）",
             "default": 0
           },
           "outputPricePer1k": {
             "type": "number",
             "title": "Outputpriceper1K",
-            "description": "è¾åº token åä»·ï¼ç§¯å/1k tokenï¼",
+            "description": "输出 token 单价（积分/1k token）",
             "default": 0
           },
           "pricePerImage": {
             "type": "number",
             "title": "Priceperimage",
-            "description": "æ¯å¼ å¾ç§¯åï¼IMAGEï¼",
+            "description": "每张图积分（IMAGE）",
             "default": 0
           },
           "enabled": {
             "type": "boolean",
             "title": "Enabled",
-            "description": "æ¯å¦å¯ç¨",
+            "description": "是否启用",
             "default": true
           }
         },
@@ -5921,29 +5921,29 @@
           "model"
         ],
         "title": "ModelPricingSaveRequest",
-        "description": "æ¨¡åè®¡ä»·æ°å¢è¯·æ±ã\n\nAttributes:\n    category: ç±»å«ï¼LLM / IMAGEï¼ã\n    provider: æä¾åã\n    model: æ¨¡ååï¼LLM ç¨ * ééååºï¼ã\n    agent_name: æ Agent ç»åï¼ç©º=ä¸éï¼ã\n    input_price_per_1k: è¾å¥ token åä»·ï¼ç§¯å/1k tokenï¼ã\n    output_price_per_1k: è¾åº token åä»·ï¼ç§¯å/1k tokenï¼ã\n    price_per_image: æ¯å¼ å¾ç§¯åï¼IMAGEï¼ã\n    enabled: æ¯å¦å¯ç¨ã"
+        "description": "模型计价新增请求。\n\nAttributes:\n    category: 类别（LLM / IMAGE）。\n    provider: 提供商。\n    model: 模型名（LLM 用 * 通配兜底）。\n    agent_name: 按 Agent 细分（空=不限）。\n    input_price_per_1k: 输入 token 单价（积分/1k token）。\n    output_price_per_1k: 输出 token 单价（积分/1k token）。\n    price_per_image: 每张图积分（IMAGE）。\n    enabled: 是否启用。"
       },
       "ModelPricingUpdateRequest": {
         "properties": {
           "id": {
             "type": "integer",
             "title": "Id",
-            "description": "è®¡ä»·éç½® ID"
+            "description": "计价配置 ID"
           },
           "category": {
             "type": "string",
             "title": "Category",
-            "description": "ç±»å«ï¼LLM / IMAGE"
+            "description": "类别：LLM / IMAGE"
           },
           "provider": {
             "type": "string",
             "title": "Provider",
-            "description": "æä¾å"
+            "description": "提供商"
           },
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "æ¨¡åå"
+            "description": "模型名"
           },
           "agentName": {
             "anyOf": [
@@ -5955,30 +5955,30 @@
               }
             ],
             "title": "Agentname",
-            "description": "æ Agent ç»åï¼ç©º=ä¸éï¼"
+            "description": "按 Agent 细分（空=不限）"
           },
           "inputPricePer1k": {
             "type": "number",
             "title": "Inputpriceper1K",
-            "description": "è¾å¥ token åä»·ï¼ç§¯å/1k tokenï¼",
+            "description": "输入 token 单价（积分/1k token）",
             "default": 0
           },
           "outputPricePer1k": {
             "type": "number",
             "title": "Outputpriceper1K",
-            "description": "è¾åº token åä»·ï¼ç§¯å/1k tokenï¼",
+            "description": "输出 token 单价（积分/1k token）",
             "default": 0
           },
           "pricePerImage": {
             "type": "number",
             "title": "Priceperimage",
-            "description": "æ¯å¼ å¾ç§¯åï¼IMAGEï¼",
+            "description": "每张图积分（IMAGE）",
             "default": 0
           },
           "enabled": {
             "type": "boolean",
             "title": "Enabled",
-            "description": "æ¯å¦å¯ç¨",
+            "description": "是否启用",
             "default": true
           }
         },
@@ -5990,7 +5990,7 @@
           "model"
         ],
         "title": "ModelPricingUpdateRequest",
-        "description": "æ¨¡åè®¡ä»·æ´æ°è¯·æ±ï¼æ id æ´æ°ï¼ã\n\nAttributes:\n    id: è®¡ä»·éç½® IDã\n    category: ç±»å«ï¼LLM / IMAGEï¼ã\n    provider: æä¾åã\n    model: æ¨¡ååã\n    agent_name: æ Agent ç»åï¼ç©º=ä¸éï¼ã\n    input_price_per_1k: è¾å¥ token åä»·ï¼ç§¯å/1k tokenï¼ã\n    output_price_per_1k: è¾åº token åä»·ï¼ç§¯å/1k tokenï¼ã\n    price_per_image: æ¯å¼ å¾ç§¯åï¼IMAGEï¼ã\n    enabled: æ¯å¦å¯ç¨ã"
+        "description": "模型计价更新请求（按 id 更新）。\n\nAttributes:\n    id: 计价配置 ID。\n    category: 类别（LLM / IMAGE）。\n    provider: 提供商。\n    model: 模型名。\n    agent_name: 按 Agent 细分（空=不限）。\n    input_price_per_1k: 输入 token 单价（积分/1k token）。\n    output_price_per_1k: 输出 token 单价（积分/1k token）。\n    price_per_image: 每张图积分（IMAGE）。\n    enabled: 是否启用。"
       },
       "ModelPricingVO": {
         "properties": {
@@ -6050,7 +6050,7 @@
           "model"
         ],
         "title": "ModelPricingVO",
-        "description": "æ¨¡åè®¡ä»·è§å¾å¯¹è±¡ã\n\nAttributes:\n    id: è®¡ä»·éç½® IDã\n    category: ç±»å«ï¼LLM / IMAGEï¼ã\n    provider: æä¾åã\n    model: æ¨¡ååã\n    agent_name: æ Agent ç»åï¼ç©º=ä¸éï¼ã\n    input_price_per_1k: è¾å¥ token åä»·ï¼ç§¯å/1k tokenï¼ã\n    output_price_per_1k: è¾åº token åä»·ï¼ç§¯å/1k tokenï¼ã\n    price_per_image: æ¯å¼ å¾ç§¯åã\n    enabled: æ¯å¦å¯ç¨ã"
+        "description": "模型计价视图对象。\n\nAttributes:\n    id: 计价配置 ID。\n    category: 类别（LLM / IMAGE）。\n    provider: 提供商。\n    model: 模型名。\n    agent_name: 按 Agent 细分（空=不限）。\n    input_price_per_1k: 输入 token 单价（积分/1k token）。\n    output_price_per_1k: 输出 token 单价（积分/1k token）。\n    price_per_image: 每张图积分。\n    enabled: 是否启用。"
       },
       "ModelUsageStatsVO": {
         "properties": {
@@ -6099,7 +6099,7 @@
           "model"
         ],
         "title": "ModelUsageStatsVO",
-        "description": "ç¨æ·åæ¨¡åç¨éèåè§å¾å¯¹è±¡ã\n\næ (category, provider, model) èåä¸ä¸ªç¨æ·å¨ææ¶é´èå´åçç¨éæ±æ»ã\n\nAttributes:\n    category: ç±»å«ï¼LLM / IMAGEï¼ã\n    provider: æä¾åã\n    model: æ¨¡ååã\n    call_count: æ»è°ç¨æ¬¡æ°ã\n    input_tokens: æ»è¾å¥ token æ°ã\n    output_tokens: æ»è¾åº token æ°ã\n    image_count: æ»çæå¾çå¼ æ°ã\n    cost_points: æ»æ¶èç§¯åã"
+        "description": "用户各模型用量聚合视图对象。\n\n按 (category, provider, model) 聚合一个用户在某时间范围内的用量汇总。\n\nAttributes:\n    category: 类别（LLM / IMAGE）。\n    provider: 提供商。\n    model: 模型名。\n    call_count: 总调用次数。\n    input_tokens: 总输入 token 数。\n    output_tokens: 总输出 token 数。\n    image_count: 总生成图片张数。\n    cost_points: 总消耗积分。"
       },
       "OptionItem": {
         "properties": {
@@ -6125,7 +6125,7 @@
           "vipOnly": {
             "type": "boolean",
             "title": "Viponly",
-            "description": "æ¯å¦ä¸ºä¼åä¸å±ï¼éå¾æ¹å¼ä¸­é«çº§é¡¹ä¸º Trueï¼",
+            "description": "是否为会员专属（配图方式中高级项为 True）",
             "default": false
           }
         },
@@ -6135,7 +6135,7 @@
           "label"
         ],
         "title": "OptionItem",
-        "description": "éç¨å¯éé¡¹ï¼value=åç«¯æä¸¾å¼ï¼label=åç«¯å±ç¤ºææ¡ï¼description=å¯éè¯´æï¼"
+        "description": "通用可选项（value=后端枚举值，label=前端展示文案，description=可选说明）"
       },
       "OutlineSection": {
         "properties": {
@@ -6164,7 +6164,7 @@
               }
             ],
             "title": "Wordcount",
-            "description": "æ¬ç« ç®æ å­æ°ï¼ç±å¤§çº²çæ/ç¨æ·ç¼è¾ï¼é©±å¨æ­£æéç« å­æ°ï¼"
+            "description": "本章目标字数（由大纲生成/用户编辑，驱动正文逐章字数）"
           }
         },
         "type": "object",
@@ -6174,7 +6174,7 @@
           "points"
         ],
         "title": "OutlineSection",
-        "description": "å¤§çº²ç« è"
+        "description": "大纲章节"
       },
       "PaymentRecordVO": {
         "properties": {
@@ -6278,118 +6278,118 @@
           "updateTime"
         ],
         "title": "PaymentRecordVO",
-        "description": "æ¯ä»è®°å½è§å¾"
+        "description": "支付记录视图"
       },
       "PointsBalanceVO": {
         "properties": {
           "balance": {
             "type": "integer",
             "title": "Balance",
-            "description": "å½åç§¯åä½é¢",
+            "description": "当前积分余额",
             "default": 0
           },
           "totalEarned": {
             "type": "integer",
             "title": "Totalearned",
-            "description": "ç´¯è®¡è·å¾ç§¯å",
+            "description": "累计获得积分",
             "default": 0
           },
           "totalConsumed": {
             "type": "integer",
             "title": "Totalconsumed",
-            "description": "ç´¯è®¡æ¶èç§¯å",
+            "description": "累计消耗积分",
             "default": 0
           },
           "checkedInToday": {
             "type": "boolean",
             "title": "Checkedintoday",
-            "description": "ä»æ¥æ¯å¦å·²ç­¾å°",
+            "description": "今日是否已签到",
             "default": false
           }
         },
         "type": "object",
         "title": "PointsBalanceVO",
-        "description": "ç§¯åä½é¢è§å¾å¯¹è±¡ã\n\nAttributes:\n    balance: å½åç§¯åä½é¢ã\n    total_earned: ç´¯è®¡è·å¾ç§¯åã\n    total_consumed: ç´¯è®¡æ¶èç§¯åã\n    checked_in_today: ä»æ¥æ¯å¦å·²ç­¾å°ï¼M4 ç­¾å°ï¼ã"
+        "description": "积分余额视图对象。\n\nAttributes:\n    balance: 当前积分余额。\n    total_earned: 累计获得积分。\n    total_consumed: 累计消耗积分。\n    checked_in_today: 今日是否已签到（M4 签到）。"
       },
       "PointsCheckinVO": {
         "properties": {
           "checkedIn": {
             "type": "boolean",
             "title": "Checkedin",
-            "description": "æ¬æ¬¡æ¯å¦ç­¾å°æå",
+            "description": "本次是否签到成功",
             "default": false
           },
           "gained": {
             "type": "integer",
             "title": "Gained",
-            "description": "æ¬æ¬¡èµ éç§¯å",
+            "description": "本次赠送积分",
             "default": 0
           },
           "balance": {
             "type": "integer",
             "title": "Balance",
-            "description": "ç­¾å°åç§¯åä½é¢",
+            "description": "签到后积分余额",
             "default": 0
           }
         },
         "type": "object",
         "title": "PointsCheckinVO",
-        "description": "æ¯æ¥ç­¾å°ç»æè§å¾å¯¹è±¡ã\n\nAttributes:\n    checked_in: æ¬æ¬¡æ¯å¦ç­¾å°æåã\n    gained: æ¬æ¬¡èµ éç§¯åã\n    balance: ç­¾å°åç§¯åä½é¢ã"
+        "description": "每日签到结果视图对象。\n\nAttributes:\n    checked_in: 本次是否签到成功。\n    gained: 本次赠送积分。\n    balance: 签到后积分余额。"
       },
       "PointsOverviewVO": {
         "properties": {
           "userCount": {
             "type": "integer",
             "title": "Usercount",
-            "description": "ç§¯åè´¦æ·æ°",
+            "description": "积分账户数",
             "default": 0
           },
           "totalEarned": {
             "type": "integer",
             "title": "Totalearned",
-            "description": "ç´¯è®¡åæ¾ç§¯å",
+            "description": "累计发放积分",
             "default": 0
           },
           "totalConsumed": {
             "type": "integer",
             "title": "Totalconsumed",
-            "description": "ç´¯è®¡æ¶èç§¯å",
+            "description": "累计消耗积分",
             "default": 0
           },
           "totalBalance": {
             "type": "integer",
             "title": "Totalbalance",
-            "description": "å¨ä½ç¨æ·å½åä½é¢åè®¡",
+            "description": "全体用户当前余额合计",
             "default": 0
           },
           "usageRecordCount": {
             "type": "integer",
             "title": "Usagerecordcount",
-            "description": "æ¨¡åç¨éè®°å½æ¡æ°",
+            "description": "模型用量记录条数",
             "default": 0
           },
           "totalCostPoints": {
             "type": "integer",
             "title": "Totalcostpoints",
-            "description": "ç¨éç´¯è®¡æç®ç§¯å",
+            "description": "用量累计折算积分",
             "default": 0
           },
           "todayCheckinCount": {
             "type": "integer",
             "title": "Todaycheckincount",
-            "description": "ä»æ¥ç­¾å°äººæ°",
+            "description": "今日签到人数",
             "default": 0
           },
           "todayCheckinPoints": {
             "type": "integer",
             "title": "Todaycheckinpoints",
-            "description": "ä»æ¥ç­¾å°åæ¾ç§¯ååè®¡",
+            "description": "今日签到发放积分合计",
             "default": 0
           }
         },
         "type": "object",
         "title": "PointsOverviewVO",
-        "description": "å¨å±ç§¯å/ç¨éçæ¿è§å¾å¯¹è±¡ï¼ç®¡çç«¯ï¼ã\n\nAttributes:\n    user_count: ç§¯åè´¦æ·æ°ã\n    total_earned: ç´¯è®¡åæ¾ç§¯åã\n    total_consumed: ç´¯è®¡æ¶èç§¯åã\n    total_balance: å¨ä½ç¨æ·å½åä½é¢åè®¡ã\n    usage_record_count: æ¨¡åç¨éè®°å½æ¡æ°ã\n    total_cost_points: ç¨éç´¯è®¡æç®ç§¯åã\n    today_checkin_count: ä»æ¥ç­¾å°äººæ°ã\n    today_checkin_points: ä»æ¥ç­¾å°åæ¾ç§¯ååè®¡ã"
+        "description": "全局积分/用量看板视图对象（管理端）。\n\nAttributes:\n    user_count: 积分账户数。\n    total_earned: 累计发放积分。\n    total_consumed: 累计消耗积分。\n    total_balance: 全体用户当前余额合计。\n    usage_record_count: 模型用量记录条数。\n    total_cost_points: 用量累计折算积分。\n    today_checkin_count: 今日签到人数。\n    today_checkin_points: 今日签到发放积分合计。"
       },
       "PointsTransactionQueryRequest": {
         "properties": {
@@ -6397,7 +6397,7 @@
             "type": "integer",
             "minimum": 1.0,
             "title": "Current",
-            "description": "å½åé¡µç ",
+            "description": "当前页码",
             "default": 1
           },
           "pageSize": {
@@ -6405,7 +6405,7 @@
             "maximum": 100.0,
             "minimum": 1.0,
             "title": "Pagesize",
-            "description": "æ¯é¡µå¤§å°",
+            "description": "每页大小",
             "default": 10
           },
           "sortField": {
@@ -6418,7 +6418,7 @@
               }
             ],
             "title": "Sortfield",
-            "description": "æåºå­æ®µ"
+            "description": "排序字段"
           },
           "sortOrder": {
             "anyOf": [
@@ -6430,7 +6430,7 @@
               }
             ],
             "title": "Sortorder",
-            "description": "æåºé¡ºåº",
+            "description": "排序顺序",
             "default": "descend"
           },
           "type": {
@@ -6443,7 +6443,7 @@
               }
             ],
             "title": "Type",
-            "description": "æµæ°´ç±»åç­é"
+            "description": "流水类型筛选"
           },
           "startTime": {
             "anyOf": [
@@ -6455,7 +6455,7 @@
               }
             ],
             "title": "Starttime",
-            "description": "èµ·å§æ¶é´ï¼å«ï¼"
+            "description": "起始时间（含）"
           },
           "endTime": {
             "anyOf": [
@@ -6467,7 +6467,7 @@
               }
             ],
             "title": "Endtime",
-            "description": "ç»ææ¶é´ï¼å«ï¼"
+            "description": "结束时间（含）"
           },
           "minAmount": {
             "anyOf": [
@@ -6479,7 +6479,7 @@
               }
             ],
             "title": "Minamount",
-            "description": "æå°åå¨ç§¯å"
+            "description": "最小变动积分"
           },
           "maxAmount": {
             "anyOf": [
@@ -6491,29 +6491,29 @@
               }
             ],
             "title": "Maxamount",
-            "description": "æå¤§åå¨ç§¯å"
+            "description": "最大变动积分"
           }
         },
         "type": "object",
         "title": "PointsTransactionQueryRequest",
-        "description": "ç§¯åæµæ°´åé¡µæ¥è¯¢è¯·æ±ã\n\nAttributes:\n    type: æµæ°´ç±»åç­éï¼REGISTER/SIGN_IN/USAGE_SETTLE/ADMIN_ADJUST ç­ï¼ã\n    start_time: èµ·å§æ¶é´ï¼å«ï¼ã\n    end_time: ç»ææ¶é´ï¼å«ï¼ã\n    min_amount: æå°åå¨ç§¯åã\n    max_amount: æå¤§åå¨ç§¯åã"
+        "description": "积分流水分页查询请求。\n\nAttributes:\n    type: 流水类型筛选（REGISTER/SIGN_IN/USAGE_SETTLE/ADMIN_ADJUST 等）。\n    start_time: 起始时间（含）。\n    end_time: 结束时间（含）。\n    min_amount: 最小变动积分。\n    max_amount: 最大变动积分。"
       },
       "ResearchArticleVO": {
         "properties": {
           "title": {
             "type": "string",
             "title": "Title",
-            "description": "æç« æ é¢"
+            "description": "文章标题"
           },
           "url": {
             "type": "string",
             "title": "Url",
-            "description": "æç« åå§é¾æ¥"
+            "description": "文章原始链接"
           },
           "summary": {
             "type": "string",
             "title": "Summary",
-            "description": "åºäºå¨æåå®¹çæè¦"
+            "description": "基于全文内容的摘要"
           },
           "publishTime": {
             "anyOf": [
@@ -6525,7 +6525,7 @@
               }
             ],
             "title": "Publishtime",
-            "description": "åå¸æ¶é´"
+            "description": "发布时间"
           },
           "source": {
             "anyOf": [
@@ -6537,7 +6537,7 @@
               }
             ],
             "title": "Source",
-            "description": "æ¥æºåªä½"
+            "description": "来源媒体"
           },
           "author": {
             "anyOf": [
@@ -6549,7 +6549,7 @@
               }
             ],
             "title": "Author",
-            "description": "ä½è/æºæ"
+            "description": "作者/机构"
           },
           "tags": {
             "items": {
@@ -6557,7 +6557,7 @@
             },
             "type": "array",
             "title": "Tags",
-            "description": "æ ç­¾"
+            "description": "标签"
           }
         },
         "type": "object",
@@ -6567,7 +6567,7 @@
           "summary"
         ],
         "title": "ResearchArticleVO",
-        "description": "åæ¡ä¿¡æ¯ééç»æï¼æ°é»/æç« æè¦ï¼å¯¹åº information_collector.schemas.NewsArticleSummaryï¼"
+        "description": "单条信息采集结果（新闻/文章摘要，对应 information_collector.schemas.NewsArticleSummary）"
       },
       "ResearchDataVO": {
         "properties": {
@@ -6581,7 +6581,7 @@
               }
             ],
             "title": "Requirement",
-            "description": "åå§ä¿¡æ¯éæ±"
+            "description": "原始信息需求"
           },
           "searchQueriesUsed": {
             "items": {
@@ -6589,7 +6589,7 @@
             },
             "type": "array",
             "title": "Searchqueriesused",
-            "description": "å®éä½¿ç¨çæç´¢è¯"
+            "description": "实际使用的搜索词"
           },
           "articles": {
             "items": {
@@ -6597,12 +6597,12 @@
             },
             "type": "array",
             "title": "Articles",
-            "description": "ç¸å³æ°é»æ¡ç®"
+            "description": "相关新闻条目"
           }
         },
         "type": "object",
         "title": "ResearchDataVO",
-        "description": "ä¿¡æ¯ééç»æï¼å¯¹åº article.researchData JSON å / RESEARCH_COMPLETE SSE è½½è·ï¼"
+        "description": "信息采集结果（对应 article.researchData JSON 列 / RESEARCH_COMPLETE SSE 载荷）"
       },
       "StatisticsVO": {
         "properties": {
@@ -6666,7 +6666,7 @@
           "quotaUsed"
         ],
         "title": "StatisticsVO",
-        "description": "ç³»ç»ç»è®¡æ°æ®"
+        "description": "系统统计数据"
       },
       "TitleOption": {
         "properties": {
@@ -6685,19 +6685,19 @@
           "subTitle"
         ],
         "title": "TitleOption",
-        "description": "æ é¢ç»æ"
+        "description": "标题结果"
       },
       "UserAddRequest": {
         "properties": {
           "userAccount": {
             "type": "string",
             "title": "Useraccount",
-            "description": "è´¦å·"
+            "description": "账号"
           },
           "userPassword": {
             "type": "string",
             "title": "Userpassword",
-            "description": "å¯ç "
+            "description": "密码"
           },
           "userName": {
             "anyOf": [
@@ -6709,7 +6709,7 @@
               }
             ],
             "title": "Username",
-            "description": "ç¨æ·æµç§°"
+            "description": "用户昵称"
           },
           "userAvatar": {
             "anyOf": [
@@ -6721,7 +6721,7 @@
               }
             ],
             "title": "Useravatar",
-            "description": "ç¨æ·å¤´å"
+            "description": "用户头像"
           },
           "userProfile": {
             "anyOf": [
@@ -6733,12 +6733,12 @@
               }
             ],
             "title": "Userprofile",
-            "description": "ç¨æ·ç®ä»"
+            "description": "用户简介"
           },
           "userRole": {
             "type": "string",
             "title": "Userrole",
-            "description": "ç¨æ·è§è²",
+            "description": "用户角色",
             "default": "user"
           }
         },
@@ -6748,7 +6748,7 @@
           "userPassword"
         ],
         "title": "UserAddRequest",
-        "description": "æ·»å ç¨æ·è¯·æ±ï¼ç®¡çåï¼"
+        "description": "添加用户请求（管理员）"
       },
       "UserChangePasswordRequest": {
         "properties": {
@@ -6757,21 +6757,21 @@
             "maxLength": 512,
             "minLength": 8,
             "title": "Oldpassword",
-            "description": "åå¯ç "
+            "description": "原密码"
           },
           "newPassword": {
             "type": "string",
             "maxLength": 512,
             "minLength": 8,
             "title": "Newpassword",
-            "description": "æ°å¯ç "
+            "description": "新密码"
           },
           "checkPassword": {
             "type": "string",
             "maxLength": 512,
             "minLength": 8,
             "title": "Checkpassword",
-            "description": "ç¡®è®¤æ°å¯ç "
+            "description": "确认新密码"
           }
         },
         "type": "object",
@@ -6781,7 +6781,7 @@
           "checkPassword"
         ],
         "title": "UserChangePasswordRequest",
-        "description": "ä¿®æ¹å¯ç è¯·æ±"
+        "description": "修改密码请求"
       },
       "UserLoginRequest": {
         "properties": {
@@ -6790,14 +6790,14 @@
             "maxLength": 256,
             "minLength": 4,
             "title": "Useraccount",
-            "description": "è´¦å·"
+            "description": "账号"
           },
           "userPassword": {
             "type": "string",
             "maxLength": 512,
             "minLength": 8,
             "title": "Userpassword",
-            "description": "å¯ç "
+            "description": "密码"
           }
         },
         "type": "object",
@@ -6806,7 +6806,7 @@
           "userPassword"
         ],
         "title": "UserLoginRequest",
-        "description": "ç¨æ·ç»å½è¯·æ±"
+        "description": "用户登录请求"
       },
       "UserProfileUpdateRequest": {
         "properties": {
@@ -6821,7 +6821,7 @@
               }
             ],
             "title": "Username",
-            "description": "ç¨æ·æµç§°"
+            "description": "用户昵称"
           },
           "userAvatar": {
             "anyOf": [
@@ -6834,7 +6834,7 @@
               }
             ],
             "title": "Useravatar",
-            "description": "ç¨æ·å¤´å URL"
+            "description": "用户头像 URL"
           },
           "userProfile": {
             "anyOf": [
@@ -6847,12 +6847,12 @@
               }
             ],
             "title": "Userprofile",
-            "description": "ç¨æ·ç®ä»"
+            "description": "用户简介"
           }
         },
         "type": "object",
         "title": "UserProfileUpdateRequest",
-        "description": "å½åç¨æ·æ´æ°ä¸ªäººèµæè¯·æ±ï¼æµç§°/å¤´å/ç®ä»ï¼è³å°ä¸é¡¹éç©ºï¼"
+        "description": "当前用户更新个人资料请求（昵称/头像/简介，至少一项非空）"
       },
       "UserProfileVO": {
         "properties": {
@@ -6911,7 +6911,7 @@
               }
             ],
             "title": "Quota",
-            "description": "å©ä½éé¢ï¼åå²å¼å®¹ï¼ä¸åä½ä¸ºåä½é¨æ§ï¼"
+            "description": "剩余配额（历史兼容，不再作为创作门槛）"
           },
           "points": {
             "anyOf": [
@@ -6923,7 +6923,7 @@
               }
             ],
             "title": "Points",
-            "description": "ç§¯åä½é¢ï¼æå¨ user_pointsï¼"
+            "description": "积分余额（权威 user_points）"
           },
           "activeTaskCount": {
             "anyOf": [
@@ -6935,7 +6935,7 @@
               }
             ],
             "title": "Activetaskcount",
-            "description": "è¿è¡ä¸­åä½ä»»å¡æ°ï¼å«æèµ·ï¼"
+            "description": "进行中创作任务数（含挂起）"
           },
           "vipTime": {
             "anyOf": [
@@ -6947,17 +6947,17 @@
               }
             ],
             "title": "Viptime",
-            "description": "æä¸ºä¼åæ¶é´"
+            "description": "成为会员时间"
           },
           "createTime": {
             "type": "string",
             "title": "Createtime",
-            "description": "æ³¨åæ¶é´"
+            "description": "注册时间"
           },
           "articleCount": {
             "type": "integer",
             "title": "Articlecount",
-            "description": "åä½æç« æ»æ°ï¼æªå é¤ï¼",
+            "description": "创作文章总数（未删除）",
             "default": 0
           }
         },
@@ -6969,7 +6969,7 @@
           "createTime"
         ],
         "title": "UserProfileVO",
-        "description": "ç¨æ·ä¸»é¡µè§å¾å¯¹è±¡ï¼ä¸ªäººè¯¦æé¡µå±ç¤ºï¼åºæ¬ä¿¡æ¯ + ç§¯å/éé¢ + åä½ç»è®¡ï¼"
+        "description": "用户主页视图对象（个人详情页展示：基本信息 + 积分/配额 + 创作统计）"
       },
       "UserQueryRequest": {
         "properties": {
@@ -6977,7 +6977,7 @@
             "type": "integer",
             "minimum": 1.0,
             "title": "Current",
-            "description": "å½åé¡µç ",
+            "description": "当前页码",
             "default": 1
           },
           "pageSize": {
@@ -6985,7 +6985,7 @@
             "maximum": 100.0,
             "minimum": 1.0,
             "title": "Pagesize",
-            "description": "æ¯é¡µå¤§å°",
+            "description": "每页大小",
             "default": 10
           },
           "sortField": {
@@ -6998,7 +6998,7 @@
               }
             ],
             "title": "Sortfield",
-            "description": "æåºå­æ®µ"
+            "description": "排序字段"
           },
           "sortOrder": {
             "anyOf": [
@@ -7010,7 +7010,7 @@
               }
             ],
             "title": "Sortorder",
-            "description": "æåºé¡ºåº",
+            "description": "排序顺序",
             "default": "descend"
           },
           "id": {
@@ -7023,7 +7023,7 @@
               }
             ],
             "title": "Id",
-            "description": "ç¨æ· ID"
+            "description": "用户 ID"
           },
           "userAccount": {
             "anyOf": [
@@ -7035,7 +7035,7 @@
               }
             ],
             "title": "Useraccount",
-            "description": "è´¦å·"
+            "description": "账号"
           },
           "userName": {
             "anyOf": [
@@ -7047,7 +7047,7 @@
               }
             ],
             "title": "Username",
-            "description": "ç¨æ·æµç§°"
+            "description": "用户昵称"
           },
           "userProfile": {
             "anyOf": [
@@ -7059,7 +7059,7 @@
               }
             ],
             "title": "Userprofile",
-            "description": "ç¨æ·ç®ä»"
+            "description": "用户简介"
           },
           "userRole": {
             "anyOf": [
@@ -7071,12 +7071,12 @@
               }
             ],
             "title": "Userrole",
-            "description": "ç¨æ·è§è²"
+            "description": "用户角色"
           }
         },
         "type": "object",
         "title": "UserQueryRequest",
-        "description": "ç¨æ·æ¥è¯¢è¯·æ±"
+        "description": "用户查询请求"
       },
       "UserRegisterRequest": {
         "properties": {
@@ -7085,21 +7085,21 @@
             "maxLength": 256,
             "minLength": 4,
             "title": "Useraccount",
-            "description": "è´¦å·"
+            "description": "账号"
           },
           "userPassword": {
             "type": "string",
             "maxLength": 512,
             "minLength": 8,
             "title": "Userpassword",
-            "description": "å¯ç "
+            "description": "密码"
           },
           "checkPassword": {
             "type": "string",
             "maxLength": 512,
             "minLength": 8,
             "title": "Checkpassword",
-            "description": "ç¡®è®¤å¯ç "
+            "description": "确认密码"
           }
         },
         "type": "object",
@@ -7109,14 +7109,14 @@
           "checkPassword"
         ],
         "title": "UserRegisterRequest",
-        "description": "ç¨æ·æ³¨åè¯·æ±"
+        "description": "用户注册请求"
       },
       "UserUpdateRequest": {
         "properties": {
           "id": {
             "type": "integer",
             "title": "Id",
-            "description": "ç¨æ· ID"
+            "description": "用户 ID"
           },
           "userName": {
             "anyOf": [
@@ -7128,7 +7128,7 @@
               }
             ],
             "title": "Username",
-            "description": "ç¨æ·æµç§°"
+            "description": "用户昵称"
           },
           "userAvatar": {
             "anyOf": [
@@ -7140,7 +7140,7 @@
               }
             ],
             "title": "Useravatar",
-            "description": "ç¨æ·å¤´å"
+            "description": "用户头像"
           },
           "userProfile": {
             "anyOf": [
@@ -7152,7 +7152,7 @@
               }
             ],
             "title": "Userprofile",
-            "description": "ç¨æ·ç®ä»"
+            "description": "用户简介"
           },
           "userRole": {
             "anyOf": [
@@ -7164,7 +7164,7 @@
               }
             ],
             "title": "Userrole",
-            "description": "ç¨æ·è§è²"
+            "description": "用户角色"
           }
         },
         "type": "object",
@@ -7172,7 +7172,7 @@
           "id"
         ],
         "title": "UserUpdateRequest",
-        "description": "æ´æ°ç¨æ·è¯·æ±ï¼ç®¡çåï¼"
+        "description": "更新用户请求（管理员）"
       },
       "UserVO": {
         "properties": {
@@ -7231,7 +7231,7 @@
               }
             ],
             "title": "Quota",
-            "description": "å©ä½éé¢"
+            "description": "剩余配额"
           },
           "points": {
             "anyOf": [
@@ -7243,7 +7243,7 @@
               }
             ],
             "title": "Points",
-            "description": "ç§¯åä½é¢"
+            "description": "积分余额"
           },
           "vipTime": {
             "anyOf": [
@@ -7255,7 +7255,7 @@
               }
             ],
             "title": "Viptime",
-            "description": "æä¸ºä¼åæ¶é´"
+            "description": "成为会员时间"
           },
           "createTime": {
             "type": "string",
@@ -7270,7 +7270,7 @@
           "createTime"
         ],
         "title": "UserVO",
-        "description": "ç¨æ·è§å¾å¯¹è±¡"
+        "description": "用户视图对象"
       },
       "ValidationError": {
         "properties": {
@@ -7310,27 +7310,27 @@
           "productType": {
             "type": "string",
             "title": "Producttype",
-            "description": "äº§åç±»åæä¸¾å¼ï¼å¦ VIP_PERMANENT"
+            "description": "产品类型枚举值，如 VIP_PERMANENT"
           },
           "price": {
             "type": "number",
             "title": "Price",
-            "description": "ä»·æ ¼ï¼ç¾åï¼"
+            "description": "价格（美元）"
           },
           "currency": {
             "type": "string",
             "title": "Currency",
-            "description": "è´§å¸ï¼å¦ usd"
+            "description": "货币，如 usd"
           },
           "title": {
             "type": "string",
             "title": "Title",
-            "description": "å¥é¤åç§°"
+            "description": "套餐名称"
           },
           "description": {
             "type": "string",
             "title": "Description",
-            "description": "å¥é¤ç®ç­æè¿°"
+            "description": "套餐简短描述"
           },
           "privileges": {
             "items": {
@@ -7338,7 +7338,7 @@
             },
             "type": "array",
             "title": "Privileges",
-            "description": "ä¼åç¹æææ¡åè¡¨"
+            "description": "会员特权文案列表"
           }
         },
         "type": "object",
@@ -7351,7 +7351,7 @@
           "privileges"
         ],
         "title": "VipPlanVO",
-        "description": "ä¼åå¥é¤è§å¾ï¼ä»·æ ¼ + ç¹ææ¸åï¼ä¾åç«¯å¼éé¡µæ¸²æï¼\n\nä»·æ ¼åèªåç«¯ ProductTypeEnum.VIP_PERMANENT.priceï¼åä¸æ¥æºï¼ï¼\nç¹æææ¡å¨æ­¤å¤ç¡¬ç¼ç ï¼ä¸ article_service ä¸­ä¼åä¸å±è½åä¿æä¸è´ã"
+        "description": "会员套餐视图（价格 + 特权清单，供前端开通页渲染）\n\n价格取自后端 ProductTypeEnum.VIP_PERMANENT.price（单一来源），\n特权文案在此处硬编码，与 article_service 中会员专属能力保持一致。"
       }
     }
   }
