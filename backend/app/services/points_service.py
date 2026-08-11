@@ -1,17 +1,6 @@
-"""积分服务。
+"""积分服务
 
-M1 提供：账户初始化（ensure_account）、积分发放/扣减（grant_points）、余额查询（get_balance）。
-M3 扩展：段级结算（settle_usage，允许负余额、后付费扣费）；grant_points 重构为
-「_apply_change（行锁 + 流水 + 冗余字段同步，单事务原子）」+ 公共包装。
-M4 扩展：余额 VO（get_balance_vo）、明细分页（list_transactions）、各模型用量统计（get_usage_stats）、
-每日签到（checkin，Redis SETNX 防重复 + 赠送 10 积分流水）、管理员手工调整（adjust_points）、
-管理端看板/计价 CRUD/用量查询。
 
-设计说明（v1.3 后付费段级结算）：
-  - 创建不预扣、不估算；任务运行按实际用量在每个计费段边界即时结算；
-  - 余额允许为负（最多透支 max_debt_points），透支护栏在路由层/续跑前复查；
-  - 所有余额变动均通过 _apply_change 走「行锁更新 + 流水记账 + 冗余字段同步」的单事务流程，
-    保证余额与流水一致。
 """
 
 from datetime import datetime, timedelta, timezone

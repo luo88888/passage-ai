@@ -3,6 +3,7 @@
 from typing import Optional
 from pydantic import BaseModel, Field
 
+from app.constants.user import UserConstant, UserRole
 from app.schemas.common import PageRequest
 
 
@@ -27,12 +28,12 @@ class UserLoginRequest(BaseModel):
 class UserAddRequest(BaseModel):
     """添加用户请求（管理员）"""
     
-    user_account: str = Field(..., alias="userAccount", description="账号")
-    user_password: str = Field(..., alias="userPassword", description="密码")
-    user_name: Optional[str] = Field(None, alias="userName", description="用户昵称")
-    user_avatar: Optional[str] = Field(None, alias="userAvatar", description="用户头像")
-    user_profile: Optional[str] = Field(None, alias="userProfile", description="用户简介")
-    user_role: str = Field(default="user", alias="userRole", description="用户角色")
+    user_account: str = Field(..., min_length=4, max_length=256, alias="userAccount", description="账号")
+    user_password: str = Field(..., min_length=8, max_length=512, alias="userPassword", description="密码")
+    user_name: Optional[str] = Field(None, max_length=256, alias="userName", description="用户昵称")
+    user_avatar: Optional[str] = Field(None, max_length=1024, alias="userAvatar", description="用户头像")
+    user_profile: Optional[str] = Field(None, max_length=512, alias="userProfile", description="用户简介")
+    user_role: UserRole = Field(default=UserRole.USER, alias="userRole", description="用户角色")
 
 
 class UserUpdateRequest(BaseModel):
@@ -42,17 +43,17 @@ class UserUpdateRequest(BaseModel):
     user_name: Optional[str] = Field(None, alias="userName", description="用户昵称")
     user_avatar: Optional[str] = Field(None, alias="userAvatar", description="用户头像")
     user_profile: Optional[str] = Field(None, alias="userProfile", description="用户简介")
-    user_role: Optional[str] = Field(None, alias="userRole", description="用户角色")
+    user_role: Optional[UserRole] = Field(None, alias="userRole", description="用户角色")
 
 
 class UserQueryRequest(PageRequest):
     """用户查询请求"""
-    
+
     id: Optional[int] = Field(None, description="用户 ID")
     user_account: Optional[str] = Field(None, alias="userAccount", description="账号")
     user_name: Optional[str] = Field(None, alias="userName", description="用户昵称")
     user_profile: Optional[str] = Field(None, alias="userProfile", description="用户简介")
-    user_role: Optional[str] = Field(None, alias="userRole", description="用户角色")
+    user_role: Optional[UserRole] = Field(None, alias="userRole", description="用户角色")
 
 
 
@@ -76,7 +77,7 @@ class UserChangePasswordRequest(BaseModel):
 # ============================== 响应模型 ==============================
 
 class UserVO(BaseModel):
-    """用户视图对象"""
+    """用户视图对象（管理端/公开查询的"用户基础视图"）"""
     
     id: int
     user_account: str = Field(..., alias="userAccount")
@@ -94,7 +95,7 @@ class UserVO(BaseModel):
 
 
 class UserProfileVO(BaseModel):
-    """用户主页视图对象（个人详情页展示：基本信息 + 积分/配额 + 创作统计）"""
+    """用户主页视图对象（个人详情页展示：基本信息(UserVO) + active_task_count + article_count）"""
 
     id: int
     user_account: str = Field(..., alias="userAccount")

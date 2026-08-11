@@ -2,9 +2,9 @@
 文章异步任务服务（LangGraph 编排版，仅负责启停/恢复）
 
 职责已收窄为「创建/启动任务、恢复任务、持有 Task 引用防 GC、失败兜底」：
-  - start(task_id, topic, style): 建初始 state → ainvoke 跑到第一个 interrupt
+  - start(task_id, topic, genre, ...): 建初始 state → ainvoke 跑到第一个 interrupt
        （confirm_title 后：标题已落库 + TITLE_GENERATED 已发，等用户确认标题）
-  - resume(task_id, inject): 注入人工输入（确认标题后的 title/description、确认大纲后的 outline）
+  - resume(task_id, inject, user_id): 注入人工输入（确认标题后的 title/description、确认大纲后的 outline）
        → aupdate_state + ainvoke(None) 续跑到下一个 interrupt 或 END
   - register_task: 保存 asyncio.Task 引用，避免被 GC 中断（修复原 # FIXME）
   - _handle_failure: 节点异常冒泡到此 → 结算已发生用量 + 标记 FAILED + 释放并发名额

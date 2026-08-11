@@ -49,6 +49,8 @@ async def check_register_rate_limit(ip: str) -> bool:
     Returns:
         True=放行；False=窗口内注册次数已达上限，应拒绝。
 
+    Raises:
+        BusinessException: Redis 未初始化（SYSTEM_ERROR）。
     """
     redis = get_client()
     if not redis:
@@ -81,6 +83,9 @@ async def is_login_locked(account: str) -> bool:
 
     Returns:
         True=已锁定（Redis 不可用时拦截）。
+
+    Raises:
+        BusinessException: Redis 未初始化（SYSTEM_ERROR）。
     """
     redis = get_client()
     if not redis:
@@ -147,6 +152,9 @@ async def is_login_ip_locked(ip: str) -> bool:
 
     Returns:
         True=已锁定（Redis 不可用时拦截）。
+
+    Raises:
+        BusinessException: Redis 未初始化（SYSTEM_ERROR）。
     """
     redis = get_client()
     if not redis:

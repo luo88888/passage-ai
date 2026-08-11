@@ -27,7 +27,7 @@ def get_abs_path(relative_path: str = "") -> Path:
 
     Args:
         relative_path (str): 相对于项目根目录的路径字符串。
-                             例如: "backend/app/config.yaml" 或 "data/logs"
+                             例如: "app/config.yaml" 或 "data/logs"
     
     Returns:
         Path: 拼接后的绝对路径对象。

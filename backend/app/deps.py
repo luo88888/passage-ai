@@ -61,7 +61,7 @@ async def require_create_slot(
     current_user: LoginUserVO = Depends(require_login),
     db: Database = Depends(get_db),
 ) -> LoginUserVO:
-    """创建文章前置闸门（M3）：余额 >= 0 且进行中任务数 < max_active_tasks（快速失败）。
+    """创建文章前置闸门：余额 >= 0 且进行中任务数 < max_active_tasks（快速失败）。
 
     仅 admin 豁免（不限并发、不校验余额）；VIP 与普通用户同价按积分结算。
     权威原子校验（activeTaskCount+1）在 create_article_task_with_slot_check 的事务内完成，

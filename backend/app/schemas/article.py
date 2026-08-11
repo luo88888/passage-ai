@@ -216,9 +216,8 @@ class ImageRequirement(BaseModel):
 
 
 class Agent4Result(BaseModel):
-    """智能体4返回结果"""
+    """智能体4（配图）返回结果"""
 
-    # content_with_placeholders: str = Field(..., alias="contentWithPlaceholders")
     image_requirements: List[ImageRequirement] = Field(..., alias="imageRequirements")
 
     class Config:

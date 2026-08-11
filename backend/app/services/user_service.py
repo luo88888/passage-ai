@@ -60,7 +60,7 @@ class UserService:
         # 加密密码
         encrypted_password = encrypt_password(request.user_password)
         
-        # 插入用户 + 初始化积分账户（同一事务：注册赠送 100 积分）
+        # 插入用户 + 初始化积分账户（同一事务：注册赠送积分）
         async with self.db.transaction():
             query = """
                 INSERT INTO user (userAccount, userPassword, userName, userRole, quota)
@@ -367,6 +367,7 @@ class UserService:
             articleCount=article_count or 0,
         )
 
+    # NOTE: 性能开销大，用户量小可接受
     async def list_by_page(self, request: UserQueryRequest) -> Tuple[List[UserVO], int]:
         """分页查询用户列表"""
         # 构建查询条件
