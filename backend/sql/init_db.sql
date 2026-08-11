@@ -3,9 +3,7 @@
 -- ------------------------------------------------------------
 -- 用途：全新环境初始化（一次性从零建库建表）
 -- 幂等性：可重复执行（CREATE ... IF NOT EXISTS）
--- 已合并历史增量脚本：create_table.sql / create_article_table.sql /
---   add_vip_payment.sql / add_phase_fields.sql / add_genre_fields.sql /
---   add_points_system.sql / add_feedback_message.sql 的全部最终结构
+-- 已合并全部历史增量脚本的最终结构（增量脚本已删除，本文件为唯一 DDL 源）
 -- 数据库：MySQL 8.0+，utf8mb4 / utf8mb4_unicode_ci
 -- ============================================================
 
@@ -49,9 +47,9 @@ CREATE TABLE IF NOT EXISTS article
     enabledImageMethods json                            null comment '允许的配图方式列表（JSON格式）',
     mainTitle           varchar(200)                    null comment '主标题',
     subTitle            varchar(300)                    null comment '副标题',
-    titleOptions        json                            null comment '标题方案列表（3-5个方案）',
+    titleOptions        json                            null comment '标题方案列表（3-8个方案）',
     outline             json                            null comment '大纲（JSON格式）',
-    content             text                            null comment '正文（Markdown格式）',
+    content             text                            null comment '正文（Markdown格式，含图片占位标签）',
     fullContent         text                            null comment '完整图文（Markdown格式，含配图）',
     coverImage          varchar(512)                    null comment '封面图 URL',
     images              json                            null comment '配图列表（JSON数组）',
@@ -201,7 +199,7 @@ CREATE TABLE IF NOT EXISTS model_pricing
 ) comment '模型计价' collate = utf8mb4_unicode_ci;
 
 -- ============================================================
--- 9. 意见反馈表（M1：意见反馈与站内信）
+-- 9. 意见反馈表
 -- ============================================================
 CREATE TABLE IF NOT EXISTS feedback
 (
@@ -223,7 +221,7 @@ CREATE TABLE IF NOT EXISTS feedback
 ) COMMENT '意见反馈' COLLATE = utf8mb4_unicode_ci;
 
 -- ============================================================
--- 10. 站内信表（M1：意见反馈与站内信）
+-- 10. 站内信表
 -- ============================================================
 CREATE TABLE IF NOT EXISTS message
 (

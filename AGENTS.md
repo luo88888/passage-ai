@@ -125,7 +125,7 @@ passageAI/
 │   │
 │   ├── data/                     # SQLite 检查点（gitignore）
 │   ├── logs/                     # 运行日志（gitignore）
-│   ├── sql/                      # 建表/迁移 SQL 脚本（手动执行；init_db.sql 为全量合并版）
+│   ├── sql/                      # 数据库唯一 DDL 源（init_db.sql 全量建表，唯一脚本）
 │   ├── scripts/                  # 运维/辅助脚本（init_db.py 建库建表、seed_data.py 种子数据、get_graph_image.py）
 │   ├── tests/                    # 独立手工测试脚本（非 pytest 套件，gitignore）
 │   ├── static/                   # 本地图片存储（gitignore 中 images/）
@@ -240,7 +240,7 @@ START → bootstrap
 - MySQL（业务数据）：SQLAlchemy 同步引擎（模型定义）+ `databases` 异步（FastAPI 查询）；连接串 `settings.database_url`
 - Redis：Session（`utils/session.py`）、任务去重、配额信号量、注册/登录限流防爆破
 - SQLite：LangGraph 检查点（`backend/data/`，gitignore）
-- 建表/迁移：`backend/sql/*.sql` 为手动执行脚本，无迁移框架；`init_db.sql` 已合并历史增量脚本为全量建表 DDL，`scripts/init_db.py` 可一键幂等执行（建库建表）；种子数据由 `scripts/seed_data.py` 手动执行（幂等）
+- 建表/迁移：`backend/sql/init_db.sql` 为唯一 DDL 源（已合并历史增量脚本），`scripts/init_db.py` 可一键幂等执行（建库建表）；种子数据由 `scripts/seed_data.py` 手动执行（幂等，演示账号/模型计价）
 - 模型文件：`backend/app/models/`（article、user、payment、agent_log、user_points、points_transaction、model_pricing、model_usage_record、enums）
 
 ## 测试
