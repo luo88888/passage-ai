@@ -130,7 +130,7 @@ class ArticleGenreEnum(str, Enum):
     """文章题材枚举（决定全文基调、提示词，以及是否走信息采集）
 
     每个成员形如 (value, label, description)，value 保持向后兼容。
-    创作页"默认"项由前端写死，对应 genre=null（后端走通用爆款基调），故此处不含"默认"。
+    创作页"默认"项由前端写死，对应 genre=null（后端走通用基调），故此处不含"默认"。
     仅 NEWS 题材在 bootstrap 后触发信息采集节点。
     """
 

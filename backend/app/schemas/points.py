@@ -17,7 +17,7 @@ class PointsBalanceVO(BaseModel):
         balance: 当前积分余额。
         total_earned: 累计获得积分。
         total_consumed: 累计消耗积分。
-        checked_in_today: 今日是否已签到（M4 签到）。
+        checked_in_today: 今日是否已签到。
     """
 
     balance: int = Field(default=0, description="当前积分余额")

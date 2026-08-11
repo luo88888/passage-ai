@@ -17,7 +17,7 @@ class IconifyService(BaseImageSearchService):
 
     name = "ICONIFY"
     description = "适合图标、符号、小型装饰性图标（如：箭头、勾选、星星、心形等）"
-    usage = "提供英文图标关键词(keywords)，如：check、arrow、star、heart。prompt 留空。"
+    usage = "提供英文图标关键词(keywords)，如：check、arrow、star、heart。prompt 留空。keywords规范：英文、单数、小写，多词用 '-' 分割（如 'check-circle'）"
     is_ai_generate = False
 
     def __init__(self):
@@ -86,6 +86,19 @@ if __name__ == "__main__":
     import asyncio
     iconify_service = IconifyService()
 
-    keywords = "search"
-    result = asyncio.run(iconify_service.get_image_data(ImageRequest(keywords=keywords)))   # type: ignore
-    print(f"{keywords} 的图标链接为：{result.url if result else '无结果'}")
+    async def test():
+        keywords = ["red-apple", "hen", "gold", "big-dog", "篮球小鸡", "苹果", "star", "星星"]
+
+        async def fetch_one(keyword: str) -> Optional[str]:
+            result = await iconify_service.get_image_data(ImageRequest(keywords=keyword))  # type: ignore
+            return result.url if result else None
+
+        urls = await asyncio.gather(
+            *[fetch_one(keyword) for keyword in keywords], 
+            return_exceptions=True
+        )
+
+        for i, url in enumerate(urls):
+            print(f"{keywords[i]} 的图标链接为：{url}")
+
+    asyncio.run(test())

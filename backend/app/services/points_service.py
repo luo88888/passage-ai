@@ -1,7 +1,4 @@
-"""积分服务
-
-
-"""
+"""积分服务"""
 
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
@@ -209,7 +206,7 @@ class PointsService:
                 description=description,
             )
 
-    # ==================== 每日签到（M4） ====================
+    # ==================== 每日签到 ====================
 
     @staticmethod
     def _get_today_str() -> str:
@@ -252,7 +249,7 @@ class PointsService:
         return bool(await redis.exists(self._checkin_redis_key(user_id, today)))
 
     async def checkin(self, user_id: int) -> PointsCheckinVO:
-        """每日签到：Redis SETNX 防重复 + 赠送 10 积分（TX_SIGN_IN 流水）。
+        """每日签到：Redis SETNX 防重复 + 赠送积分（TX_SIGN_IN 流水）。
 
         签到不限制余额（欠费用户签到回正后可再创作）。
 
@@ -296,7 +293,7 @@ class PointsService:
             balance=balance,
         )
 
-    # ==================== 积分明细（M4） ====================
+    # ==================== 积分明细 ====================
 
     async def list_transactions(
         self,
@@ -363,7 +360,7 @@ class PointsService:
         ]
         return items, int(total or 0)
 
-    # ==================== 模型用量统计（M4） ====================
+    # ==================== 模型用量统计 ====================
 
     async def get_usage_stats(
         self,
@@ -419,7 +416,7 @@ class PointsService:
             for r in rows
         ]
 
-    # ==================== 管理端（M4） ====================
+    # ==================== 管理端 ====================
 
     async def get_overview(self) -> PointsOverviewVO:
         """全局积分/用量看板（管理端）。
@@ -427,26 +424,49 @@ class PointsService:
         Returns:
             PointsOverviewVO。
         """
-        user_count = int(await self.db.fetch_val("SELECT COUNT(*) FROM user_points") or 0)
-        total_earned = int(await self.db.fetch_val("SELECT COALESCE(SUM(totalEarned), 0) FROM user_points") or 0)
-        total_consumed = int(await self.db.fetch_val("SELECT COALESCE(SUM(totalConsumed), 0) FROM user_points") or 0)
-        total_balance = int(await self.db.fetch_val("SELECT COALESCE(SUM(balance), 0) FROM user_points") or 0)
-        usage_record_count = int(await self.db.fetch_val("SELECT COUNT(*) FROM model_usage_record") or 0)
-        total_cost_points = int(await self.db.fetch_val("SELECT COALESCE(SUM(costPoints), 0) FROM model_usage_record") or 0)
+
+        row = await self.db.fetch_one(
+            """
+            SELECT
+                COUNT(*)                       AS userCount,
+                COALESCE(SUM(totalEarned), 0)  AS totalEarned,
+                COALESCE(SUM(totalConsumed), 0) AS totalConsumed,
+                COALESCE(SUM(balance), 0)      AS totalBalance
+            FROM user_points
+            """
+        )
+        assert row is not None  # 无 GROUP BY 的聚合查询恒返回一行
+        user_count = int(row["userCount"])
+        total_earned = int(row["totalEarned"])
+        total_consumed = int(row["totalConsumed"])
+        total_balance = int(row["totalBalance"])
+
+        row = await self.db.fetch_one(
+            """
+            SELECT
+                COUNT(*)                   AS usageRecordCount,
+                COALESCE(SUM(costPoints), 0) AS totalCostPoints
+            FROM model_usage_record
+            """
+        )
+        assert row is not None  # 无 GROUP BY 的聚合查询恒返回一行
+        usage_record_count = int(row["usageRecordCount"])
+        total_cost_points = int(row["totalCostPoints"])
 
         today = self._get_today_str()
-        today_checkin_count = int(
-            await self.db.fetch_val(
-                query="SELECT COUNT(*) FROM points_transaction WHERE type = :type AND createTime >= :today",
-                values={"type": PointsConstant.TX_SIGN_IN, "today": today},
-            ) or 0
+        row = await self.db.fetch_one(
+            """
+            SELECT
+                COUNT(*)                  AS checkinCount,
+                COALESCE(SUM(amount), 0)  AS checkinPoints
+            FROM points_transaction
+            WHERE type = :type AND createTime >= :today
+            """,
+            values={"type": PointsConstant.TX_SIGN_IN, "today": today},
         )
-        today_checkin_points = int(
-            await self.db.fetch_val(
-                query="SELECT COALESCE(SUM(amount), 0) FROM points_transaction WHERE type = :type AND createTime >= :today",
-                values={"type": PointsConstant.TX_SIGN_IN, "today": today},
-            ) or 0
-        )
+        assert row is not None  # 无 GROUP BY 的聚合查询恒返回一行
+        today_checkin_count = int(row["checkinCount"])
+        today_checkin_points = int(row["checkinPoints"])
         return PointsOverviewVO(
             userCount=user_count,
             totalEarned=total_earned,

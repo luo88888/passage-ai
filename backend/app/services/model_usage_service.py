@@ -1,4 +1,4 @@
-"""模型用量统计服务（M2 埋点 + M3 结算水位）。
+"""模型用量统计服务
 
 负责在内存中按任务聚合各 LLM / AI 生图模型的调用用量，并按「计费段」增量结算落库：
 
@@ -10,7 +10,7 @@
 article_async_service.start/resume 设置 task_id + user_id，
 各统计点再以 usage_context 覆盖 agent_name（未提供的字段继承外层）。
 
-结算水位（M3）：
+结算水位：
   - _aggregates 保存任务累计用量，_settled 保存「已结算水位」快照；
   - compute_unsettled() 返回「上次结算点之后」的新增用量（当前累计 - 水位）；
   - 段级结算成功后 mark_settled() 推进水位；结算事务失败则水位不动，下次结算重试，天然幂等；
@@ -128,8 +128,8 @@ class UsageAccumulator:
 
 
 # 结算水位：每个统计键已结算的 (callCount, inputTokens, outputTokens, imageCount)
-SettledKey = Tuple[str, str, str, str]
-SettledSnapshot = Tuple[int, int, int, int]
+SettledKey = Tuple[str, str, str, str]          # 实时累计用量
+SettledSnapshot = Tuple[int, int, int, int]     # 最近已结算水位
 
 
 class UsageRecorder:
@@ -160,7 +160,7 @@ class UsageRecorder:
         """上报一次 LLM 调用用量（由 TokenUsageCallbackHandler 调用）。
 
         Args:
-            provider: 提供商（Xiaomi/DeepSeek）。
+            provider: 提供商，如（Xiaomi/DeepSeek）。
             model: 模型名。
             agent_name: 统计点名称。
             input_tokens: 输入 token 数。
@@ -170,6 +170,7 @@ class UsageRecorder:
         ctx = get_usage_context()
         if not ctx or not ctx.task_id:
             # 无任务上下文（如单点调试/测试）不记录，避免孤儿数据
+            logger.warning("无任务上下文，不记录 LLM 用量")
             return
         self._add(
             ctx,
@@ -194,15 +195,20 @@ class UsageRecorder:
         """上报一次 AI 生图用量（智谱 / Nano Banana 服务成功/失败时调用）。
 
         Args:
-            provider: 提供商（Zhipu/NanoBanana）。
+            provider: 提供商，如（Zhipu/NanoBanana）。
             model: 模型名。
             agent_name: 统计点名称。
             image_count: 成功生成张数（成功=1，失败=0）。
             status: SUCCESS / FAILED。
         """
         ctx = get_usage_context()
-        if not ctx or not ctx.task_id:
+        if not ctx:
+            logger.warning("无任务上下文，不记录图像模型用量")
             return
+        if not ctx.task_id:
+            logger.warning("无 task_id，不记录图像模型用量")
+            return
+
         self._add(
             ctx,
             category="IMAGE",
