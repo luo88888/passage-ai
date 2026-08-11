@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
-    "openapi2ts": "openapi2ts"
+    "openapi2ts": "openapi2ts",
+    "openapi:refresh": "curl -s http://localhost:8567/api/v3/api-docs -o openapi.json && openapi2ts"
   },
   "dependencies": {
     "ant-design-vue": "^4.2.6",

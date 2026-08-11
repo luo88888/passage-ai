@@ -1,6 +1,14 @@
 import axios, { type AxiosError, type AxiosRequestConfig } from 'axios'
 import { message } from 'ant-design-vue'
 
+// 兼容 openapi2ts 生成的 requestType 字段（umi 风格约定）。原始 axios 忽略该字段，
+// FormData 已由生成代码构造，此处仅作类型扩展，运行时无副作用。
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    requestType?: 'form' | 'json'
+  }
+}
+
 // 创建 Axios 实例
 const myAxios = axios.create({
   // 生产默认同源 /api（由 Nginx 反代到后端）；跨域部署时用 VITE_API_BASE_URL 覆盖

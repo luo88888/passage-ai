@@ -78,7 +78,7 @@ const beforeUpload = (file: any) => {
 
 const customUpload = async ({ file, onSuccess, onError }: any) => {
   try {
-    const res = await uploadFeedbackImage(file as File)
+    const res = await uploadFeedbackImage({} as API.BodyUploadFeedbackImageApiFeedbackUploadPost, file as File)
     if (res.data.code === 0 && res.data.data) {
       file.url = res.data.data
       onSuccess(res.data.data)

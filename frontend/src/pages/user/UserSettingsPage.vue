@@ -87,7 +87,7 @@ const saveProfile = async () => {
     // 1) 有新头像则先上传，拿到 URL
     let avatarUrl = profileForm.userAvatar
     if (avatarFile.value) {
-      const upRes = await uploadUserAvatar(avatarFile.value)
+      const upRes = await uploadUserAvatar({} as API.BodyUploadAvatarApiUserAvatarUploadPost, avatarFile.value)
       if (upRes.data.code !== 0 || !upRes.data.data) {
         message.error(upRes.data.message || '头像上传失败')
         return
