@@ -29,7 +29,6 @@ from app.utils.json_tool import loads_with_repair
 from app.config import settings
 from app.agent.information_collector.schemas import NewsArticleSummary
 from app.llm_factory.factory import get_structured_model
-from app.services.model_usage_service import usage_context
 
 
 # ==================== serper_search 工具 ====================
@@ -204,10 +203,13 @@ async def extract_article_content(
             f"========== 网页内容（Markdown格式）==========：\n{content}"
         )
 
+        # 函数体内 import，避免循环导入（tools → app.services → ... → tools）
+        from app.services.model_usage_service import usage_context
+
         with usage_context(agent_name="info_collector_sub"):
             result: NewsArticleSummary = await summary_model.ainvoke(prompt)
         result.url = url    # 直接使用原始 url
-        logger.info(f"摘要完成: {url}, 标签: {result.tags}, 原始长度：{len(content)}, 结构化结果长度：{len(str(result.model_json_schema()))}")
+        logger.info(f"摘要完成: {url}, 标签: {result.tags}, 原始长度：{len(content)}, 结构化结果长度：{len(result.summary)}")
 
         return json.dumps(result.model_dump(), ensure_ascii=False)
 
@@ -230,7 +232,6 @@ def _extract_with_ddgs(url: str) -> Optional[dict]:
         ...
     }
     """
-    from ddgs import DDGS
 
     try:
         ddgs = DDGS()

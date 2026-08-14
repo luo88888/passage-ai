@@ -51,7 +51,6 @@ from app.agent.information_collector.tools import (
 )
 from app.config import settings
 from app.llm_factory.factory import get_chat_model
-from app.services.model_usage_service import usage_context
 from app.utils.logger import logger
 from app.utils.json_tool import loads_with_repair
 
@@ -104,12 +103,16 @@ class InformationCollectorAgent:
             "   - 根据搜索结果，调整关键词或时间范围进行补充搜索\n"
             "   - 如果结果足够，可以不调用满设定的次数\n"
             f"3. **筛选文章**：从搜索结果中选择 {s.info_collector_article_count_min}-"
-            f"{s.info_collector_article_count_max} 篇与需求最相关的文章\n"
+            f"{s.info_collector_article_count_max} 篇与需求最相关的文章获取摘要\n"
             "   - 优先选择标题和摘要高度相关的\n"
             "   - 优先选择知名来源和近期发布的\n"
             "4. **提取内容**：对选中的文章，推荐使用 batch_extract_articles 批量并行提取\n"
-            f"   - 并行度 max_concurrency 不超过 {s.info_collector_max_concurrency}\n"
-            "   - 也可逐篇调用 extract_article_content\n"
+            f"   - 该工具最多可调用 {s.info_collector_batch_extract_tool_limit} 次，"
+            f"单次并行度 max_concurrency 不超过 {s.info_collector_max_concurrency}\n"
+            f"   - 也可逐篇调用 extract_article_content（最多可调用 "
+            f"{s.info_collector_extract_tool_limit} 次）\n"
+            "   - 达到某工具次数上限后，该工具会返回错误提示不再执行，"
+            "请改用其他工具或直接进入整理阶段\n"
             "   - 对于内容可能高度相似的文章，不需要全部提取"
             "   - 信息足够即可，不需要提取所有文章内容"
             "5. **综合整理**：基于提取的内容，筛选出最终要纳入结果的相关文章\n"
@@ -118,7 +121,9 @@ class InformationCollectorAgent:
             "- 搜索时尽量使用不同的关键词和参数组合，提高覆盖率\n"
             "- 中文需求请使用中文关键词搜索（gl=cn, hl=zh-cn）\n"
             "- 只选择真正相关的文章进行深度提取，无关文章直接跳过\n"
-            "- 每篇文章提取后，注意核实信息是否与需求相关\n\n"
+            "- 每篇文章提取后，注意核实信息是否与需求相关\n"
+            f"- 工具调用总次数上限 {s.info_collector_global_tool_limit} 次，"
+            "请优先用 batch_extract_articles 批量提取\n\n"
             "## 输出要求\n"
             "- 最终通过 response_format 输出 CollectResult，其中 relevant_article_refs "
             "**只列 url 与 title，不需复述文章摘要正文**\n"
@@ -150,7 +155,13 @@ class InformationCollectorAgent:
             run_limit=s.info_collector_extract_tool_limit,
             exit_behavior="continue",
         )
-        # 3. 全局工具调用限制（兜底保护）：达到上限直接结束整个任务
+        # 3. batch_extract_articles 单工具次数限制
+        batch_extract_limit_middleware = ToolCallLimitMiddleware(
+            tool_name="batch_extract_articles",
+            run_limit=s.info_collector_batch_extract_tool_limit,
+            exit_behavior="continue",
+        )
+        # 4. 全局工具调用限制（兜底保护）：达到上限直接结束整个任务
         global_limit_middleware = ToolCallLimitMiddleware(
             run_limit=s.info_collector_global_tool_limit,
             thread_limit=s.info_collector_thread_limit,
@@ -165,6 +176,7 @@ class InformationCollectorAgent:
             middleware=[
                 serper_limit_middleware,
                 extract_limit_middleware,
+                batch_extract_limit_middleware,
                 global_limit_middleware,
             ],
             # 主 Agent 仅输出 url+title 引用列表，不输出摘要正文（省 token）
@@ -241,6 +253,9 @@ class InformationCollectorAgent:
         由后处理从 ToolMessage 中按主 Agent 给的 url 顺序拼装。
         """
         logger.info(f"信息采集开始: {requirement}")
+
+        # 函数体内 import，避免循环导入（agent → app.services → ... → agent）
+        from app.services.model_usage_service import usage_context
 
         with usage_context(agent_name="info_collector_main"):
             result_state = await self.agent.ainvoke(

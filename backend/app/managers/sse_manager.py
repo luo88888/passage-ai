@@ -29,7 +29,7 @@ class SseEmitterManager:
         self._queues: Dict[str, asyncio.Queue] = {}
         # 每任务历史缓冲（可重放副本）：deque[(seq, message)]，有界，超限丢最旧
         self._history: Dict[str, Deque[Tuple[int, str]]] = {}
-        # 每任务自增序号（seq 全局单调递增，供 ?after= 断点续传）
+        # 每任务自增序号（seq 单调递增，供 ?after= 断点续传）
         self._seq: Dict[str, int] = {}
 
     def create_emitter(self, task_id: str, after_seq: int = 0) -> StreamingResponse:

@@ -1,6 +1,6 @@
 """大纲确认副作用节点（generate_outline 节点后、暂停前）
 
-读 state：task_id / outline.sections（List[dict]，每项 {"section","title","points"}）
+读 state：task_id / outline.sections
 副作用：
   - save_outline(task_id, [OutlineSection(**s) ...])
   - update_phase(task_id, OUTLINE_EDITING)
@@ -41,7 +41,7 @@ async def confirm_outline_node(state: ArticleState) -> dict:
         {"outline": [s.model_dump() for s in sections]},
     )
 
-    # 段B 结算：大纲生成用量即时结算（M3 后付费段级结算，best-effort，水位幂等）。
+    # 段B 结算：大纲生成用量即时结算
     try:
         from app.services.settlement_service import SettlementService
         await SettlementService(database).settle_current_segment(task_id)

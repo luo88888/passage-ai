@@ -1,7 +1,6 @@
 """图节点 → SSE 桥接
 
-把现有 article_async_service._build_message_data / _build_complete_message_data /
-_handle_agent_message 的逻辑提取到此，供图节点构造传给智能体的 stream_handler 闭包。
+提供图节点构造传给智能体的 stream_handler 闭包。
 
 make_emit(task_id, class_state) 返回一个 Callable[[str], None]：
   - 形如 "AGENT2_STREAMING:片段" / "AGENT3_STREAMING:片段" / "IMAGE_COMPLETE:url" 的流式消息
@@ -64,6 +63,7 @@ def _build_complete_message_data(message: str, state: ClassArticleState) -> Dict
         data["type"] = SseMessageTypeEnum.AGENT2_COMPLETE.value
         data["outline"] = [s.model_dump() for s in state.outline.sections] if state.outline else []
     elif message == SseMessageTypeEnum.AGENT3_COMPLETE.value:
+        # NOTE: 此处可携带完整正文，在一定程度上缓解正文生成阶段历史缓冲把最早的流式片段挤掉的问题
         data["type"] = SseMessageTypeEnum.AGENT3_COMPLETE.value
     elif message == SseMessageTypeEnum.AGENT4_COMPLETE.value:
         data["type"] = SseMessageTypeEnum.AGENT4_COMPLETE.value
@@ -88,11 +88,20 @@ def _build_complete_message_data(message: str, state: ClassArticleState) -> Dict
 def make_emit(task_id: str, class_state: ClassArticleState) -> Callable[[str], None]:
     """构造传给智能体 run() 的 stream_handler 闭包。
 
-    等价于原 article_async_service._handle_agent_message：
-      _build_message_data(message, class_state) → 命中则 sse_emitter_manager.send(task_id, json.dumps(data, ensure_ascii=False))
-    闭包捕获 class_state 引用，智能体就地修改后完成事件能读到最新产物。
+    智能体就地修改后完成事件能读到最新产物。
     """
     def emit(message: str) -> None:
+        """智能体流式回调：把裸消息转换为 SSE 数据并推送到全局队列。
+
+        闭包按引用捕获 task_id 与 class_state（智能体就地修改后完成事件能读到最新产物），
+        消息两种形态：
+          - 流式：f"{枚举值}:{正文片段}" → 剥前缀为 {"type", "content"}
+          - 完成：恰好等于某 SseMessageTypeEnum 的 value → 从 class_state 取阶段产物拼装
+        若 _build_message_data 返回 None（未知完成消息）则静默忽略，不推送。
+
+        Args:
+            message: 智能体传出的原始消息（流式带前缀 / 完成裸标识符）。
+        """
         data = _build_message_data(message, class_state)
         if data is not None:
             sse_emitter_manager.send(task_id, json.dumps(data, ensure_ascii=False))

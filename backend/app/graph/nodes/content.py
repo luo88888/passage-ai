@@ -1,6 +1,6 @@
 """正文生成节点（包装现有 ContentGeneratorAgent）
 
-读 state：outline / title / style / task_id
+读 state：outline / title / task_id / topic / genre / language_style / collected_news / word_count
 写 state：content（流式拼接的正文 str）
 SSE：流式 AGENT3_STREAMING:* 前缀片段（由 agent 内部通过 emit 推送）+ emit AGENT3_COMPLETE
 """

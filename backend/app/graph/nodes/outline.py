@@ -1,6 +1,6 @@
 """大纲生成节点（包装现有 OutlineGeneratorAgent）
 
-读 state：title / user_description / style / task_id
+读 state：title / user_description / task_id / word_count / topic / genre / language_style / collected_news
 写 state：outline（OutlineResult）
 SSE：流式 AGENT2_STREAMING:* 前缀片段（由 agent 内部通过 emit 推送）+ emit AGENT2_COMPLETE（携带 outline）
 """

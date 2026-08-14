@@ -11,7 +11,7 @@
 状态适配：compat（dict↔class）
 
 注：ai_modify_outline_node 是接入图的副作用节点（builder 条件边路由进入），
-需经 _orchestrator 复用 title_agent 的 BaseAgent 共享方法，并在函数体内 delay-import
+需经 _orchestrator 复用独立的 ai_modify_outline_agent，并在函数体内 delay-import
 ArticleService 破循环依赖——所以仍从本包导出，与 graph/builder.py 的 import 一致。
 """
 from app.graph.nodes.compat import merge_to_dict_state, to_class_state

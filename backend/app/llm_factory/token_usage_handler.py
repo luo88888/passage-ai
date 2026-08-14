@@ -1,4 +1,4 @@
-"""LLM token 用量回调处理器（M2：统一埋点）。
+"""LLM token 用量回调处理器
 
 在 llm_factory 各 provider 的 create_chat_model / create_structured_model 中
 统一挂载，所有经由工厂创建的模型（BaseAgent / 信息采集主/子 Agent / SVG 示意图）
@@ -7,7 +7,7 @@
 Token 获取优先级：
     1. 响应消息的 usage_metadata（OpenAI 兼容接口通常返回）；
     2. response.llm_output.token_usage（部分厂商旧字段）；
-    3. 字符数兜底估算（ceil(字符数 / 3)，见计划 5.3）。
+    3. 字符数兜底估算（ceil(字符数 / 3)）。
 
 流式场景：显式开启 stream_usage=True 让厂商在末个 chunk 返回累计 usage；
 无 usage 时通过 on_llm_new_token 累积输出字符数做兜底估算。
@@ -72,6 +72,17 @@ class TokenUsageCallbackHandler(BaseCallbackHandler):
 
     # ---------------- 异步回调（项目内 LLM 均为异步调用） ----------------
 
+    """
+    事件	           钩子	                    触发时机
+
+    调用开始	    on_llm_start	        LLM 调用发出前
+    聊天模型开始	on_chat_model_start	    Chat 模型调用发出前
+    流式吐字	    on_llm_new_token	    流式输出的每一个 token
+    调用成功	    on_llm_end	            拿到完整结果（含 LLMResult / token 用量）
+    调用失败	    on_llm_error	        抛异常时
+    """
+
+    # 重写 on_llm_start（而非 on_chat_model_start）在 Chat 模型下同样生效
     async def on_llm_start(
         self,
         serialized: dict[str, Any],
@@ -104,7 +115,7 @@ class TokenUsageCallbackHandler(BaseCallbackHandler):
             self._output_chars.pop(run_id, None)
 
     async def on_llm_error(self, error: Exception, *, run_id: Any, **kwargs: Any) -> None:
-        """LLM 调用失败：记 FAILED（不计 token，M3 默认不计费）。"""
+        """LLM 调用失败：记 FAILED（不计 token，默认不计费）。"""
         try:
             get_usage_context, usage_recorder = _get_usage_deps()
             ctx = get_usage_context()
@@ -169,11 +180,13 @@ class TokenUsageCallbackHandler(BaseCallbackHandler):
 
     def _estimate_input(self, run_id: Any) -> int:
         """按提示词字符数估算输入 token。"""
+        logger.warning(f"获取输入 token 数失败，使用字符数估计，run_id={run_id}")
         prompts = self._prompts.get(run_id) or []
         return sum(_estimate_tokens(p) for p in prompts)
 
     def _estimate_output(self, run_id: Any, response: LLMResult) -> int:
         """按输出字符数估算输出 token（流式优先用累积值）。"""
+        logger.warning(f"获取输出 token 数失败，使用字符数估计，run_id={run_id}")
         chars = self._output_chars.get(run_id) or 0
         if chars <= 0:
             for gen_list in response.generations:

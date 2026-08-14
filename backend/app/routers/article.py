@@ -29,7 +29,7 @@ async def create_article(
     db: Database = Depends(get_db),
     current_user: LoginUserVO = Depends(require_create_slot)
 ):
-    """创建文章任务（M3 后付费闸门：余额 >= 0 + 并发名额快速失败）"""
+    """创建文章任务（后付费闸门：余额 >= 0 + 并发名额快速失败）"""
     throw_if(
         not request.topic or not request.topic.strip(),
         ErrorCode.PARAMS_ERROR,
@@ -56,7 +56,7 @@ async def create_article(
 
     service = ArticleService(db)
 
-    # 占用并发名额（activeTaskCount+1）+ 创建文章任务（在同一事务中，M3 后付费闸门）
+    # 占用并发名额（activeTaskCount+1）+ 创建文章任务（在同一事务中，后付费闸门）
     # 第二个返回值 final_image_methods 为处理后的配图白名单（非 VIP 未勾选时仅含普通方式），
     # 必须传给图启动 state，否则图里 None=全部可用会绕过 VIP 配图权限校验。
     task_id, final_image_methods = await service.create_article_task_with_slot_check(
@@ -97,7 +97,7 @@ async def confirm_title(
 ):
     """确认标题并输入补充描述"""
     service = ArticleService(db)
-    # M3 续跑前余额复查：balance + max_debt_points >= 0（透支护栏，admin 豁免）
+    # 续跑前余额复查：balance + max_debt_points >= 0（透支护栏，admin 豁免）
     await service.assert_sufficient_points_for_resume(request.task_id, current_user)
     await service.confirm_title(
         task_id=request.task_id,
@@ -130,7 +130,7 @@ async def confirm_outline(
 ):
     """确认大纲"""
     service = ArticleService(db)
-    # M3 续跑前余额复查：balance + max_debt_points >= 0（透支护栏，admin 豁免）
+    # 续跑前余额复查：balance + max_debt_points >= 0（透支护栏，admin 豁免）
     await service.assert_sufficient_points_for_resume(request.task_id, current_user)
     await service.confirm_outline(
         task_id=request.task_id,
@@ -165,7 +165,7 @@ async def ai_modify_outline(
     路由只回 ack（taskId），大纲由 SSE 回填前端。
     """
     service = ArticleService(db)
-    # M3 续跑前余额复查：AI 修改大纲每轮都要即时结算，透支超限拒绝修改
+    # 续跑前余额复查：AI 修改大纲每轮都要即时结算，透支超限拒绝修改
     await service.assert_sufficient_points_for_resume(request.task_id, current_user)
     await service.assert_can_ai_modify_outline(
         task_id=request.task_id,

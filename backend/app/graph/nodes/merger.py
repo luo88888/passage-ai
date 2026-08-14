@@ -1,7 +1,7 @@
 """图文合并节点（包装现有 ContentMergerAgent）
 
-注意 ContentMergerAgent.run 是**同步**方法（非 async，不调 LLM，纯字符串替换占位符）。
-读 state：content（带占位符版本）/ images / task_id
+注意 ContentMergerAgent.run 是**同步**方法
+读 state：content / images / task_id
 写 state：full_content（占位符替换为 markdown 图片语法的最终全文）
 SSE：emit MERGE_COMPLETE（携带 fullContent）
 """
@@ -22,7 +22,7 @@ async def content_merger_node(state: ArticleState) -> dict:
     emit = make_emit(state.get("task_id") or "", class_state)
 
     logger.info("[graph] 图文合并节点, taskId=%s", state.get("task_id"))
-    # ContentMergerAgent.run 是同步方法，直接调用（非 await）
+    # ContentMergerAgent.run 是同步方法
     orchestrator.content_merger_agent.run(class_state)
     emit(SseMessageTypeEnum.MERGE_COMPLETE.value)
 

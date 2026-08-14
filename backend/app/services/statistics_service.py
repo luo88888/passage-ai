@@ -1,3 +1,7 @@
+"""
+系统统计服务
+"""
+
 from datetime import datetime, time, timedelta
 import json
 from typing import Optional
@@ -39,7 +43,7 @@ class StatisticsService:
         total_count = await self._count_total_articles()
         success_rate = await self._calculate_success_rate(total_count)
         avg_duration_ms = await self._calculate_avg_duration()
-        active_user_count = await self._count_active_users(week_start, now)
+        active_user_count = await self._count_active_users()
         total_user_count = await self._count_total_users()
         vip_user_count = await self._count_vip_users()
         quota_used = await self._calculate_quota_used()
@@ -118,7 +122,10 @@ class StatisticsService:
         )
         return int(value or 0)
 
-    async def _count_active_users(self, start: datetime, end: datetime) -> int:
+    async def _count_active_users(self) -> int:
+        """统计最近 7 天活跃用户数（滚动窗口起点为 7 天前的同一时刻，去重 userId）"""
+        end = datetime.now()
+        start = end - timedelta(days=7)
         value = await self.db.fetch_val(
             query="""
                 SELECT COUNT(DISTINCT userId)
@@ -185,13 +192,16 @@ class StatisticsService:
 
     @staticmethod
     def _get_today_start(now: datetime) -> datetime:
+        """获取当日零点"""
         return datetime.combine(now.date(), time.min)
 
     @staticmethod
     def _get_week_start(now: datetime) -> datetime:
+        """获取本周一零点"""
         monday = now.date() - timedelta(days=now.weekday())
         return datetime.combine(monday, time.min)
 
     @staticmethod
     def _get_month_start(now: datetime) -> datetime:
+        """获取本月一日零点"""
         return datetime(now.year, now.month, 1)

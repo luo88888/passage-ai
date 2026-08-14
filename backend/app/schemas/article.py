@@ -93,7 +93,7 @@ class OutlineSection(BaseModel):
 
     section: int
     title: str
-    points: List[str]
+    points: List[str] = Field(..., description="章节要点")
     word_count: Optional[int] = Field(None, alias="wordCount", description="本章目标字数（由大纲生成/用户编辑，驱动正文逐章字数）")
 
     class Config:
@@ -201,15 +201,15 @@ class OutlineResult(BaseModel):
 class ImageRequirement(BaseModel):
     """配图需求"""
 
-    position: int   # 图片在文章中的序号
-    type: str       # cover/section/inline
+    position: int = Field(..., description="图片序号，1, 2, 3...递增")   # 图片在文章中的序号
+    type: str = Field(..., description="类型：cover/section/inline")       # cover/section/inline
     section_title: str = Field(..., alias="sectionTitle")
     keywords: str = Field(..., description="图库搜索关键词") # 图库搜索关键词
     # ImageMethodEnum
     image_source: str = Field(..., alias="imageSource", description="图片来源")
     prompt: str = Field(..., description="AI 生图提示词")
     # 正文中的占位符标记，图文合并时定位插入点
-    placeholder_id: str = Field(..., alias="placeholderId", description="占位符ID")
+    placeholder_id: str = Field(..., alias="placeholderId", description="占位符ID, 原文中的完整字面量")
 
     class Config:
         populate_by_name = True

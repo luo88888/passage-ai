@@ -1,7 +1,7 @@
 """配图需求分析节点（包装现有 ImageAnalyzerAgent）
 
-读 state：enabled_image_methods / title / content / style / task_id
-写 state：content（覆盖为带占位符版本）/ image_requirements（校验降级后的 List[ImageRequirement]）
+读 state：enabled_image_methods / title / content / genre / language_style
+写 state：image_requirements（校验降级后的 List[ImageRequirement]）
 SSE：emit AGENT4_COMPLETE（携带 imageRequirements）
 """
 from __future__ import annotations

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class ImageGeneratorAgent:
-    """配图生成智能体（不调用 LLM，只做图片获取+上传）"""
+    """配图生成智能体"""
 
     def __init__(
         self,

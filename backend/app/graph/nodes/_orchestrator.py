@@ -6,7 +6,7 @@ get_orchestrator() 首次调用时惰性构造（import 也放在函数体内，
   - 复用 app.agent.image_generator.parallel_image_generator（图片服务单例）
   - 通过 llm_factory 为各 Agent 创建独立的 BaseChatModel 与结构化输出模型
     （标题 / 配图分析 / AI 修改大纲 3 处使用结构化输出，支持按 Agent 独立配置）
-  - 构造 ArticleAgentOrchestrator 持有 6 个 agent 与结构化输出模型
+  - 构造 ArticleAgentOrchestrator 持有 7 个 agent 与结构化输出模型
 """
 from __future__ import annotations
 
@@ -54,6 +54,13 @@ def get_orchestrator() -> ArticleAgentOrchestrator:
             agent_thinking=settings.outline_agent_thinking,
             agent_reasoning_effort=settings.outline_agent_reasoning_effort,
         )
+        ai_modify_outline_cfg = resolve_agent_config(
+            agent_provider=settings.ai_modify_outline_agent_provider,
+            agent_model=settings.ai_modify_outline_agent_model,
+            agent_temperature=settings.ai_modify_outline_agent_temperature,
+            agent_thinking=settings.ai_modify_outline_agent_thinking,
+            agent_reasoning_effort=settings.ai_modify_outline_agent_reasoning_effort,
+        )
         content_cfg = resolve_agent_config(
             agent_provider=settings.content_agent_provider,
             agent_model=settings.content_agent_model,
@@ -72,6 +79,7 @@ def get_orchestrator() -> ArticleAgentOrchestrator:
         # 通过 llm_factory 为各 Agent 创建独立的 BaseChatModel
         title_model = get_chat_model(**title_cfg)
         outline_model = get_chat_model(**outline_cfg)
+        ai_modify_outline_model = get_chat_model(**ai_modify_outline_cfg)
         content_model = get_chat_model(**content_cfg)
         image_analyzer_model = get_chat_model(**image_analyzer_cfg)
 
@@ -81,7 +89,9 @@ def get_orchestrator() -> ArticleAgentOrchestrator:
         image_analyzer_structured_model = get_structured_model(
             Agent4Result, **image_analyzer_cfg
         )
-        outline_structured_model = get_structured_model(OutlineResult, **outline_cfg)
+        ai_modify_outline_structured_model = get_structured_model(
+            OutlineResult, **ai_modify_outline_cfg
+        )
 
         _orchestrator = ArticleAgentOrchestrator(
             title_model=title_model,
@@ -90,7 +100,8 @@ def get_orchestrator() -> ArticleAgentOrchestrator:
             content_model=content_model,
             image_analyzer_model=image_analyzer_model,
             image_analyzer_structured_model=image_analyzer_structured_model,
-            outline_structured_model=outline_structured_model,
+            ai_modify_outline_model=ai_modify_outline_model,
+            ai_modify_outline_structured_model=ai_modify_outline_structured_model,
             agent_log_service=agent_log_service,
             parallel_image_generator=parallel_image_generator,
         )
