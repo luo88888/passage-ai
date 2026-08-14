@@ -19,7 +19,6 @@ import asyncio
 from typing import Any, Dict, Optional
 
 from app.database import database
-from app.graph.builder import build_article_graph
 from app.graph.checkpointer import get_checkpointer
 from app.graph.sse_bridge import send_sse_message
 from app.managers.sse_manager import sse_emitter_manager
@@ -27,6 +26,8 @@ from app.models.enums import ArticleStatusEnum, SseMessageTypeEnum
 from app.services.article_service import ArticleService
 from app.services.model_usage_service import usage_context, usage_recorder
 from app.utils.logger import logger
+from app.services.settlement_service import SettlementService
+
 
 
 class ArticleAsyncService:
@@ -42,6 +43,7 @@ class ArticleAsyncService:
     def _get_graph(self):
         """惰性构造已编译图单例（注入 checkpointer）"""
         if self._graph is None:
+            from app.graph.builder import build_article_graph
             self._graph = build_article_graph(get_checkpointer())
         return self._graph
 
@@ -137,7 +139,6 @@ class ArticleAsyncService:
 
         # 失败兜底：按已发生用量结算（后付费段级结算，best-effort；结算水位幂等防重复扣费）
         try:
-            from app.services.settlement_service import SettlementService
             await SettlementService(database).settle_current_segment(task_id)
         except Exception:
             logger.exception("失败结算失败 taskId=%s", task_id)

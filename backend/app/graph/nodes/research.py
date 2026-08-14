@@ -14,7 +14,6 @@ bootstrap 后由条件边 route_after_bootstrap 路由进入（仅 genre == "new
 落库失败同样 best-effort：记日志不阻断。
 
 Agent 访问：模块级单例 get_information_collector() 懒构造 InformationCollectorAgent
-（其内部经 llm_factory 自建模型与工具链，不依赖 ArticleService，无 services→graph 循环风险）。
 """
 from __future__ import annotations
 
@@ -26,6 +25,9 @@ from app.graph.sse_bridge import send_sse_message
 from app.graph.state import ArticleState
 from app.models.enums import SseMessageTypeEnum
 from app.utils.logger import logger
+from app.database import database
+from app.services.article_service import ArticleService
+
 
 # 模块级单例：信息采集 Agent 构造较重（建 LangChain agent + 工具链），全进程复用
 _collector: InformationCollectorAgent | None = None
@@ -103,9 +105,6 @@ async def research_node(state: ArticleState) -> Dict[str, Any]:
     }
     # 结构化结果落库（best-effort：落库失败不阻断，创作页/详情页回看面板显示空）
     try:
-        from app.database import database
-        from app.services.article_service import ArticleService
-
         await ArticleService(database).save_research_data(task_id, research_data)
     except Exception as e:
         logger.warning("[graph] 信息采集结果落库失败, taskId=%s, error=%s", task_id, e)

@@ -16,7 +16,7 @@ from app.models.article import Article
 from app.models.enums import ArticleGenreEnum, ArticleLanguageStyleEnum, ArticlePhaseEnum, ArticleStatusEnum, ImageMethodEnum
 from app.schemas.article import ArticleQueryRequest, ArticleState, ArticleVO, CreationOptionsVO, OptionItem, OutlineSection, ResearchDataVO, TitleOption
 from app.schemas.user import LoginUserVO
-from app.agent.image_generator import parallel_image_generator
+from app.services.image_generator import parallel_image_generator
 from app.utils.logger import logger
 
 

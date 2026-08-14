@@ -24,6 +24,9 @@ from app.graph.sse_bridge import send_sse_message
 from app.graph.state import ArticleState
 from app.models.enums import SseMessageTypeEnum
 from app.utils.logger import logger
+from app.database import database
+from app.schemas.article import OutlineSection
+from app.services.article_service import ArticleService
 
 
 async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
@@ -41,11 +44,6 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
     sub_title = title_dict.get("subTitle", "")
     outline_dict = state.get("outline") or {}
     sections_dict: List[dict] = outline_dict.get("sections", []) if outline_dict else []
-
-    # 函数体内 import，避免触发 app.services.__init__ → article_async_service → graph 的循环导入
-    from app.database import database
-    from app.schemas.article import OutlineSection
-    from app.services.article_service import ArticleService
 
     current_sections = [OutlineSection(**s) for s in sections_dict]
     target_word_count = state.get("word_count") or 2000

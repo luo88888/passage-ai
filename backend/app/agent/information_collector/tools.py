@@ -29,6 +29,8 @@ from app.utils.json_tool import loads_with_repair
 from app.config import settings
 from app.agent.information_collector.schemas import NewsArticleSummary
 from app.llm_factory.factory import get_structured_model
+from app.services.model_usage_service import usage_context
+
 
 
 # ==================== serper_search 工具 ====================
@@ -202,9 +204,6 @@ async def extract_article_content(
             f"7. 来源（媒体名称）\n\n"
             f"========== 网页内容（Markdown格式）==========：\n{content}"
         )
-
-        # 函数体内 import，避免循环导入（tools → app.services → ... → tools）
-        from app.services.model_usage_service import usage_context
 
         with usage_context(agent_name="info_collector_sub"):
             result: NewsArticleSummary = await summary_model.ainvoke(prompt)

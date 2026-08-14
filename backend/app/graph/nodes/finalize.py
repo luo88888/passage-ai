@@ -20,6 +20,10 @@ from app.graph.state import ArticleState
 from app.managers.sse_manager import sse_emitter_manager
 from app.models.enums import SseMessageTypeEnum
 from app.utils.logger import logger
+from app.database import database
+from app.services.article_service import ArticleService
+from app.services.settlement_service import SettlementService
+from app.services.model_usage_service import usage_recorder
 
 
 async def finalize_node(state: ArticleState) -> dict:
@@ -27,16 +31,11 @@ async def finalize_node(state: ArticleState) -> dict:
     task_id = state.get("task_id") or ""
     class_state = to_class_state(state)
 
-    # 函数体内 import，避免触发 app.services.__init__ → article_async_service → graph 的循环导入
-    from app.database import database
-    from app.services.article_service import ArticleService
-
     article_service = ArticleService(database)
     logger.info("[graph] 收尾节点, taskId=%s", task_id)
 
-    # 段C 结算：正文/配图/合并剩余用量（M3 后付费段级结算，best-effort；结算水位幂等防重复扣费）
+    # 段C 结算：正文/配图/合并剩余用量（后付费段级结算，best-effort；结算水位幂等防重复扣费）
     try:
-        from app.services.settlement_service import SettlementService
         await SettlementService(database).settle_current_segment(task_id)
     except Exception:
         logger.exception("[graph] 终态结算失败, taskId=%s", task_id)
@@ -52,6 +51,5 @@ async def finalize_node(state: ArticleState) -> dict:
     sse_emitter_manager.complete(task_id)
 
     # 清理任务用量内存（已按段结算落库）
-    from app.services.model_usage_service import usage_recorder
     usage_recorder.drop(task_id)
     return {}

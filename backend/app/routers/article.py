@@ -14,7 +14,7 @@ from app.schemas.common import BaseResponse, DeleteRequest
 from app.schemas.statistic import AgentExecutionStatsVO
 from app.schemas.user import LoginUserVO
 from app.services.agent_log_service import AgentLogService
-from app.services.article_async_service import article_async_service
+from app.graph.graph_runner import article_async_service
 from app.services.article_service import ArticleService
 from app.managers.sse_manager import sse_emitter_manager
 from app.utils.logger import logger

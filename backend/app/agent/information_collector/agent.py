@@ -53,6 +53,8 @@ from app.config import settings
 from app.llm_factory.factory import get_chat_model
 from app.utils.logger import logger
 from app.utils.json_tool import loads_with_repair
+from app.services.model_usage_service import usage_context
+
 
 
 # 会产出 NewsArticleSummary 的工具名（collect 后处理需识别这些 ToolMessage）
@@ -253,9 +255,6 @@ class InformationCollectorAgent:
         由后处理从 ToolMessage 中按主 Agent 给的 url 顺序拼装。
         """
         logger.info(f"信息采集开始: {requirement}")
-
-        # 函数体内 import，避免循环导入（agent → app.services → ... → agent）
-        from app.services.model_usage_service import usage_context
 
         with usage_context(agent_name="info_collector_main"):
             result_state = await self.agent.ainvoke(

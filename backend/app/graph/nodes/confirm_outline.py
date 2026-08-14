@@ -15,6 +15,9 @@ from app.graph.sse_bridge import send_sse_message
 from app.graph.state import ArticleState
 from app.models.enums import ArticlePhaseEnum, SseMessageTypeEnum
 from app.utils.logger import logger
+from app.database import database
+from app.schemas.article import OutlineSection
+from app.services.article_service import ArticleService
 
 
 async def confirm_outline_node(state: ArticleState) -> dict:
@@ -22,11 +25,6 @@ async def confirm_outline_node(state: ArticleState) -> dict:
     task_id = state.get("task_id") or ""
     outline_dict = state.get("outline") or {}
     sections_dict = outline_dict.get("sections", []) if outline_dict else []
-
-    # 函数体内 import，避免触发 app.services.__init__ → article_async_service → graph 的循环导入
-    from app.database import database
-    from app.schemas.article import OutlineSection
-    from app.services.article_service import ArticleService
 
     sections = [OutlineSection(**s) for s in sections_dict]
 
