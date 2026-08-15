@@ -72,19 +72,25 @@ async def create_article(
     # 异步执行阶段1：生成标题方案（LangGraph 编排，跑到 confirm_title 后 interrupt）
     # 字数兜底：用户未填走默认 2000；新闻题材由条件边走信息采集节点
     word_count = request.word_count if request.word_count else 2000
-    task = asyncio.create_task(
-        article_async_service.start(
-            task_id,
-            request.topic,
-            request.genre,
-            request.language_style,
-            word_count,
-            final_image_methods,
-            request.style,
-            user_id=current_user.id,
+    # 先原子占坑再启动任务（create 路径由上方 Redis 去重键兜底重复提交，这里统一走三段式并发守卫）
+    article_async_service.reserve_task(task_id, action="正在生成标题方案")
+    try:
+        task = asyncio.create_task(
+            article_async_service.start(
+                task_id,
+                request.topic,
+                request.genre,
+                request.language_style,
+                word_count,
+                final_image_methods,
+                request.style,
+                user_id=current_user.id,
+            )
         )
-    )
-    article_async_service.register_task(task_id, task)
+        article_async_service.attach_task(task_id, task)
+    except BaseException:
+        article_async_service.release_task(task_id)
+        raise
 
     return BaseResponse.success(data=task_id, message="任务创建成功")
 
@@ -96,29 +102,36 @@ async def confirm_title(
     current_user: LoginUserVO = Depends(require_login)
 ):
     """确认标题并输入补充描述"""
-    service = ArticleService(db)
-    # 续跑前余额复查：balance + max_debt_points >= 0（透支护栏，admin 豁免）
-    await service.assert_sufficient_points_for_resume(request.task_id, current_user)
-    await service.confirm_title(
-        task_id=request.task_id,
-        selected_main_title=request.selected_main_title,
-        selected_sub_title=request.selected_sub_title,
-        user_description=request.user_description,
-        login_user=current_user,
-    )
-    # 用户已确认标题，续跑图：注入标题/描述 → 生成大纲
-    task = asyncio.create_task(article_async_service.resume(
-        request.task_id,
-        {
-            "title": {
-                "mainTitle": request.selected_main_title,
-                "subTitle": request.selected_sub_title,
+    # 先原子占坑（任何 await / DB 副作用之前），重复 resume 零副作用拒绝
+    article_async_service.reserve_task(request.task_id, action="正在生成大纲")
+    try:
+        service = ArticleService(db)
+        # 续跑前余额复查：balance + max_debt_points >= 0（透支护栏，admin 豁免）
+        await service.assert_sufficient_points_for_resume(request.task_id, current_user)
+        await service.confirm_title(
+            task_id=request.task_id,
+            selected_main_title=request.selected_main_title,
+            selected_sub_title=request.selected_sub_title,
+            user_description=request.user_description,
+            login_user=current_user,
+        )
+        # 用户已确认标题，续跑图：注入标题/描述 → 生成大纲
+        task = asyncio.create_task(article_async_service.resume(
+            request.task_id,
+            {
+                "title": {
+                    "mainTitle": request.selected_main_title,
+                    "subTitle": request.selected_sub_title,
+                },
+                "user_description": request.user_description,
             },
-            "user_description": request.user_description,
-        },
-        user_id=current_user.id,
-    ))
-    article_async_service.register_task(request.task_id, task)
+            user_id=current_user.id,
+        ))
+        article_async_service.attach_task(request.task_id, task)
+    except BaseException:
+        # 校验/写库失败回滚占坑，避免名额卡死后续 resume
+        article_async_service.release_task(request.task_id)
+        raise
     return BaseResponse.success(data=None)
 
 
@@ -129,25 +142,32 @@ async def confirm_outline(
     current_user: LoginUserVO = Depends(require_login)
 ):
     """确认大纲"""
-    service = ArticleService(db)
-    # 续跑前余额复查：balance + max_debt_points >= 0（透支护栏，admin 豁免）
-    await service.assert_sufficient_points_for_resume(request.task_id, current_user)
-    await service.confirm_outline(
-        task_id=request.task_id,
-        outline=request.outline,
-        login_user=current_user,
-    )
-    # 用户已确认大纲，续跑图：注入编辑后大纲 → 生成正文/配图/全文
-    # 同时显式清空 modify_suggestion，兜底防止此前 AI 修改残留导致条件边再次路由进修改节点
-    task = asyncio.create_task(article_async_service.resume(
-        request.task_id,
-        {
-            "outline": {"sections": [s.model_dump() for s in request.outline]},
-            "modify_suggestion": None,
-        },
-        user_id=current_user.id,
-    ))
-    article_async_service.register_task(request.task_id, task)
+    # 先原子占坑（任何 await / DB 副作用之前），重复 resume 零副作用拒绝
+    article_async_service.reserve_task(request.task_id, action="正在生成正文")
+    try:
+        service = ArticleService(db)
+        # 续跑前余额复查：balance + max_debt_points >= 0（透支护栏，admin 豁免）
+        await service.assert_sufficient_points_for_resume(request.task_id, current_user)
+        await service.confirm_outline(
+            task_id=request.task_id,
+            outline=request.outline,
+            login_user=current_user,
+        )
+        # 用户已确认大纲，续跑图：注入编辑后大纲 → 生成正文/配图/全文
+        # 同时显式清空 modify_suggestion，兜底防止此前 AI 修改残留导致条件边再次路由进修改节点
+        task = asyncio.create_task(article_async_service.resume(
+            request.task_id,
+            {
+                "outline": {"sections": [s.model_dump() for s in request.outline]},
+                "modify_suggestion": None,
+            },
+            user_id=current_user.id,
+        ))
+        article_async_service.attach_task(request.task_id, task)
+    except BaseException:
+        # 校验/写库失败回滚占坑，避免名额卡死后续 resume
+        article_async_service.release_task(request.task_id)
+        raise
     return BaseResponse.success(data=None)
 
 
@@ -164,21 +184,28 @@ async def ai_modify_outline(
     由节点跑 LLM + 落库 + 发 AI_MODIFY_OUTLINE_COMPLETE / FAILED SSE。
     路由只回 ack（taskId），大纲由 SSE 回填前端。
     """
-    service = ArticleService(db)
-    # 续跑前余额复查：AI 修改大纲每轮都要即时结算，透支超限拒绝修改
-    await service.assert_sufficient_points_for_resume(request.task_id, current_user)
-    await service.assert_can_ai_modify_outline(
-        task_id=request.task_id,
-        login_user=current_user,
-    )
-    task = asyncio.create_task(
-        article_async_service.resume(
-            request.task_id,
-            {"modify_suggestion": request.modify_suggestion},
-            user_id=current_user.id,
+    # 先原子占坑（任何 await / DB 副作用之前），重复 resume 零副作用拒绝
+    article_async_service.reserve_task(request.task_id, action="AI 正在修改大纲")
+    try:
+        service = ArticleService(db)
+        # 续跑前余额复查：AI 修改大纲每轮都要即时结算，透支超限拒绝修改
+        await service.assert_sufficient_points_for_resume(request.task_id, current_user)
+        await service.assert_can_ai_modify_outline(
+            task_id=request.task_id,
+            login_user=current_user,
         )
-    )
-    article_async_service.register_task(request.task_id, task)
+        task = asyncio.create_task(
+            article_async_service.resume(
+                request.task_id,
+                {"modify_suggestion": request.modify_suggestion},
+                user_id=current_user.id,
+            )
+        )
+        article_async_service.attach_task(request.task_id, task)
+    except BaseException:
+        # 校验/写库失败回滚占坑，避免名额卡死后续 resume
+        article_async_service.release_task(request.task_id)
+        raise
     return BaseResponse.success(data={"taskId": request.task_id})
 
 

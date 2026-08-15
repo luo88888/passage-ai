@@ -1,12 +1,14 @@
 """
 文章异步任务服务（LangGraph 编排版，仅负责启停/恢复）
 
-职责已收窄为「创建/启动任务、恢复任务、持有 Task 引用防 GC、失败兜底」：
+职责已收窄为「创建/启动任务、恢复任务、持有 Task 引用防 GC、并发守卫、失败兜底」：
   - start(task_id, topic, genre, ...): 建初始 state → ainvoke 跑到第一个 interrupt
        （confirm_title 后：标题已落库 + TITLE_GENERATED 已发，等用户确认标题）
   - resume(task_id, inject, user_id): 注入人工输入（确认标题后的 title/description、确认大纲后的 outline）
        → aupdate_state + ainvoke(None) 续跑到下一个 interrupt 或 END
-  - register_task: 保存 asyncio.Task 引用，避免被 GC 中断
+  - reserve_task / attach_task / release_task: 保存 asyncio.Task 引用防 GC，同时充当同 taskId 并发守卫
+    （reserve_task 在路由层任何 await 之前原子占坑，重复 resume 被零副作用拒绝；
+      attach_task 绑定后台任务并挂释放回调，release_task 供校验/写库失败回滚）
   - _handle_failure: 节点异常冒泡到此 → 结算已发生用量 + 标记 FAILED + 释放并发名额
     + 推 ERROR + 关闭 SSE（容错边界）
 
@@ -16,6 +18,8 @@ save_outline / save_article_content / send_sse_message / sse complete）均已�
 图状态用 SQLite checkpointer 持久化（thread_id = taskId），取代原手工 checkpoint。
 """
 import asyncio
+import time
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from app.database import database
@@ -27,7 +31,21 @@ from app.services.article_service import ArticleService
 from app.services.model_usage_service import usage_context, usage_recorder
 from app.utils.logger import logger
 from app.services.settlement_service import SettlementService
+from app.exceptions import ErrorCode, throw_if
 
+
+@dataclass
+class RunningTask:
+    """正在运行的图任务（并发守卫：同 taskId 禁止重复 resume）
+
+    Attributes:
+        task: asyncio.Task 引用（防 GC + task.done() 判活）；先 reserve_task 占坑（None），校验/写库通过后由 attach_task 填入
+        action: 本次操作名（拒绝并发时展示给用户）
+        started_at: 启动时间戳（time.time()，可展示耗时）
+    """
+    task: Optional[asyncio.Task]
+    action: str
+    started_at: float
 
 
 class ArticleAsyncService:
@@ -35,8 +53,8 @@ class ArticleAsyncService:
 
     def __init__(self) -> None:
         self._graph = None  # 已编译图单例，懒构造（需 lifespan 已 init checkpointer）
-        # 持有异步任务引用，避免被 Python GC 回收
-        self._tasks: Dict[str, asyncio.Task] = {}
+        # 持有异步任务引用避免被 GC 回收；同时充当「同 taskId 正在运行」的并发守卫
+        self._tasks: Dict[str, RunningTask] = {}
 
     # ==================== 图与 checkpointer 单例 ====================
 
@@ -56,13 +74,69 @@ class ArticleAsyncService:
         """
         return {"configurable": {"thread_id": task_id}}
 
-    # ==================== AsyncTask 引用管理（GC 修复） ====================
+    # ==================== AsyncTask 引用管理（GC 修复 + 并发守卫） ====================
 
-    def register_task(self, task_id: str, task: asyncio.Task) -> asyncio.Task:
-        """注册异步任务引用，完事后自动清理。在路由层调，避免 Task 被 GC。"""
-        self._tasks[task_id] = task
-        task.add_done_callback(lambda _t: self._tasks.pop(task_id, None))
-        return task
+    def reserve_task(self, task_id: str, action: str) -> None:
+        """原子占用同 taskId 并发名额（无 await，事件循环内天然互斥）。
+
+        必须由路由层在**任何 await / DB 副作用之前**调用；成功后才做余额复查与写库，
+        校验失败用 release_task 回滚。重复 resume 在此一步被拒绝（DB 零副作用）。
+
+        Args:
+            task_id: 文章任务 ID
+            action: 本次操作名，拒绝并发时展示给用户
+        Raises:
+            BusinessException: 同 taskId 已有任务在跑（OPERATION_ERROR）
+        """
+        current = self._tasks.get(task_id)
+        if current is not None:
+            throw_if(
+                True,
+                ErrorCode.OPERATION_ERROR,
+                f"{current.action}，请勿重复操作",
+            )
+        self._tasks[task_id] = RunningTask(task=None, action=action, started_at=time.time())
+
+    def attach_task(self, task_id: str, task: asyncio.Task) -> None:
+        """绑定真正的后台任务并挂释放回调（先 reserve_task 占坑、校验写库通过后才 attach）。
+
+        task 完成时回调释放占用；回调仅在「当前登记的仍是本任务」时才清理，
+        防止旧任务完成回调误删同 taskId 新任务引用。
+
+        Args:
+            task_id: 文章任务 ID
+            task: 后台 asyncio.Task（通常为 asyncio.create_task(resume(...))）
+        Raises:
+            BusinessException: 未先 reserve_task / 重复绑定（SYSTEM_ERROR，理论不可达）
+        """
+        current = self._tasks.get(task_id)
+        if current is None or current.task is not None:
+            logger.error(f"并发名额状态异常，请先 reserve_task 再 attach_task，task_id={task_id}")
+            throw_if(
+                True,
+                ErrorCode.SYSTEM_ERROR
+            )
+        assert current is not None
+        current.task = task
+        task.add_done_callback(lambda t, tid=task_id: self._cleanup_done_task(t, tid))
+
+    def _cleanup_done_task(self, task: asyncio.Task, task_id: str) -> None:
+        """任务完成回调：仅当「当前登记的 RunningTask 仍是本任务」时才释放占用。
+
+        防止旧任务完成回调误删同 taskId 新任务的引用（release_task 回滚后重新
+        reserve/attach 的场景：旧任务仍在跑，其完成回调不得清掉新任务的占坑）。
+
+        Args:
+            task: 已完成的后台任务
+            task_id: 文章任务 ID
+        """
+        current = self._tasks.get(task_id)
+        if current is not None and current.task is task:
+            self._tasks.pop(task_id, None)
+
+    def release_task(self, task_id: str) -> None:
+        """释放并发占用（路由层校验/写库失败时回滚占坑，避免名额卡死）"""
+        self._tasks.pop(task_id, None)
 
     # ==================== 启动：建初始 state 跑到第一个 interrupt ====================
 
