@@ -14,9 +14,8 @@ return {}（图状态不变，全文已由 merger 节点写入 full_content）�
 """
 from __future__ import annotations
 
-from app.graph.nodes.compat import to_class_state
 from app.graph.sse_bridge import send_sse_message
-from app.graph.state import ArticleState
+from app.schemas.article import ArticleState
 from app.managers.sse_manager import sse_emitter_manager
 from app.models.enums import SseMessageTypeEnum
 from app.utils.logger import logger
@@ -28,8 +27,7 @@ from app.services.model_usage_service import usage_recorder
 
 async def finalize_node(state: ArticleState) -> dict:
     """收尾：落正文/配图/全文 + 标记完成 + 发 ALL_COMPLETE + 关闭 SSE"""
-    task_id = state.get("task_id") or ""
-    class_state = to_class_state(state)
+    task_id = state.task_id or ""
 
     article_service = ArticleService(database)
     logger.info("[graph] 收尾节点, taskId=%s", task_id)
@@ -41,7 +39,7 @@ async def finalize_node(state: ArticleState) -> dict:
         logger.exception("[graph] 终态结算失败, taskId=%s", task_id)
 
     # 成功终态：保存内容 + 标记完成 + 释放并发名额（同一事务，终态一致性）
-    await article_service.complete_task_and_release_slot(task_id, class_state)
+    await article_service.complete_task_and_release_slot(task_id, state)
 
     send_sse_message(
         task_id,

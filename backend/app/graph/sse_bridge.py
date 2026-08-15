@@ -2,25 +2,25 @@
 
 提供图节点构造传给智能体的 stream_handler 闭包。
 
-make_emit(task_id, class_state) 返回一个 Callable[[str], None]：
+make_emit(task_id, state) 返回一个 Callable[[str], None]：
   - 形如 "AGENT2_STREAMING:片段" / "AGENT3_STREAMING:片段" / "IMAGE_COMPLETE:url" 的流式消息
     → 包装成 {"type":<枚举值>, "content":<剥前缀正文>}
   - 恰好等于枚举 value 的完成消息
-    → 由 _build_complete_message_data 从 class_state 取阶段产物拼装
+    → 由 _build_complete_message_data 从 state 取阶段产物拼装
   - 推送到 sse_emitter_manager（以 task_id 为 key 的全局队列）
 
-闭包按引用捕获 class_state，智能体就地修改后完成事件能读到最新产物。
+闭包按引用捕获 state（Pydantic model），智能体就地修改后完成事件能读到最新产物。
 """
 import json
 from typing import Any, Callable, Dict
 
 from app.managers.sse_manager import sse_emitter_manager
 from app.models.enums import SseMessageTypeEnum
-from app.schemas.article import ArticleState as ClassArticleState
+from app.schemas.article import ArticleState
 from app.utils.logger import logger
 
 
-def _build_message_data(message: str, state: ClassArticleState) -> Dict[str, Any]:
+def _build_message_data(message: str, state: ArticleState) -> Dict[str, Any]:
     """构建 SSE 消息数据（纯路由转换，无副作用）。
 
     message 两种形态：
@@ -50,8 +50,8 @@ def _build_message_data(message: str, state: ClassArticleState) -> Dict[str, Any
     return _build_complete_message_data(message, state)
 
 
-def _build_complete_message_data(message: str, state: ClassArticleState) -> Dict[str, Any]:
-    """构建完成消息数据：从 class_state 取对应阶段产物"""
+def _build_complete_message_data(message: str, state: ArticleState) -> Dict[str, Any]:
+    """构建完成消息数据：从 state 取对应阶段产物"""
     data: Dict[str, Any] = {}
 
     if message == SseMessageTypeEnum.AGENT1_COMPLETE.value:
@@ -85,7 +85,7 @@ def _build_complete_message_data(message: str, state: ClassArticleState) -> Dict
     return data
 
 
-def make_emit(task_id: str, class_state: ClassArticleState) -> Callable[[str], None]:
+def make_emit(task_id: str, state: ArticleState) -> Callable[[str], None]:
     """构造传给智能体 run() 的 stream_handler 闭包。
 
     智能体就地修改后完成事件能读到最新产物。
@@ -93,16 +93,16 @@ def make_emit(task_id: str, class_state: ClassArticleState) -> Callable[[str], N
     def emit(message: str) -> None:
         """智能体流式回调：把裸消息转换为 SSE 数据并推送到全局队列。
 
-        闭包按引用捕获 task_id 与 class_state（智能体就地修改后完成事件能读到最新产物），
+        闭包按引用捕获 task_id 与 state（智能体就地修改后完成事件能读到最新产物），
         消息两种形态：
           - 流式：f"{枚举值}:{正文片段}" → 剥前缀为 {"type", "content"}
-          - 完成：恰好等于某 SseMessageTypeEnum 的 value → 从 class_state 取阶段产物拼装
+          - 完成：恰好等于某 SseMessageTypeEnum 的 value → 从 state 取阶段产物拼装
         若 _build_message_data 返回 None（未知完成消息）则静默忽略，不推送。
 
         Args:
             message: 智能体传出的原始消息（流式带前缀 / 完成裸标识符）。
         """
-        data = _build_message_data(message, class_state)
+        data = _build_message_data(message, state)
         if data is not None:
             sse_emitter_manager.send(task_id, json.dumps(data, ensure_ascii=False))
 

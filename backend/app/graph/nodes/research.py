@@ -22,8 +22,8 @@ from typing import Any, Dict
 from app.agent.information_collector.agent import InformationCollectorAgent
 from app.agent.information_collector.schemas import NewsArticleSummary
 from app.graph.sse_bridge import send_sse_message
-from app.graph.state import ArticleState
 from app.models.enums import SseMessageTypeEnum
+from app.schemas.article import ArticleState
 from app.utils.logger import logger
 from app.database import database
 from app.services.article_service import ArticleService
@@ -75,8 +75,8 @@ def _to_research_article(article: NewsArticleSummary) -> Dict[str, Any]:
 
 async def research_node(state: ArticleState) -> Dict[str, Any]:
     """信息采集节点：新闻题材采集相关报道，结构化落库 + 下发 SSE + 产出提示词参考文本"""
-    task_id = state.get("task_id") or ""
-    topic = state.get("topic") or ""
+    task_id = state.task_id or ""
+    topic = state.topic or ""
     logger.info("[graph] 信息采集开始, taskId=%s, topic=%s", task_id, topic)
 
     # requirement 构造：顺带给出题材语义，让采集 Agent 聚焦新闻/时事报道

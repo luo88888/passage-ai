@@ -10,8 +10,8 @@
 """
 from __future__ import annotations
 
-from app.graph.state import ArticleState
 from app.models.enums import ArticlePhaseEnum, ArticleStatusEnum
+from app.schemas.article import ArticleState
 from app.utils.logger import logger
 from app.database import database
 from app.services.article_service import ArticleService
@@ -19,7 +19,7 @@ from app.services.article_service import ArticleService
 
 async def bootstrap_node(state: ArticleState) -> dict:
     """启动副作用：标记任务处理中 + 推进到标题生成阶段"""
-    task_id = state.get("task_id") or ""
+    task_id = state.task_id or ""
     article_service = ArticleService(database)
     logger.info("[graph] 启动节点, taskId=%s", task_id)
     await article_service.update_article_status(task_id, ArticleStatusEnum.PROCESSING)

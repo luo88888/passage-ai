@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from app.graph.constants import NODE_GENERATE_TITLE, NODE_RESEARCH
-from app.graph.state import ArticleState
 from app.models.enums import ArticleGenreEnum
+from app.schemas.article import ArticleState
 
 
 def route_after_bootstrap(state: ArticleState) -> str:
@@ -15,6 +15,6 @@ def route_after_bootstrap(state: ArticleState) -> str:
     Returns:
         目标节点名（NODE_RESEARCH / NODE_GENERATE_TITLE）
     """
-    if ArticleGenreEnum.is_news(state.get("genre")):
+    if ArticleGenreEnum.is_news(state.genre):
         return NODE_RESEARCH
     return NODE_GENERATE_TITLE

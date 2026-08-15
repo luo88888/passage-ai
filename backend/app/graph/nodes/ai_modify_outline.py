@@ -2,8 +2,8 @@
 
 用途：用户在 OUTLINE_EDITING 阶段提交修改建议，路由 fire-and-forget 调
 article_async_service.resume(task_id, {"modify_suggestion": ...}) 续跑本图，
-条件边据 state["modify_suggestion"] 路由进本节点。本节点：
-  - 读 state：task_id / title(mainTitle,subTitle) / outline.sections / modify_suggestion
+条件边据 state.modify_suggestion 路由进本节点。本节点：
+  - 读 state：task_id / title(TitleResult) / outline.sections / modify_suggestion
   - 调 AiModifyOutlineAgent.modify_outline 重写大纲
   - ArticleService.save_outline 持久化（不写内联 SQL，不推进阶段，仍为 OUTLINE_EDITING）
   - send_sse_message AI_MODIFY_OUTLINE_COMPLETE（携带新大纲）
@@ -17,15 +17,14 @@ agent 访问：复用 get_orchestrator() 单例持有的 ai_modify_outline_agent
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from app.graph.nodes._orchestrator import get_orchestrator
 from app.graph.sse_bridge import send_sse_message
-from app.graph.state import ArticleState
 from app.models.enums import SseMessageTypeEnum
+from app.schemas.article import ArticleState
 from app.utils.logger import logger
 from app.database import database
-from app.schemas.article import OutlineSection
 from app.services.article_service import ArticleService
 
 
@@ -36,17 +35,14 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
         成功：{"outline": <新大纲 dict>, "modify_suggestion": None}
         失败：{"modify_suggestion": None}（不写 DB，沿用原 outline）
     """
-    task_id = state.get("task_id") or ""
+    task_id = state.task_id or ""
     logger.info("[graph] AI 修改大纲节点, taskId=%s", task_id)
 
-    title_dict = state.get("title") or {}
-    main_title = title_dict.get("mainTitle", "")
-    sub_title = title_dict.get("subTitle", "")
-    outline_dict = state.get("outline") or {}
-    sections_dict: List[dict] = outline_dict.get("sections", []) if outline_dict else []
-
-    current_sections = [OutlineSection(**s) for s in sections_dict]
-    target_word_count = state.get("word_count") or 2000
+    title = state.title  # Optional[TitleResult]
+    main_title = title.main_title if title else ""
+    sub_title = title.sub_title if title else ""
+    current_sections = state.outline.sections if state.outline else []
+    target_word_count = state.word_count or 2000
 
     # 复用编排器单例持有的独立 AI 修改大纲智能体
     orchestrator = get_orchestrator()
@@ -58,9 +54,9 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
             main_title=main_title,
             sub_title=sub_title,
             current_sections=current_sections,
-            modify_suggestion=state.get("modify_suggestion") or "",
+            modify_suggestion=state.modify_suggestion or "",
             target_word_count=target_word_count,
-            language_style=state.get("language_style"),
+            language_style=state.language_style,
         )
     except Exception as e:
         # 失败：发失败 SSE、不写 DB、清空 modify_suggestion 让下次确认能前进，不 re-raise

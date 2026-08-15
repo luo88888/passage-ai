@@ -8,9 +8,8 @@
 占位节点（暂不接入 builder，保留以备后续实现）：
   review / seo
 
-状态适配：compat（dict↔class）
+状态：统一使用 app/schemas/article.py 的 ArticleState（Pydantic model，兼作图状态与智能体状态）
 """
-from app.graph.nodes.compat import merge_to_dict_state, to_class_state
 from app.graph.nodes.bootstrap import bootstrap_node
 from app.graph.nodes.content import content_node
 from app.graph.nodes.finalize import finalize_node
@@ -33,8 +32,6 @@ from app.graph.nodes.review import review_node
 from app.graph.nodes.seo import seo_node
 
 __all__ = [
-    "to_class_state",
-    "merge_to_dict_state",
     # 副作用节点（接入图）
     "bootstrap_node",
     "confirm_title_node",

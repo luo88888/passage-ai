@@ -8,5 +8,10 @@
 """
 from app.graph.edges.bootstrap_routing import route_after_bootstrap
 from app.graph.edges.review_routing import route_after_review
+from app.graph.edges.outline_routing import route_after_outline
 
-__all__ = ["route_after_bootstrap", "route_after_review"]
+__all__ = [
+    "route_after_bootstrap",
+    "route_after_review",
+    "route_after_outline"
+]
