@@ -18,7 +18,7 @@ from app.utils.logger import logger
 
 
 class ZhipuImageService(BaseImageSearchService):
-    """智谱 GLM-Image 原生 AI 生图服务。"""
+    """智谱原生 AI 生图服务。"""
 
     name = "ZHIPU"
     description = "适合商业海报、科普插画、多格图画、封面设计与版式结构较为复杂的社交媒体图文内容、人物、风景、动植物等"
@@ -35,8 +35,7 @@ class ZhipuImageService(BaseImageSearchService):
         self.model = settings.zhipu_image_model
         self.size = settings.zhipu_image_size
         self.client = httpx.AsyncClient(timeout=settings.zhipu_image_timeout)
-        # 智谱开放平台生图并发上限为 1，全实例共享一道闸门串行化请求，
-        # 避免 ParallelImageGenerator 的全局并发（默认 3）同时命中智谱触发限流。
+        # 智谱 AI 生图有并发限制，需根据实际情况进行限流
         # 该服务为模块级单例（由 ParallelImageGenerator 注册一次），故此信号量跨文章全局生效。
         self._semaphore = AsyncCountingSemaphore(settings.zhipu_image_max_concurrency)
         logger.info(f"智谱 AI 生图服务初始化成功，model={self.model}，max_concurrency={settings.zhipu_image_max_concurrency}")
@@ -44,16 +43,15 @@ class ZhipuImageService(BaseImageSearchService):
     async def get_image_data(self, request: ImageRequest) -> Optional[ImageData]:
         """根据提示词生成图片数据。
 
-        智谱接口返回的是图片临时 URL（有效期 30 天），这里下载为 bytes 后返回，
-        与 NanoBanana 等 AI 生图服务保持一致的 BYTES 数据流，便于后续统一上传转存。
-        成功/失败均按张上报模型用量（智谱免费，仅统计不计分）。
+        智谱接口返回的是图片临时 URL（有效期 30 天），这里下载为 bytes 后返回，便于后续统一上传转存。
+        成功/失败均按张上报模型用量。
         """
         prompt = request.get_effective_param(True)
         if not prompt:
             return None
 
-        # 智谱生图并发=1：等待限流槽位（waiting 为当前排队数，便于观测）
-        logger.info(f"智谱 GLM-Image 等待限流槽位, waiting={self._semaphore.waiting_count}")
+        # 等待限流槽位（waiting 为当前排队数，便于观测）
+        logger.info(f"智谱 {self.model} 等待限流槽位, waiting={self._semaphore.waiting_count}")
         image_url: Optional[str] = None
         succeeded = False
         async with self._semaphore:
@@ -63,33 +61,33 @@ class ZhipuImageService(BaseImageSearchService):
                     "Content-Type": "application/json",
                 }
                 payload = {
-                    "model": self.model or "glm-image",
+                    "model": self.model or "cogview-3-flash",
                     "prompt": prompt,
-                    "size": self.size or "1280x1280",
+                    "size": self.size or "1152x864",
                 }
                 response = await self.client.post(self._API_URL, headers=headers, json=payload)
                 if response.status_code != 200:
                     logger.error(
-                        f"智谱 GLM-Image 生成失败: status={response.status_code}, body={response.text[:500]}"
+                        f"智谱 {self.model} 生成图片失败: status={response.status_code}, body={response.text[:500]}"
                     )
                 else:
                     error = response.json().get("error") or {}
                     if error:
                         logger.error(
-                            f"智谱 GLM-Image 生成图片异常: {str(error)}"
+                            f"智谱 {self.model} 生成图片异常: {str(error)}"
                         )
                     else:
                         data = response.json().get("data") or []
                         if not data:
-                            logger.error("智谱 GLM-Image 生成图片异常: 响应 data 为空")
+                            logger.error(f"智谱 {self.model} 生成图片异常: 响应 data 为空")
                         else:
                             image_url = data[0].get("url")
                             succeeded = bool(image_url)
                             if not image_url:
-                                logger.error("智谱 GLM-Image 生成图片异常: 响应缺少 url")
+                                logger.error(f"智谱 {self.model} 生成图片异常: 响应缺少 url")
             except Exception as e:
                 logger.error(
-                    f"智谱 GLM-Image 生成图片异常, type={type(e).__name__}, error={str(e)}"
+                    f"智谱 {self.model} 生成图片异常, type={type(e).__name__}, error={str(e)}"
                 )
 
         self._record_usage(
@@ -112,7 +110,7 @@ class ZhipuImageService(BaseImageSearchService):
         """
         usage_recorder.record_image(
             provider="Zhipu",
-            model=self.model or "glm-image",
+            model=self.model or "cogview-3-flash",
             agent_name="agent5_generate_images",
             image_count=image_count,
             status=status,
@@ -125,7 +123,7 @@ class ZhipuImageService(BaseImageSearchService):
                 dl_resp = await dl_client.get(image_url)
             if dl_resp.status_code != 200:
                 logger.error(
-                    "智谱 GLM-Image 图片下载失败: status=%s, url=%s",
+                    f"智谱 {self.model} 图片下载失败: status=%s, url=%s",
                     dl_resp.status_code, image_url,
                 )
                 return None
@@ -133,7 +131,7 @@ class ZhipuImageService(BaseImageSearchService):
             return ImageData.from_bytes(dl_resp.content, mime_type)
         except Exception as e:
             logger.error(
-                f"智谱 GLM-Image 图片下载异常, type={type(e).__name__}, error={str(e)}"
+                f"智谱 {self.model} 图片下载异常, type={type(e).__name__}, error={str(e)}"
             )
             return None
 

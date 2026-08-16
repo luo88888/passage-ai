@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 管理端积分管理页（M5，8.3）
+ * 管理端积分管理页
  *
  * Tab1 概览：全局积分/用量看板（GET /admin/points/overview）
  * Tab2 用户积分：搜索用户 → 查看流水（Drawer）/ 调整积分（Modal）

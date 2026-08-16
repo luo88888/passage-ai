@@ -13,7 +13,7 @@ from app.utils.logger import logger
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
 
-    from app.agent.image_generator import ParallelImageGenerator
+    from app.services.image_generator import ParallelImageGenerator
     from app.services.agent_log_service import AgentLogService
 
 
@@ -28,8 +28,7 @@ class ImageAnalyzerAgent(BaseAgent):
         structured_model: Optional[Any] = None,
     ):
         super().__init__(model, agent_log_service, structured_model)
-        # 配图方式说明由 ParallelImageGenerator 从已注册服务的 name/description/usage
-        # 元数据动态构建（Markdown 表格），本智能体不再硬编码方式列表。
+        # 配图方式说明由 ParallelImageGenerator 从已注册服务的 name/description/usage 元数据动态构建（Markdown 表格）
         self.parallel_image_generator = parallel_image_generator
 
     @staticmethod
@@ -38,6 +37,7 @@ class ImageAnalyzerAgent(BaseAgent):
         enabled_methods: Optional[List[str]],
     ) -> List[ImageRequirement]:
         """验证并过滤配图需求（不在允许列表中的降级替换）"""
+        # NOTE: 这降级有点傻逼
         if not enabled_methods:
             return requirements
 
@@ -71,7 +71,7 @@ class ImageAnalyzerAgent(BaseAgent):
     # ==================== 主流程 ====================
 
     async def run(self, state: ArticleState):
-        """分析配图需求，在正文中插入占位符，填充 state 相关字段"""
+        """分析配图需求"""
         methods_guide = self.parallel_image_generator.build_image_methods_guide(
             enabled_image_methods=state.enabled_image_methods,
         )
@@ -105,7 +105,7 @@ class ImageAnalyzerAgent(BaseAgent):
                 }
             )
             logger.info(
-                "智能体4：配图需求分析成功, count=%s, validated=%s, 已在正文中插入占位符",
+                "智能体4：配图需求分析成功, count=%s, validated=%s",
                 len(agent4_result.image_requirements),
                 len(state.image_requirements),
             )

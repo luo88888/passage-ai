@@ -1,8 +1,6 @@
 """意见反馈相关常量。
 
 存放已确认的反馈类型与状态常量，供服务层/路由层引用，避免魔法字符串散落各处。
-规则来源：docs/local/意见反馈与站内信功能开发计划.md（v1.1，已确认：反馈类型四类
-BUG/FEATURE/COMPLAINT/OTHER，状态仅 PENDING/PROCESSING/RESOLVED 三段，截图最多 5 张）。
 """
 
 
@@ -25,7 +23,7 @@ class FeedbackConstant:
         LINK_PREFIX: 反馈详情前端路由前缀（站内信 link 用）。
     """
 
-    # 反馈类型（四类，已确认）
+    # 反馈类型（四类）
     TYPE_BUG = "BUG"                # BUG
     TYPE_FEATURE = "FEATURE"        # 建议
     TYPE_COMPLAINT = "COMPLAINT"    # 投诉
@@ -38,7 +36,7 @@ class FeedbackConstant:
         TYPE_OTHER: "其他",
     }
 
-    # 反馈状态（三段，已确认）
+    # 反馈状态（三段）
     STATUS_PENDING = "PENDING"          # 待处理
     STATUS_PROCESSING = "PROCESSING"    # 处理中
     STATUS_RESOLVED = "RESOLVED"        # 已解决

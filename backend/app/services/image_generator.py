@@ -61,7 +61,7 @@ class ParallelImageGenerator:
             MermaidService(), IconifyService(),
             EmojiPackService(), SvgDiagramService(),
         ]
-        # 智谱 GLM-Image：仅在配置了 API key 时才注册，避免空 key 时每次调用失败再降级
+        # 智谱 AI 生图：仅在配置了 API key 时才注册，避免空 key 时每次调用失败再降级
         if settings.zhipu_api_key:
             services.append(ZhipuImageService())
 
@@ -70,7 +70,7 @@ class ParallelImageGenerator:
             self.service_map[service.get_method()] = service
             logger.info(
                 f"注册图片服务: {method.value} -> {service.__class__.__name__} "
-                f"(AI生图: {method.is_ai_generated()}, 降级: {method.is_fallback()})"
+                f"(AI生图: {method.is_ai_generated()}, 降级: {method.is_fallback()}, 是否可用: {service.is_available()})"
             )
 
     async def get_image_and_upload(
@@ -167,7 +167,7 @@ class ParallelImageGenerator:
         self,
         enabled_image_methods: Optional[List[str]] = None,
     ) -> str:
-        """构建给 LLM 的「可用配图方式」说明，Markdown 表格格式。
+        """构建给 LLM 的「可用配图方式」说明，Markdown 表格格式，自动过滤不可用的方式
 
         Args:
             enabled_image_methods: 允许使用的配图方式列表（值为 ImageMethodEnum.value）；

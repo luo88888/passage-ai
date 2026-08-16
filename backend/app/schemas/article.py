@@ -93,7 +93,7 @@ class OutlineSection(BaseModel):
 
     section: int
     title: str
-    points: List[str]
+    points: List[str] = Field(..., description="章节要点")
     word_count: Optional[int] = Field(None, alias="wordCount", description="本章目标字数（由大纲生成/用户编辑，驱动正文逐章字数）")
 
     class Config:
@@ -201,24 +201,23 @@ class OutlineResult(BaseModel):
 class ImageRequirement(BaseModel):
     """配图需求"""
 
-    position: int   # 图片在文章中的序号
-    type: str       # cover/section/inline
+    position: int = Field(..., description="图片序号，1, 2, 3...递增")   # 图片在文章中的序号
+    type: str = Field(..., description="类型：cover/section/inline")       # cover/section/inline
     section_title: str = Field(..., alias="sectionTitle")
     keywords: str = Field(..., description="图库搜索关键词") # 图库搜索关键词
     # ImageMethodEnum
     image_source: str = Field(..., alias="imageSource", description="图片来源")
     prompt: str = Field(..., description="AI 生图提示词")
     # 正文中的占位符标记，图文合并时定位插入点
-    placeholder_id: str = Field(..., alias="placeholderId", description="占位符ID")
+    placeholder_id: str = Field(..., alias="placeholderId", description="占位符ID, 原文中的完整字面量")
 
     class Config:
         populate_by_name = True
 
 
 class Agent4Result(BaseModel):
-    """智能体4返回结果"""
+    """智能体4（配图）返回结果"""
 
-    # content_with_placeholders: str = Field(..., alias="contentWithPlaceholders")
     image_requirements: List[ImageRequirement] = Field(..., alias="imageRequirements")
 
     class Config:
@@ -240,25 +239,37 @@ class ImageResult(BaseModel):
         populate_by_name = True
 
 
-class ArticleState:
-    """文章生成状态，智能体共享"""
+class ArticleState(BaseModel):
+    """文章生成状态（LangGraph 图状态 + 智能体共享状态，统一 Pydantic 模型）
 
-    def __init__(self):
-        self.task_id: Optional[str] = None
-        self.topic: Optional[str] = None                                    # 用户指定
-        self.title: Optional[TitleResult] = None                            # 智能体1输出
-        self.outline: Optional[OutlineResult] = None                        # 智能体2输出
-        self.content: Optional[str] = None                                  # 智能体3输出
-        self.image_requirements: Optional[List[ImageRequirement]] = None    # 智能体4输出
-        self.images: Optional[List[ImageResult]] = None                     # 智能体5输出
-        self.cover_image: Optional[str] = None
-        self.full_content: Optional[str] = None                             # 图文合并的最终结果
-        self.enabled_image_methods: Optional[List[str]] = None              # 可使用的配图方式
-        self.style: Optional[str] = None                                    # 文章风格（已弃用，保留兼容）
-        self.title_options: Optional[List[TitleOption]] = None              # 标题方案
-        self.user_description: Optional[str] = None                         # 用户补充描述
-        # 新增创作控制字段
-        self.genre: Optional[str] = None                                    # 题材（驱动提示词/是否采集）
-        self.language_style: Optional[str] = None                           # 语言风格（驱动提示词语气）
-        self.word_count: Optional[int] = None                               # 目标字数
-        self.collected_news: Optional[str] = None                           # 信息采集产物（供提示词注入的摘要文本）
+    字段命名统一 snake_case（LangGraph channel 名 = 字段名，持久化/恢复不变化）；
+    结构字段（title/title_options/outline/image_requirements/images）为 Pydantic 模型，
+    节点返回图状态时用 model_dump(by_alias=True) 序列化为可 JSON 持久化 dict，
+    与既有 checkpoint / SSE 序列化惯例保持一致。
+    """
+
+    # ==================== 基础元信息 ====================
+    task_id: Optional[str] = None
+    topic: Optional[str] = None                                    # 用户指定选题
+    style: Optional[str] = None                                    # 文章风格（已弃用，保留兼容）
+
+    # ==================== 创作控制输入 ====================
+    genre: Optional[str] = None                                    # 题材：news/knowledge/product/tutorial/opinion/story
+    language_style: Optional[str] = None                           # 语言风格：professional/accessible/humorous/literary/formal
+    word_count: Optional[int] = None                               # 目标字数（<=10000，None 走默认 2000）
+    collected_news: Optional[str] = None                           # 新闻题材信息采集产物（供提示词注入的摘要文本）
+
+    # ==================== 交互式流程输入 ====================
+    user_description: Optional[str] = None                         # 用户补充描述
+    title_options: Optional[List[TitleOption]] = None              # 标题方案
+    enabled_image_methods: Optional[List[str]] = None              # 可使用的配图方式
+    modify_suggestion: Optional[str] = None                        # AI 修改大纲的用户建议（路由注入，节点消费后清空）
+
+    # ==================== 各智能体产出 ====================
+    title: Optional[TitleResult] = None                            # 确认后的标题
+    outline: Optional[OutlineResult] = None                        # 大纲
+    content: Optional[str] = None                                  # 正文（agent3 原文，含 <imageN> 占位标签）
+    image_requirements: Optional[List[ImageRequirement]] = None    # 配图需求
+    images: Optional[List[ImageResult]] = None                     # 配图结果
+    cover_image: Optional[str] = None
+    full_content: Optional[str] = None                             # 图文合并最终结果

@@ -1,4 +1,4 @@
-﻿# AGENTS.md
+# AGENTS.md
 
 本文件为 AI 助手在处理本仓库代码时提供指导。
 
@@ -9,150 +9,103 @@
 
 核心特点：
 
-- **多智能体编排**：LangGraph 编排 6 个创作智能体（标题、大纲、正文、配图分析、配图生成、内容合并）+ 1 个新闻信息采集智能体
+- **多智能体编排**：LangGraph 编排 7 个创作智能体（标题、大纲、AI 修改大纲、正文、配图分析、配图生成、内容合并）+ 1 个新闻信息采集智能体（LangChain `create_agent`）
 - **人机协同断点**：标题确认、大纲确认、AI 修改大纲共 3 个 interrupt 点，边生成边确认
-- **多源配图**：Pexels、智谱 GLM-Image、Nano Banana(Gemini)、Mermaid、Iconify、Bing 表情包、AI-SVG 图表等，失败自动降级（Picsum 兜底）
-- **实时进度流**：SSE 推送生成进度，正文/大纲流式输出；重新进入创作页可恢复上次进度（历史事件重放 + `?after=` 断点续传）
-- **用户体系**：注册 / 登录 / VIP 会员 / 配额管理 / 积分系统（签到 / 用量计费 / 明细 / 管理端，充值暂未开放）
-- **注册/登录限流防爆破**：Redis 固定窗口限流（IP 注册频率、账号级 + IP 级登录失败锁定）
-- **在线支付**：Stripe 一键开通永久 VIP
-- **管理看板**：后台统计、用户管理、积分管理与模型计价
+- **多源配图**：Pexels、Mermaid CLI、Iconify、Bing 表情包、AI-SVG、智谱 GLM-Image（配置 key 后启用），失败自动降级 Picsum
+- **实时进度流**：SSE 推送生成进度，大纲/正文流式输出；历史事件重放 + `?after=` 断点续传；创作页 `?taskId=` 恢复进行中任务
+- **用户体系**：注册 / 登录 / VIP 会员 / 积分系统（注册赠送、签到、后付费段级结算、明细分页、模型用量统计、管理端），充值暂未开放
+- **运营能力**：意见反馈（截图上传 + 管理员回复 + 站内信联动）、站内信（系统通知 / 管理端单发、批量、全体广播）
+- **限流防爆破**：Redis 固定窗口（IP 注册频率、账号级 + IP 级登录失败锁定、反馈每日限流、签到防重）
+- **支付**：Stripe checkout / webhook 代码已实现，当前前端「立即开通」走免支付直开（Stripe 暂未启用）
+- **管理看板**：后台统计、用户管理、积分管理、模型计价、反馈管理、站内信管理
 
 ## 技术栈
 
 | 层级 | 技术 |
 | :--- | :--- |
-| 前端 | Vue 3、Vite、Ant Design Vue 4、Pinia、Vue Router 4、ECharts、Axios、@umijs/openapi（openapi2ts 生成 API 客户端） |
-| 后端 | Python 3.11（`.python-version`，pyproject 声明 `>=3.10`）、FastAPI 0.115、SQLAlchemy 2.0、databases(异步) |
-| 编排 | LangGraph、LangChain（信息采集用 `create_agent`）、SQLite Checkpointer（断点续跑） |
-| 存储 | MySQL（业务数据）、Redis（Session / 去重 / 配额信号量 / 注册登录限流）、SQLite（图检查点）、本地文件存储（图片，替代原腾讯云 COS） |
-| LLM | DeepSeek、小米 MiMo（按智能体可独立配置，空值回退全局默认） |
-| 图片 | Pexels、智谱 GLM-Image、Nano Banana(Gemini)、Mermaid CLI、Iconify、Bing 表情包、AI-SVG、Picsum 兜底 |
-| 支付 | Stripe |
+| 前端 | Vue 3、Vite 8、Ant Design Vue 4、Pinia、Vue Router 4、ECharts、Axios、@umijs/openapi（openapi2ts 生成 API 客户端） |
+| 后端 | Python 3.11（`.python-version`，pyproject 声明 `>=3.10`）、FastAPI 0.115、SQLAlchemy 2.0、databases（异步） |
+| 编排 | LangGraph 1.1、LangChain `create_agent`（信息采集）、SQLite Checkpointer（断点续跑） |
+| 存储 | MySQL（业务数据）、Redis（Session / 去重 / 限流 / 签到防重）、SQLite（图检查点）、本地文件存储（图片） |
+| LLM | DeepSeek、小米 MiMo（按智能体独立配置，空值回退全局默认） |
+| 图片 | Pexels、Mermaid CLI、Iconify、Bing 表情包、AI-SVG、智谱 GLM-Image、Picsum 兜底 |
+| 搜索/抓取 | Serper（新闻搜索）、ddgs（网页内容抓取转 Markdown） |
+| 支付 | Stripe（代码已实现，当前未启用） |
 | 包管理 | 后端 uv（`uv.lock`）、前端 npm |
 
 ## 快速开始
 
-环境要求：Python 3.10+（推荐 3.11）、Node.js `^22.18.0 || >=24.12.0`、MySQL、Redis。
+环境要求：Python 3.10+（推荐 3.11）、Node.js `^22.18.0 || >=24.12.0`、MySQL 8.0+、Redis、uv；
+Mermaid 配图需全局安装 `@mermaid-js/mermaid-cli`（`mmdc`）。
 
 ```bash
 # 后端（端口 8567）
 cd backend
+uv sync
 cp .env.example .env   # 按需填写数据库/Redis/各 LLM 与图片服务密钥
+uv run python scripts/init_db.py          # 幂等建库建表（DDL 唯一源：sql/init_db.sql）
+uv run python scripts/seed_data.py        # 可选：演示账号 / 模型计价种子数据
 uv run python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8567
 
-# 前端（端口 5173）
+# 前端（端口 5173，同源 /api 由 Vite 代理到后端 8567）
 cd frontend
 npm install
 npm run dev
 ```
 
-- 所有环境变量见 `backend/.env.example` 与 `backend/app/config/` 配置包（按主题拆分的 Pydantic Settings mixin，`from app.config import settings`，大小写不敏感）
-- 数据库初始化：全新环境执行 `cd backend && uv run python scripts/init_db.py`（幂等建库建表，DDL 与 `backend/sql/init_db.sql` 保持一致）；种子数据另设独立脚本 `scripts/seed_data.py`，需手动执行（演示账号/模型计价）
-- 静态图片访问：后端挂载 `/static`（`backend/static/images/`），`STATIC_BASE_URL` 配置访问域名
-- API 文档：`http://localhost:8567/api/docs`（FastAPI 自带 OpenAPI）；前端 API 客户端由 `npm run openapi2ts` 从 `http://localhost:8567/api/v3/api-docs` 生成
-- Stripe 本地联调：`stripe listen --forward-to localhost:8567/api/webhook/stripe`
+- 环境变量见 `backend/.env.example` 与 `backend/app/config/` 配置包（按主题拆分的 Pydantic Settings mixin，`from app.config import settings`，大小写不敏感）
+- API 文档：`http://localhost:8567/api/docs`；OpenAPI JSON 位于 `/api/v3/api-docs`，前端执行 `npm run openapi:refresh` 拉取到 `frontend/openapi.json` 后由 `openapi2ts` 生成 API 客户端
+- 静态图片：后端挂载 `/static`（`backend/static/images/`），`STATIC_BASE_URL` 配置访问域名
+- Stripe 启用后的本地联调：`stripe listen --forward-to localhost:8567/api/webhook/stripe`
 
 ## 目录结构
 
 ```
-passageAI/
+passage-ai/
 ├── backend/                      # FastAPI 后端（Python 3.11 / uv）
 │   ├── app/
 │   │   ├── main.py               # FastAPI 入口：CORS、lifespan、全局异常、路由注册、/static 挂载
-│   │   ├── config/               # 配置包：按主题拆分的 Pydantic Settings mixin（base/agent/images/llm/payment/quota）
-│   │   │   └── __init__.py       #   Settings 组合类 + settings 单例（from app.config import settings）
-│   │   ├── database.py           # SQLAlchemy 同步引擎 + databases 异步连接（get_db 依赖注入）
-│   │   ├── redis.py              # Redis 异步客户端（init/close/get_client 单例）
-│   │   ├── deps.py               # 认证依赖：get_current_user / require_login / require_admin / require_create_slot
-│   │   ├── exceptions.py         # BusinessException + ErrorCode + throw_if / throw_if_not
-│   │   ├── count_semaphore.py    # 用量配额信号量
-│   │   │
+│   │   ├── config/               # 配置包：base/agent/images/llm/payment/pricing/quota mixin
+│   │   ├── database.py / redis.py / deps.py / exceptions.py
+│   │   ├── count_semaphore.py    # 进程内信号量（智谱生图限并发）
 │   │   ├── graph/                # ⭐ LangGraph 文章生成状态机
-│   │   │   ├── builder.py        #   图拓扑组装（节点注册 + 边 + interrupt + compile）
-│   │   │   ├── state.py          #   dict 形态 ArticleState（JSON 可序列化，供 checkpointer）
-│   │   │   ├── constants.py      #   节点名常量（含未接入的 review/seo 占位）
+│   │   │   ├── builder.py        #   图拓扑组装（节点 + 条件边 + interrupt + compile）
+│   │   │   ├── constants.py      #   12 个接入节点 + review/seo 占位节点名
 │   │   │   ├── checkpointer.py   #   SQLite checkpointer（backend/data/checkpoints.sqlite）
-│   │   │   ├── sse_bridge.py     #   SSE 发送（make_emit / send_sse_message）
-│   │   │   ├── edges/            #   条件边路由（bootstrap_routing、review_routing 占位）
-│   │   │   └── nodes/            #   每节点一文件（bootstrap/title/outline/content/...）
-│   │   │       ├── compat.py     #   dict 图状态 ↔ class 智能体状态适配
-│   │   │       ├── _orchestrator.py  # 智能体编排器单例（懒加载，避免循环导入）
-│   │   │       ├── research.py   #   信息采集节点（新闻题材，结果结构化落库）
-│   │   │       ├── seo.py / review.py  # 占位节点（暂未接入 builder）
-│   │   │
-│   │   ├── agent/                # LLM 智能体层（被图节点调用）
-│   │   │   ├── base_agent.py     #   BaseAgent：_call_llm / 流式 / JSON 解析（json_repair 兜底）/ 提示词工具
-│   │   │   ├── orchestrator.py   #   ArticleAgentOrchestrator：持有 6 个创作智能体
-│   │   │   ├── image_generator.py#   ParallelImageGenerator 单例（服务分发 + 并行生图 + 降级）
-│   │   │   ├── agents/           #   title/outline/content/image_analyzer/image_generator_agent/content_merger
-│   │   │   ├── context/          #   流式输出处理器
-│   │   │   └── information_collector/  # 新闻采集（LangChain create_agent + Serper + 网页抽取）
-│   │   │
-│   │   ├── llm_factory/          # LLM 提供商抽象 → langchain_core BaseChatModel
-│   │   │   ├── factory.py        #   get_chat_model / get_structured_model / resolve_agent_config
-│   │   │   ├── deepseek.py
-│   │   │   └── mimo.py           #   小米 MiMo
-│   │   │
-│   │   ├── routers/              # REST API（均挂 /api 前缀）
-│   │   │   ├── article.py        #   创作 CRUD + SSE 进度 + 确认标题/大纲/AI 改大纲
-│   │   │   ├── user.py           #   注册/登录/登出/个人中心（资料/密码/头像）+ 管理员用户管理
-│   │   │   ├── payment.py        #   Stripe checkout + webhook
-│   │   │   ├── statistics.py     #   管理端统计
-│   │   │   ├── points.py         #   积分中心：余额 / 每日签到 / 流水明细 / 模型用量统计
-│   │   │   ├── admin_points.py   #   管理员积分调整 + 模型计价（/admin/model-pricing CRUD）
-│   │   │   └── health.py
-│   │   │
-│   │   ├── services/             # 业务逻辑
-│   │   │   ├── article_service.py      #   文章 DB 操作 + 配额/积分校验 + 去重 + 并发任务名额原子占用
-│   │   │   ├── article_async_service.py #  图 start/resume + 失败兜底（_handle_failure）
-│   │   │   ├── points_service.py       #   积分账户（余额/流水/签到/结算/管理员调整，乐观锁）
-│   │   │   ├── pricing_service.py      #   模型计价查询
-│   │   │   ├── settlement_service.py   #   后付费段级结算 + activeTaskCount 启动对账
-│   │   │   ├── model_usage_service.py  #   模型用量埋点与统计
-│   │   │   ├── agent_log_service.py    #   智能体执行日志
-│   │   │   ├── user_service.py / payment_service.py / statistics_service.py
-│   │   │   └── 配图服务：image_search_service(基类) + pexels / zhipu / nano_banana /
-│   │   │        mermaid / iconify / emoji_pack / svg_diagram / picsum(降级) / cos(遗留) / local_file
-│   │   │
-│   │   ├── models/               # SQLAlchemy ORM（camelCase 列名）
-│   │   │   ├── article.py / user.py / payment.py / agent_log.py / enums.py
-│   │   │   └── 积分：user_points.py / points_transaction.py / model_pricing.py / model_usage_record.py
-│   │   ├── schemas/              # Pydantic 请求/响应模型（article/common/image/payment/points/statistic/user）
-│   │   ├── managers/sse_manager.py  # SSE 连接管理（task_id → queue）
-│   │   ├── constants/            # 常量：article / points / prompt / user
-│   │   └── utils/                # logger / password / session(Redis) / rate_limit(注册登录限流) / json_tool(JSON 修复) / path_tool
-│   │
-│   ├── data/                     # SQLite 检查点（gitignore）
-│   ├── logs/                     # 运行日志（gitignore）
-│   ├── sql/                      # 建表/迁移 SQL 脚本（手动执行；init_db.sql 为全量合并版）
-│   ├── scripts/                  # 运维/辅助脚本（init_db.py 建库建表、seed_data.py 种子数据、get_graph_image.py）
-│   ├── tests/                    # 独立手工测试脚本（非 pytest 套件，gitignore）
-│   ├── static/                   # 本地图片存储（gitignore 中 images/）
-│   ├── .env / .env.example / .python-version / pyproject.toml / uv.lock
-│
+│   │   │   ├── graph_runner.py   #   文章异步任务服务：start/resume + 并发守卫 + 失败兜底
+│   │   │   ├── sse_bridge.py     #   图节点 → SSE 消息转换
+│   │   │   ├── edges/            #   bootstrap_routing / outline_routing；review_routing 占位
+│   │   │   └── nodes/            #   12 个图节点 + _orchestrator.py（编排器单例）
+│   │   ├── agent/                # LLM 智能体层
+│   │   │   ├── orchestrator.py   #   ArticleAgentOrchestrator：持有 7 个创作智能体
+│   │   │   ├── agents/           #   title/outline/ai_modify_outline/content/image_analyzer/image_generator_agent/content_merger
+│   │   │   ├── base_agent.py / context/   # 基类、流式输出处理
+│   │   │   └── information_collector/     # 新闻采集（LangChain create_agent + Serper + ddgs 抓取）
+│   │   ├── llm_factory/          # factory / deepseek / mimo / token_usage_handler
+│   │   ├── routers/              # article/user/payment/statistics/points/admin_points/feedback/message/health
+│   │   ├── services/             # 文章/积分/计价/结算/用量/日志/用户/支付/统计/反馈/站内信 + 配图服务 + local_file_service
+│   │   ├── models/               # 10 张表 ORM（article/user/payment/agent_log/user_points/points_transaction/model_pricing/model_usage_record/feedback/message）+ enums.py
+│   │   ├── schemas/              # article/common/image/payment/points/statistic/user/feedback/message
+│   │   ├── managers/sse_manager.py  # SSE 连接管理（task_id → 有界历史 + 实时队列）
+│   │   ├── constants/            # article / points / prompt / user / feedback / message
+│   │   └── utils/                # logger / password / session / rate_limit / json_tool / path_tool
+│   ├── sql/init_db.sql           # 唯一 DDL 源（10 张表全量建表）
+│   ├── scripts/                  # init_db.py / seed_data.py / get_graph_image.py / bcript.py
+│   ├── static/                   # default_avatar 入库；images/ 生成图片不入库
+│   ├── data/ logs/               # SQLite 检查点、运行日志（gitignore）
+│   └── tests/                    # 手工探索脚本（gitignore，test_qwen_llm.py 为历史遗留入库文件）
 ├── frontend/                     # Vue 3 前端（Vite）
-│   ├── index.html / vite.config.js / jsconfig.json / openapi2ts.config.ts / package.json
+│   ├── index.html / vite.config.js / jsconfig.json / tsconfig.json / openapi2ts.config.ts / package.json
 │   └── src/
-│       ├── main.js / App.vue
-│       ├── request.ts            # Axios 实例（baseURL → localhost:8567，withCredentials，401 拦截）
-│       ├── access.ts             # 路由守卫（登录 + 管理员校验）
-│       ├── router/index.js       # 路由：/ /create /article/:taskId /article/list /points /vip /user/* /admin/* /payment/*
+│       ├── main.js / App.vue / request.ts / access.ts
+│       ├── router/index.js       # / /create /article/:taskId /article/list /points /vip /feedback /message /user/* /admin/* /payment/*
 │       ├── stores/loginUser.ts   # Pinia 当前用户
-│       ├── api/                  # openapi2ts 生成的 API 客户端（article/payment/points/statistics/user Controller）
-│       ├── layouts/BasicLayout.vue
-│       ├── components/           # GlobalHeader / GlobalFooter / article(ExecutionLogPanel, ResearchPanel, OutlineEditor)
-│       ├── pages/                # HomePage / article(Create, Detail, List) / user(Login, Register, Profile, Settings)
-│       │                         # vip / payment(PaymentResult) / points(PointsPage) / admin(Statistics, UserManage, PointsAdmin, ModelPricing)
-│       ├── utils/                # articleStatus / export / markdown / permission / sse(EventSource 封装)
-│       └── constants/user.ts
-│
-├── docs/                         # 设计/开发计划文档（如 积分系统开发计划.md；gitignore）
-├── README.md / TODO.md / LICENSE / .gitignore / .mcp.json / CLAUDE.local.md
-├── local data/                   # 本地参考素材（gitignore）
-├── passage/                      # 示例文章（gitignore）
-├── temp/                         # 临时文件（gitignore）
-└── 个人笔记/                      # 个人笔记（gitignore）
+│       ├── api/                  # openapi2ts 生成的客户端（article/user/payment/statistics/points/feedback/message/health）
+│       ├── layouts/ + components/ + pages/ + utils/ + constants/ + types/
+│       └── openapi.json          # openapi:refresh 拉取的 API 快照（入库）
+├── docs/images/                  # README 引用截图（入库）
+├── README.md / TODO.md / TODOs.md / LICENSE / .gitignore
+└── 本地或临时目录（gitignore）：temp/、passage/、个人笔记/、local data/ 等
 ```
 
 ## 核心架构
@@ -161,96 +114,97 @@ passageAI/
 
 当前接入图的节点共 12 个（`graph/constants.py` 有权威说明）：
 
+- **副作用节点**（落库 + 阶段流转 + SSE）：`bootstrap`、`confirm_title`、`confirm_outline`、`ai_modify_outline`、`finalize`
+- **智能体节点**（纯 LLM/配图工作 + SSE）：`generate_title`、`generate_outline`、`generate_content`、`image_analyzer`、`image_generator`、`merger`
+- **研究节点**：`research`（仅新闻题材，bootstrap 后条件边进入；采集失败不阻塞主流程，结果结构化落库 `article.researchData`）
+- **占位节点**：`review`、`seo` 已建文件但未注册进 builder
+
 ```
 START → bootstrap
-       → [条件边：新闻题材?] → research（信息采集，仅新闻）┐
-       → generate_title → confirm_title [⏸ interrupt]
+       ├─ genre=news → research ─┐
+       └─ 其他 → generate_title ←┘
+       → confirm_title [⏸ interrupt]
        → generate_outline → confirm_outline [⏸ interrupt]
-       → [条件边：有 modify_suggestion?] → ai_modify_outline [⏸ interrupt，可循环]
+       → 有 modify_suggestion → ai_modify_outline [⏸ interrupt，可循环]
        → generate_content → image_analyzer → image_generator → merger → finalize → END
 ```
 
-- **副作用节点**（写库 + 发阶段 SSE）：`bootstrap`、`confirm_title`、`confirm_outline`、`ai_modify_outline`、`finalize`
-- **智能体节点**（纯 LLM 工作 + 流式 SSE）：`generate_title`、`generate_outline`、`generate_content`、`image_analyzer`、`image_generator`、`merger`
-- **研究节点**：`research`（仅新闻题材，bootstrap 后条件边进入，结果结构化落库 `article.researchData`）
-- **占位节点**：`review`（内容审核）、`seo`（SEO 优化）已建文件但**未注册进 builder**，待实现
 - interrupt 锚点设在副作用节点**之后**：先落库 + 发 SSE 事件，再暂停等用户输入
-- 检查点：SQLite（`backend/data/checkpoints.sqlite`），FastAPI lifespan 中初始化
+- 检查点：SQLite（`backend/data/checkpoints.sqlite`），FastAPI lifespan 初始化，LangGraph `thread_id = taskId`
+- 任务调度：`graph/graph_runner.py` 的 `article_async_service` 单例负责 `start` / `resume`、同 taskId 并发守卫（reserve/attach/release）、失败兜底（结算已发生用量、标记 FAILED、释放并发名额、推 ERROR、关闭 SSE）
 
 ### 状态管理
 
-- **图状态**（`graph/state.py`）：`ArticleState` TypedDict，全部字段 JSON 可序列化（str/list[dict]/dict），供 LangGraph checkpointer 持久化
-- **智能体状态**（`schemas/article.py` 的 `ArticleState`）：Pydantic 模型对象，供智能体使用
-- **适配层**（`graph/nodes/compat.py`）：`to_class_state(dict)` / `merge_to_dict(class)` 双向转换，每个节点边界都要走一遍
+- 图状态与智能体状态统一为 `schemas/article.py` 的 Pydantic `ArticleState`，LangGraph `StateGraph(ArticleState)` 直接使用
+- 节点读写 `state` 字段并返回 dict；结构化子对象用 `model_dump(by_alias=True)` 序列化，供 checkpointer 持久化与 SSE 下发
+- 人工输入（标题 / 大纲 / 修改建议）由 `graph_runner.resume` 通过 `aupdate_state` 注入
 
 ### 人机协同流程
 
-1. `POST /api/article/create` → `article_async_service.start()` → 图跑到 `confirm_title` interrupt
-2. `POST /api/article/confirm-title`（选标题 + 补充描述）→ `resume()` → 图跑到 `confirm_outline` interrupt
-3. `POST /api/article/ai-modify-outline`（可循环）或用户直接编辑大纲
-4. `POST /api/article/confirm-outline` → 图一路跑到 `finalize` 完成
+1. `POST /api/article/create` → Redis 幂等去重 + `require_create_slot` 校验 + 事务内原子占用 `activeTaskCount` 名额 → `start()` 跑到 `confirm_title` interrupt
+2. `POST /api/article/confirm-title`（选标题 + 补充描述）→ 余额复查 → 落库 → `resume()` 跑到 `confirm_outline` interrupt
+3. `POST /api/article/ai-modify-outline`（仅 VIP，可循环）或用户直接编辑大纲
+4. `POST /api/article/confirm-outline` → 清空 `modify_suggestion` → `resume()` 跑到 `finalize` 完成
 
 ### SSE 进度流
 
-- 后端：`graph/sse_bridge.py` → `managers/sse_manager.py`（全局队列，按 `task_id` 索引）
-- 消息类型：`models/enums.py` 的 `SseMessageTypeEnum`（AGENT1-5 / IMAGE / MERGE / ALL_COMPLETE / TITLE_GENERATED / OUTLINE_GENERATED / AI_MODIFY_OUTLINE_COMPLETE / RESEARCH_COMPLETE / ERROR ...）
-- 流式约定：agent 流式内容用 `TYPE:content` 前缀格式；完成事件携带结构化数据
-- 断点续传：`GET /api/article/progress/{taskId}?after=<eventId>` 重放历史事件；重新进入创作页用 `?taskId=` 恢复上次进度（含流式大纲/正文中断点恢复）
-- 前端：`utils/sse.ts` 封装 `EventSource`，订阅 `GET /api/article/progress/{taskId}`
+- 后端：`graph/sse_bridge.py` → `managers/sse_manager.py`（每个 taskId 维护有界历史缓冲 + 实时队列，SSE 帧携带 `id: <seq>`）
+- 消息类型见 `models/enums.py` 的 `SseMessageTypeEnum`：AGENT1-5、IMAGE_COMPLETE、MERGE_COMPLETE、ALL_COMPLETE、ERROR、TITLE_GENERATED、OUTLINE_GENERATED、AI_MODIFY_OUTLINE_COMPLETE/FAILED、RESEARCH_COMPLETE 等
+- 流式约定：`AGENT2_STREAMING:` / `AGENT3_STREAMING:` 前缀格式，桥接层剥前缀为 `{type, content}`；`IMAGE_COMPLETE:` 同理
+- 断点续传：`GET /api/article/progress/{taskId}?after=<seq>` 先重放 `seq > after` 的历史，再续接实时流；前端 `utils/sse.ts` 封装 `EventSource` 并记录 `lastEventId`
+- 创作页恢复：`/create?taskId=` 拉取文章按 phase 恢复；详情页「去创作页观察进度」走同一入口
 
 ### 配图架构
 
 - 所有图片服务实现 `BaseImageSearchService`（`services/image_search_service.py`）
-- `ParallelImageGenerator` 单例（`agent/image_generator.py`）注册可用服务：按 `ImageMethodEnum` 分发、`asyncio.Semaphore` 限并发、失败自动降级（Picsum 兜底）
-- 可配置开关：如 `zhipu_api_key` 为空则跳过智谱服务；启用列表同时驱动 LLM 提示词表与前端创作页选项接口（`/api/article/creation-options`）
+- `ParallelImageGenerator` 单例（`services/image_generator.py`）：按 `ImageMethodEnum` 分发、`asyncio.Semaphore` 限并发、失败自动降级（Picsum 兜底并上传本地）
+- 当前注册服务：Pexels、Mermaid、Iconify、Bing 表情包、AI-SVG；智谱在配置 `zhipu_api_key` 后注册；Nano Banana 服务实现保留但暂未注册
+- 可配置开关与 VIP 门控：启用列表同时驱动 LLM 提示词表（`build_image_methods_guide`）与创作页选项接口（`/api/article/options`）；普通用户默认 Pexels/Mermaid/Iconify/表情包，VIP 解锁 AI 生图与 SVG 图表
 - 数据流：`ImageRequirement` → `service.get_image_data()` → `ImageData` → `LocalFileService.upload_image_data()` → URL
-- 枚举 `ImageMethodEnum`：PEXELS / NANO_BANANA / ZHIPU / MERMAID / ICONIFY / EMOJI_PACK / SVG_DIAGRAM / PICSUM(降级)
 
-### 积分系统（v1.3：后付费段级结算 + 透支护栏 + 并发限制）
+### 积分系统
 
-- 数据层：`user_points`（余额 + 乐观锁 version）、`points_transaction`（流水）、`model_pricing`（模型计价）、`model_usage_record`（用量埋点）
-- 服务：`points_service.py`（余额/流水/签到/结算/管理员调整）、`pricing_service.py`（计价查询）、`settlement_service.py`（段级结算 + `activeTaskCount` 启动对账）、`model_usage_service.py`（用量埋点与统计）
-- 接口：`routers/points.py`（余额 / `POST /points/checkin` 签到 / 流水明细 / 用量统计）、`routers/admin_points.py`（管理员积分调整 + `/admin/model-pricing` CRUD）
-- 前端：`/points` 积分中心页（余额卡 + 每日签到 + 明细分页 + 用量统计），`/admin/points` 积分管理、`/admin/model-pricing` 模型计价
-- 计费与护栏：按实际模型用量 × 计价后付费扣费；创建前 `require_create_slot` 校验余额（允许透支，上限 `max_debt_points=200`）+ 单用户并发限制（`max_active_tasks=5`），续跑/修改前余额复查
-- 注册即赠送 100 积分（注册事务内发放），每日签到 10 积分（Redis 防重）
-- 规则见 `docs/积分系统开发计划.md` v1.3 与 `constants/points.py`；v1.2「预扣-结算」设计已废弃（`USAGE_RESERVE` / `USAGE_REFUND` 仅兼容保留），积分充值暂未开放
+- 数据层：`user_points`（余额 + version 乐观锁）、`points_transaction`（流水）、`model_pricing`（模型计价）、`model_usage_record`（用量埋点）
+- 服务：`points_service.py`（余额/流水/签到/结算/管理员调整，`FOR UPDATE` + version）、`pricing_service.py`（计价查询）、`settlement_service.py`（按段增量结算 + 启动对账 `activeTaskCount`）、`model_usage_service.py`（用量埋点与统计）
+- 规则：注册赠送 500 积分，每日签到 +100（Redis 防重）；按实际模型用量 × 计价后付费结算；允许透支，上限 `max_debt_points=200`；单用户并发上限 `max_active_tasks=5`（admin 豁免）；续跑/修改前余额复查
+- 接口：`/points`（余额、签到、流水、用量统计）、`/admin/points`（看板、调整、用量查询）、`/admin/model-pricing`（计价 CRUD）
+- 充值暂未开放；`USAGE_RESERVE` / `USAGE_REFUND` 为兼容保留类型，不再产生新流水
 
 ## 开发约定与代码风格
 
 1. **语言**：代码注释、提交信息、对话统一使用中文；提交信息遵循 Conventional Commits（`feat:` / `fix:` / `refactor:` / `chore:` 等）
-2. **注释风格**：
-   - Python：Google 风格 docstring —— 函数含 `Args:` / `Returns:` / `Raises:`，类含 `Attributes:`（项目内普遍使用，见各服务/模型文件）
-   - TypeScript/Vue：JSDoc 风格，关键函数与组件 props/emits 含 `@param` / `@returns` / `@throws`
-3. **配置优先**：可配置项写入 `app/config/` 配置包（由 `.env` 驱动，`from app.config import settings`），禁止在代码中硬编码密钥与魔法数字（常量集中在 `constants/`）
-4. **数据库列名**：MySQL 表列使用 camelCase，SQLAlchemy 中用 `Column("camelCase", ...)` 映射；ORM 字段名 snake_case
-5. **API 响应统一**：`BaseResponse`（code / data / message），业务错误抛 `BusinessException` + `ErrorCode`，由全局异常处理器统一兜底
-6. **依赖注入**：FastAPI 路由通过 `Depends(get_db)` 拿 `databases.Database`，通过 `Depends(require_login)` / `require_admin` 做鉴权
-7. **避免循环导入**：图节点在函数体内 import `ArticleService` / `AgentLogService`；`graph/nodes/_orchestrator.py` 懒加载编排器单例（注释约定「函数体内 import，避免循环导入」）
-8. **状态适配**：dict 图状态 ↔ Pydantic 智能体状态必须在每个节点边界用 `compat.py` 转换
-9. **失败边界**：`article_async_service._handle_failure` 兜底图节点异常；单个节点（如 research）内部捕获非致命错误
-10. **异步任务**：`asyncio.create_task` 启动后台任务，`article_async_service.register_task` 持有引用防止 GC
-11. **并发安全**：多用户并发系统，涉及共享资源（配额/积分扣减、任务状态、支付记录）必须注意竞态：优先原子 SQL 而非「先查后改」；必要时行锁 / 乐观锁 / 分布式锁（如 `points_service` 用 `FOR UPDATE` + `version` 乐观锁；`user.activeTaskCount` 用原子 `UPDATE ... SET activeTaskCount = activeTaskCount + 1` 占用名额）
-12. **去重**：创建文章用 Redis 幂等键（`dedup:article:{userId}:{fingerprint}`，`dedup_window_seconds` 窗口内禁止重复提交）
-13. **限流防爆破**：注册（IP 固定窗口）与登录（账号级 + IP 级失败计数锁定）基于 Redis 实现，见 `utils/rate_limit.py`，参数见 `config/quota.py`（`trust_forwarded_headers` 默认 False，防止伪造头绕过）
-14. 完成代码修改后不立即提交到 git，待用户审核完成，显式要求提交时再提交
+2. **注释风格**：Python 用 Google 风格 docstring（`Args:` / `Returns:` / `Raises:` / `Attributes:`）；TypeScript/Vue 用 JSDoc（关键函数与组件 props/emits）
+3. **配置优先**：可配置项写入 `app/config/`（`.env` 驱动），禁止硬编码密钥与魔法数字（常量集中在 `constants/`）
+4. **数据库列名**：MySQL 列 camelCase，SQLAlchemy 用 `Column("camelCase", ...)`；ORM 字段名 snake_case
+5. **API 响应统一**：`BaseResponse`（code / data / message），业务错误抛 `BusinessException` + `ErrorCode`
+6. **依赖注入**：路由通过 `Depends(get_db)` 拿 `databases.Database`，通过 `Depends(require_login)` / `require_admin` / `require_create_slot` 鉴权
+7. **避免循环导入**：必要时在函数体内 import（如 `article_service` 内引用 `settlement_service`）
+8. **失败边界**：`graph_runner._handle_failure` 兜底图节点异常；`research`、`ai_modify_outline` 等节点内部捕获非致命错误，不阻塞主流程
+9. **异步任务**：`asyncio.create_task` 启动后台任务，`graph_runner` 的 reserve/attach/release 持有引用并充当同 taskId 并发守卫
+10. **并发安全**：共享资源优先原子 SQL，必要时行锁 / 乐观锁（`user.activeTaskCount` 原子 `UPDATE`；`points_service` 用 `FOR UPDATE` + version）
+11. **去重**：创建文章用 Redis 幂等键 `dedup:article:{userId}:{fingerprint}`，`dedup_window_seconds` 窗口内禁止重复提交
+12. **限流防爆破**：注册（IP 固定窗口）、登录（账号级 + IP 级失败锁定）、反馈每日限流、签到防重均基于 Redis；参数见 `config/quota.py`（`trust_forwarded_headers` 默认 False）
+13. 完成代码修改后不立即提交 git，待用户审核并显式要求后再提交
 
 ## 数据库
 
-- MySQL（业务数据）：SQLAlchemy 同步引擎（模型定义）+ `databases` 异步（FastAPI 查询）；连接串 `settings.database_url`
-- Redis：Session（`utils/session.py`）、任务去重、配额信号量、注册/登录限流防爆破
+- MySQL（业务数据）：共 10 张表——`user`、`article`、`agent_log`、`payment_record`、`user_points`、`points_transaction`、`model_pricing`、`model_usage_record`、`feedback`、`message`
+- Redis：Session（`utils/session.py`）、任务去重、注册/登录限流、签到防重、反馈每日限流
 - SQLite：LangGraph 检查点（`backend/data/`，gitignore）
-- 建表/迁移：`backend/sql/*.sql` 为手动执行脚本，无迁移框架；`init_db.sql` 已合并历史增量脚本为全量建表 DDL，`scripts/init_db.py` 可一键幂等执行（建库建表）；种子数据由 `scripts/seed_data.py` 手动执行（幂等）
-- 模型文件：`backend/app/models/`（article、user、payment、agent_log、user_points、points_transaction、model_pricing、model_usage_record、enums）
+- DDL：`backend/sql/init_db.sql` 为唯一 DDL 源；`scripts/init_db.py` 幂等建库建表；`scripts/seed_data.py` 手动执行（演示账号/模型计价）
+- `user.quota` 为遗留展示/统计字段（注册默认 5），积分余额权威在 `user_points.balance`
 
 ## 测试
 
-- 未配置 pytest/CI 测试套件；`backend/tests/` 为独立手工探索脚本（`serper_search.py`、`test_image_generate.py`、`test_qwen_llm.py` 等），且被 `.gitignore` 排除（`test/`、`tests/`、`*test*`）
+- 未配置 pytest/CI 测试套件；`backend/tests/` 为独立手工探索脚本（被 `.gitignore` 的 `tests/` / `*test*` 规则排除，`test_qwen_llm.py` 为历史遗留入库文件）
 - 新增功能后建议至少手动跑一遍核心链路：创建文章 → 确认标题 → 确认大纲 → 看 SSE 进度 → 完成
 
 ## 注意事项 / 已知问题
 
-- 完整待办见 `TODO.md`（配图方式部分未完成、内容审核/SEO Agent 未实现、积分充值暂未开放、若干 BUG 修复等）
-- `docs/`、`temp/`、`passage/`、`个人笔记/`、`local data/` 等目录在 `.gitignore` 中，不入库
-- `.claude/`、`.codex/`、`CLAUDE.local.md`、`.mcp.json` 不入库（IDE/工具本地配置）
+- 完整待办见 `TODO.md`；`TODOs.md` 为已完成事项清单（站内信、意见反馈、注册/登录限流）
+- `review`（内容审核）、`seo`（SEO 优化）为占位节点，未接入 builder
+- 积分充值暂未开放；Stripe 支付代码已实现但当前未启用，前端走免支付直开永久 VIP
+- Nano Banana（Gemini）配图服务实现保留，因额度原因暂未注册，不在创作选项中暴露
+- 不入库目录/文件：`temp/`、`passage/`、`个人笔记/`、`local data/`、`backend/docs/`、`backend/data/`、`backend/logs/`、`backend/static/images/`、`.env` 等；`docs/images/` 与 `backend/static/default_avatar/` 入库
+- `.claude/`、`.codex/`、`CLAUDE.local.md`、`.mcp.json` 等 IDE/工具本地配置不入库
 - `ArticleStyleEnum` 已弃用，新流程使用 `genre`（题材）+ `language_style`（语言风格）；`style` 字段保留兼容存量数据

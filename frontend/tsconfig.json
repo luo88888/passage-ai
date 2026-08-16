@@ -16,9 +16,8 @@
     "jsx": "preserve",
     "strict": true,
     "noImplicitAny": false,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
     "types": ["vite/client"]
   },

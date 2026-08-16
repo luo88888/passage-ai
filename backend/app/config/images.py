@@ -28,7 +28,7 @@ class ImageConfig(BaseSettings):
     nano_banana_image_size: str = "1K"
     nano_banana_output_mime_type: str = "image/png"
 
-    # 智谱 GLM-Image
+    # 智谱生图 AI
     zhipu_api_key: str = ""
     zhipu_image_model: str = "cogview-3-flash"
     # cogview-3-flash:  1024x1024、768x1344、864x1152、1344x768、1152x864、1440x720、720x1440
@@ -65,4 +65,4 @@ class ImageConfig(BaseSettings):
     svg_diagram_agent_model: str = "deepseek-v4-flash"
     svg_diagram_agent_temperature: float = 0.2
     svg_diagram_agent_thinking: bool = True
-    svg_diagram_agent_reasoning_effort: str = "high"
+    svg_diagram_agent_reasoning_effort: str = "low"

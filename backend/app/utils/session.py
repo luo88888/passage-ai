@@ -33,7 +33,13 @@ async def get_session(session_id: str) -> Optional[dict]:
 
 
 async def set_session(session_id: str, data: dict, expire: Optional[int] = None):
-    """设置 Session 数据"""
+    """设置 Session 数据
+    
+    Args:
+        session_id: session_id
+        data: {"user": LoginUserVO.model_dump(by_alias=True)}
+        expire: 过期时间（秒）
+    """
     redis_client = get_client()
     if not redis_client:
         logger.error("redis_client 未初始化")

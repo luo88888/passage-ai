@@ -177,7 +177,6 @@ class BaseAgent:
         model = structured_model or self.structured_model
         if model is None:
             raise RuntimeError("未配置结构化输出模型，无法调用 _call_structured_model")
-        logger.debug(f"即将调用结构化 LLM，prompt: {prompt}")
         try:
             with usage_context(agent_name=agent_name):
                 result = await model.ainvoke(prompt)
@@ -206,7 +205,6 @@ class BaseAgent:
             message_type: SSE 消息类型。
             agent_name: 统计点名称（用于模型用量埋点），由调用方传入。
         """
-        logger.debug(f"即将调用 LLM，prompt: {prompt}")
         content_builder = []
 
         try:

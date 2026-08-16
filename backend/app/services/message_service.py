@@ -3,7 +3,7 @@
 负责站内信的写入（send_message 可复用工具）、用户端分页/未读数/已读/删除，以及管理端发送
 （SINGLE/BATCH/ALL 写时展开）与已发列表。
 
-设计约定（docs/local/意见反馈与站内信功能开发计划.md v1.1）：
+设计约定：
 - 发信不阻塞主流程：send_message 默认失败只记日志（raise_on_error=False），
   反馈回复 / VIP 开通 / 积分调整等主操作不因通知失败而回滚；
 - 未读数直接用 DB count 实时查询（用户量小，避免 Redis 缓存与 DB 不一致）；
@@ -239,6 +239,7 @@ class MessageService:
         )
         throw_if_not(row, ErrorCode.NOT_FOUND_ERROR, "消息不存在")
         return self._to_vo(row)  # type: ignore
+    
     async def unread_count(self, user_id: int) -> int:
         """查询当前用户未读站内信数。
 
@@ -313,6 +314,7 @@ class MessageService:
 
     # ==================== 管理端 ====================
 
+    # NOTE: 容易被全体广播展开行刷屏
     async def admin_page(
         self, query: AdminMessageQueryRequest
     ) -> Tuple[List[AdminMessageVO], int]:

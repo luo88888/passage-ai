@@ -29,7 +29,7 @@ from app.services.local_file_service import LocalFileService
 
 
 # ==================== 反馈截图上传配置 ====================
-# 与头像上传一致：白名单 MIME/扩展名 + 单张 2MB 上限；不接受 SVG（防存储型 XSS，见 docs/local/代码审查报告.md P0-7）
+# 与头像上传一致：白名单 MIME/扩展名 + 单张 2MB 上限
 _ALLOWED_FEEDBACK_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 _ALLOWED_FEEDBACK_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 _MAX_FEEDBACK_IMAGE_SIZE = 2 * 1024 * 1024
@@ -60,7 +60,7 @@ async def upload_feedback_image(
 ):
     """上传反馈截图（multipart/form-data，字段名 file）
 
-    仅支持 JPG / PNG / WebP / GIF，大小不超过 2MB，不接受 SVG（防存储型 XSS）；
+    仅支持 JPG / PNG / WebP / GIF，大小不超过 2MB
     单张上传返回可访问 URL，同一反馈可多次调用（提交时最多 5 张，由提交接口兜底校验）。
     文件保存到本地 static/images/feedback/。
     """

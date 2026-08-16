@@ -16,6 +16,7 @@ from app.config.llm import LLMConfig
 from app.config.payment import PaymentConfig
 from app.config.quota import QuotaConfig
 from app.config.agent import AgentConfig
+from app.config.pricing import PricingConfig
 
 
 class Settings(
@@ -25,6 +26,7 @@ class Settings(
     PaymentConfig,
     QuotaConfig,
     AgentConfig,
+    PricingConfig,
     BaseSettings,
 ):
     """应用全局配置（pydantic-settings mixin 组合）"""

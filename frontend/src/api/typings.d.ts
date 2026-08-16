@@ -969,8 +969,8 @@ declare namespace API {
     userAvatar?: string | null;
     /** Userprofile 用户简介 */
     userProfile?: string | null;
-    /** Userrole 用户角色 */
-    userRole?: string;
+    /** 用户角色 */
+    userRole?: UserRole;
   };
 
   type UserChangePasswordRequest = {
@@ -1042,8 +1042,8 @@ declare namespace API {
     userName?: string | null;
     /** Userprofile 用户简介 */
     userProfile?: string | null;
-    /** Userrole 用户角色 */
-    userRole?: string | null;
+    /** 用户角色 */
+    userRole?: UserRole | null;
   };
 
   type UserRegisterRequest = {
@@ -1055,6 +1055,8 @@ declare namespace API {
     checkPassword: string;
   };
 
+  type UserRole = "user" | "admin" | "vip";
+
   type UserUpdateRequest = {
     /** Id 用户 ID */
     id: number;
@@ -1064,8 +1066,8 @@ declare namespace API {
     userAvatar?: string | null;
     /** Userprofile 用户简介 */
     userProfile?: string | null;
-    /** Userrole 用户角色 */
-    userRole?: string | null;
+    /** 用户角色 */
+    userRole?: UserRole | null;
   };
 
   type UserVO = {
@@ -1113,35 +1115,5 @@ declare namespace API {
     description: string;
     /** Privileges 会员特权文案列表 */
     privileges: string[];
-  };
-  // ==================== 后端未在 OpenAPI 暴露的类型（列表接口返回 BaseResponse[dict]，手动补充） ====================
-  type PointsTransactionVO = {
-    id?: number;
-    userId?: number;
-    taskId?: string | null;
-    type?: string;
-    amount?: number;
-    balanceAfter?: number;
-    description?: string | null;
-    createTime?: string;
-  };
-
-  type ModelUsageRecordVO = {
-    id?: number;
-    userId?: number;
-    taskId?: string | null;
-    category?: string;
-    provider?: string;
-    model?: string;
-    agentName?: string | null;
-    callCount?: number;
-    inputTokens?: number | null;
-    outputTokens?: number | null;
-    imageCount?: number | null;
-    costPoints?: number;
-    status?: string;
-    startTime?: string;
-    endTime?: string | null;
-    createTime?: string;
   };
 }

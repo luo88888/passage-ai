@@ -214,7 +214,7 @@ const refreshCheckinStatus = async () => {
   }
 }
 
-// 每日签到：+10 积分，成功后刷新余额
+// 每日签到：+100 积分，成功后刷新余额
 const doCheckin = async () => {
   if (checkedInToday.value) return
   checkingIn.value = true

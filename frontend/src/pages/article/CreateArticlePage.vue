@@ -161,6 +161,14 @@ const activeTaskCount = computed(() => loginUserStore.loginUser.activeTaskCount 
 // 是否为新闻题材（触发信息采集，消耗更大）
 const isNewsGenre = computed(() => selectedGenre.value === 'news')
 
+// 已选题材 / 语言风格的说明文案（后端可选项 description；未选具体项时不展示）
+const selectedGenreDescription = computed(
+  () => genreOptions.value.find((o) => o.value === selectedGenre.value)?.description || ''
+)
+const selectedLanguageStyleDescription = computed(
+  () => languageStyleOptions.value.find((o) => o.value === selectedLanguageStyle.value)?.description || ''
+)
+
 // 预标题阶段：尚未产出标题/大纲/正文/配图（「生成中」视图空态细分用）
 const isPreTitlePhase = computed(
   () => stage.value === 'generating' && !titleResult.value && !outlineRaw.value && !contentRaw.value && !imageCount.value
@@ -209,7 +217,7 @@ const fetchPointsBalance = async () => {
 const showPointsGuide = (debt: number) => {
   Modal.confirm({
     title: '积分不足',
-    content: `当前欠费 ${debt} 积分，请先签到（每日 +10 积分）还清欠款后再创作。`,
+    content: `当前欠费 ${debt} 积分，请先签到（每日 +100 积分）还清欠款后再创作。`,
     okText: '立即签到',
     cancelText: '稍后再说',
     onOk: async () => {
@@ -260,12 +268,15 @@ watch([contentRaw, outlineRaw], () => {
 
 // 热门选题
 const hotTopics = [
-  '2026年AI如何改变职场',
   '程序员如何提升核心竞争力',
-  '远程办公的利与弊',
-  '副业刚需：普通人如何开启第一份收入',
-  '高效学习的5个底层方法论',
+  'DeepSeek 大幅涨价',
+  '“烂片”《牛来》为何爆火',
+  '普通人如何开启第一份收入',
+  '伊朗局势',
+  '智谱 GLM-5.3 正式发布',
   '为什么我们需要数字极简',
+  '长征十号乙运载火箭回收成功',
+  '可乐鸡翅教程'
 ]
 
 // 爆款技巧
@@ -913,6 +924,7 @@ onBeforeUnmount(() => {
                 :value="item.value"
               >{{ item.label }}</a-radio-button>
             </a-radio-group>
+            <div v-if="selectedGenreDescription" class="option-desc">{{ selectedGenreDescription }}</div>
             <!-- 新闻题材内联提醒（非弹窗）：先采集新闻资讯，消耗较大 -->
             <div v-if="isNewsGenre" class="genre-news-notice">
               <WarningOutlined />
@@ -934,6 +946,7 @@ onBeforeUnmount(() => {
                 :value="item.value"
               >{{ item.label }}</a-radio-button>
             </a-radio-group>
+            <div v-if="selectedLanguageStyleDescription" class="option-desc">{{ selectedLanguageStyleDescription }}</div>
           </div>
 
           <!-- 目标字数：数字输入（默认 2000，范围 200~10000） -->
@@ -1664,6 +1677,18 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+/* 选项说明（题材 / 语言风格选中后展示） */
+.option-desc {
+  margin-top: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
 }
 
 /* 新闻题材提醒（内联，非弹窗） */

@@ -1,7 +1,7 @@
-"""积分用户接口路由（M4）。
+"""积分用户接口路由
 
 提供：余额（含今日签到状态）、积分明细分页、各模型用量统计、每日签到。
-积分充值（POST /points/recharge）本期暂不实现，仅预留不做接口。
+积分充值（POST /points/recharge）暂未实现，仅预留不做接口。
 """
 from databases import Database
 from fastapi import APIRouter, Depends
@@ -39,7 +39,7 @@ async def checkin(
     db: Database = Depends(get_db),
     current_user: LoginUserVO = Depends(require_login),
 ):
-    """每日签到（Redis SETNX 防重复，赠送 10 积分，记 SIGN_IN 流水）"""
+    """每日签到，赠送积分（Redis SETNX 防重复，记 SIGN_IN 流水）"""
     service = PointsService(db)
     result = await service.checkin(current_user.id)
     return BaseResponse.success(data=result, message=f"签到成功，+{result.gained} 积分")

@@ -29,7 +29,7 @@ from app.services.message_service import MessageService
 from app.utils.logger import logger
 from app.utils.rate_limit import check_feedback_daily_limit
 
-# 联系方式校验（已确认：电话需为合法手机号、邮箱需通过格式校验，非法返回 PARAMS_ERROR）
+# 联系方式校验（电话需为合法手机号、邮箱需通过格式校验，非法返回 PARAMS_ERROR）
 _PHONE_RE = re.compile(r"^1[3-9]\d{9}$")
 _EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
 
@@ -249,8 +249,9 @@ class FeedbackService:
         throw_if_not(row, ErrorCode.NOT_FOUND_ERROR, "反馈不存在")
         return self._to_admin_vo(row) # type: ignore
 
+    # NOTE: 多次回复会覆盖旧值，replyContent 为空会清空旧回复
     async def reply(self, admin_id: int, request: FeedbackReplyRequest) -> FeedbackVO:
-        """管理员回复反馈（回复内容 + 状态，默认置 RESOLVED），并联动发送 FEEDBACK 站内信。
+        """管理员回复反馈（回复内容 + 状态，默认置 RESOLVED），并联动发送 FEEDBACK 站内信，只改状态用 update_status 函数
 
         发信独立于主流程：站内信发送失败只记日志，不因通知失败回滚回复。
 

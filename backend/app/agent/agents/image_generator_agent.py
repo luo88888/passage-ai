@@ -12,12 +12,12 @@ from app.schemas.article import ArticleState, ImageRequirement, ImageResult
 from app.utils.logger import logger
 
 if TYPE_CHECKING:
-    from app.agent.image_generator import ParallelImageGenerator
+    from app.services.image_generator import ParallelImageGenerator
     from app.services.agent_log_service import AgentLogService
 
 
 class ImageGeneratorAgent:
-    """配图生成智能体（不调用 LLM，只做图片获取+上传）"""
+    """配图生成智能体"""
 
     def __init__(
         self,

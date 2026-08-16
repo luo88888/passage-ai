@@ -1,4 +1,4 @@
-"""种子数据脚本：演示账号 / 模型计价（幂等，可重复执行，需手动运行）。
+"""种子数据脚本：演示账号 / 模型计价（需手动运行）。
 
 注意：
 1. 已存在的用户数据会被刷新
@@ -12,8 +12,6 @@
 2. 演示账号 admin / user / test：密码 12345678 由 bcrypt 加密（先 SHA-256
    预哈希，自带随机盐），头像默认使用
    backend/static/default_avatar/0ca3d6k8f81f9dsf905949eckad953ar.png
-
-所有操作均幂等：重复执行不会产生重复数据。
 """
 
 import sys
@@ -43,8 +41,9 @@ DEMO_USERS = [
 MODEL_PRICING_SEEDS = [
     ("LLM", "Xiaomi", "mimo-v2.5-pro", "", 1.0000, 2.0000, 0, 1),
     ("LLM", "Xiaomi", "mimo-v2.5", "", 0.3000, 0.6000, 0, 1),
-    ("LLM", "DeepSeek", "deepseek-v4-flash", "", 0.3000, 0.6000, 0, 1),
-    ("LLM", "*", "*", "", 1.0000, 2.0000, 0, 1),
+    ("LLM", "DeepSeek", "deepseek-v4-flash", "", 0.5000, 1.5000, 0, 1),
+    ("LLM", "DeepSeek", "deepseek-v4-pro", "", 1.5000, 4.0000, 0, 1),
+    ("LLM", "*", "*", "", 1.5000, 4.0000, 0, 1),
     ("IMAGE", "Zhipu", "cogview-3-flash", "", 0, 0, 0, 1),
     ("IMAGE", "NanoBanana", "gemini-2.5-flash-image", "", 0, 0, 2.00, 1),
 ]

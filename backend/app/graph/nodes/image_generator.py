@@ -7,21 +7,19 @@ SSE：流式 IMAGE_COMPLETE:<image json>（每张配图完成，由 agent 内部
 from __future__ import annotations
 
 from app.graph.nodes._orchestrator import get_orchestrator
-from app.graph.nodes.compat import merge_to_dict_state, to_class_state
 from app.graph.sse_bridge import make_emit
-from app.graph.state import ArticleState
 from app.models.enums import SseMessageTypeEnum
+from app.schemas.article import ArticleState
 from app.utils.logger import logger
 
 
 async def image_generator_node(state: ArticleState) -> dict:
     """配图生成：调 ImageGeneratorAgent.run，产出 images"""
-    class_state = to_class_state(state)
     orchestrator = get_orchestrator()
-    emit = make_emit(state.get("task_id") or "", class_state)
+    emit = make_emit(state.task_id or "", state)
 
-    logger.info("[graph] 配图生成节点, taskId=%s", state.get("task_id"))
-    await orchestrator.image_generator_agent.run(class_state, emit)
+    logger.info("[graph] 配图生成节点, taskId=%s", state.task_id)
+    await orchestrator.image_generator_agent.run(state, emit)
     emit(SseMessageTypeEnum.AGENT5_COMPLETE.value)
 
-    return merge_to_dict_state(class_state)
+    return {"images": [i.model_dump(by_alias=True) for i in state.images] if state.images else None}

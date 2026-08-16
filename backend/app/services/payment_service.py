@@ -19,9 +19,8 @@ from app.utils.logger import logger
 
 # 永久会员特权文案，与 article_service 中会员专属能力对齐
 VIP_PRIVILEGES = [
-    "无限创作文章，不受配额限制",
     "解锁 AI 修改大纲功能",
-    "解锁高级配图方式：AI 创意插画（Nano Banana）、AI 生成 SVG 图表",
+    "解锁高级配图方式：AI 配图、AI 生成 SVG 图表",
     "一次买断，永久有效",
 ]
 
@@ -49,7 +48,7 @@ class PaymentService:
                 price=float(product_type.price),
                 currency=self.CURRENCY_USD,
                 title=product_type.description,
-                description="解锁全部高级功能，无限创作配额，终身有效",
+                description="解锁全部高级功能，终身有效",
                 privileges=list(VIP_PRIVILEGES),
             )
         ]
@@ -77,7 +76,7 @@ class PaymentService:
                         "unit_amount": amount_cents,
                         "product_data": {
                             "name": product_type.description,
-                            "description": "解锁全部高级功能，无限创作配额，终身有效",
+                            "description": "解锁全部高级功能，终身有效",
                         },
                     },
                     "quantity": 1,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 意见反馈页（M2）
+ * 意见反馈页
  *
  * Tab1 提交反馈：类型 + 内容（1~2000 字）+ 联系方式（电话/邮箱，选填）+ 截图（最多 5 张，单张 ≤2MB）
  * Tab2 我的反馈：分页列表（类型/状态筛选）+ 详情抽屉（内容/截图/回复内容/处理进度）
@@ -78,7 +78,7 @@ const beforeUpload = (file: any) => {
 
 const customUpload = async ({ file, onSuccess, onError }: any) => {
   try {
-    const res = await uploadFeedbackImage(file as File)
+    const res = await uploadFeedbackImage({} as API.BodyUploadFeedbackImageApiFeedbackUploadPost, file as File)
     if (res.data.code === 0 && res.data.data) {
       file.url = res.data.data
       onSuccess(res.data.data)

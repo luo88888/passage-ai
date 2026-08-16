@@ -1,4 +1,4 @@
-"""积分结算服务（M3：后付费段级结算 + 启动对账）。
+"""积分结算服务（后付费段级结算 + 启动对账）。
 
 职责：
   1. settle_current_segment：按「计费段」增量结算——
@@ -24,6 +24,7 @@ from app.services.model_usage_service import get_usage_context, usage_recorder
 from app.services.points_service import PointsService
 from app.services.pricing_service import PricingService
 from app.utils.logger import logger
+from app.database import database
 
 
 class SettlementService:
@@ -131,8 +132,6 @@ async def reconcile_active_task_counts() -> int:
     Returns:
         受影响（被纠正）的用户行数。
     """
-    from app.database import database  # 函数体内 import，避免启动期循环导入
-
     try:
         result = await database.execute(
             query="""

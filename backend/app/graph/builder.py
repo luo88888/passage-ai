@@ -2,19 +2,6 @@
 LangGraph 文章生成图——图构建器
 
 本文件只负责图的拓扑组装：注册节点 + 连顺序边 + 配置 interrupt + 注入 checkpointer。
-- 节点实现 → app/graph/nodes/（每节点一文件）
-- 共享常量 → app/graph/constants.py
-- 状态定义 → app/graph/state.py
-- checkpointer → app/graph/checkpointer.py
-
-图拓扑（成功路径副作用全在图内）：
-    START → bootstrap → generate_title → confirm_title
-                               ↓ interrupt_after=confirm_title（暂停等用户确认标题）
-           → generate_outline → confirm_outline
-                               ↓ interrupt_after=confirm_outline（暂停等用户编辑大纲）
-           →（条件边）有 modify_suggestion → ai_modify_outline → interrupt_after（可反复 AI 修改）
-                              无 modify_suggestion → generate_content
-           → generate_content → image_analyzer → image_generator → merger → finalize → END
 
 三个 interrupt 对应人机协同点：
   - confirm_title 后：标题方案已落库 + TITLE_GENERATED 已发，等用户确认标题 + 补充描述
@@ -25,7 +12,7 @@ LangGraph 文章生成图——图构建器
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from langgraph.graph import END, START, StateGraph
 
@@ -44,6 +31,7 @@ from app.graph.constants import (
     NODE_RESEARCH,
 )
 from app.graph.edges.bootstrap_routing import route_after_bootstrap
+from app.graph.edges.outline_routing import route_after_outline
 from app.graph.nodes import (
     ai_modify_outline_node,
     bootstrap_node,
@@ -58,23 +46,14 @@ from app.graph.nodes import (
     research_node,
     title_node,
 )
-from app.graph.state import ArticleState
+from app.schemas.article import ArticleState
 
 if TYPE_CHECKING:
     from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
     from langgraph.graph.state import CompiledStateGraph
 
 
-def _route_after_outline(state: ArticleState) -> str:
-    """confirm_outline / ai_modify_outline 后的条件路由
-
-    有 modify_suggestion（路由层 ai-modify-outline 注入）→ 进 AI 修改大纲节点；
-    否则（确认大纲时未注入建议 / 节点消费后清空）→ 进 generate_content 继续正文生成。
-    """
-    return NODE_AI_MODIFY_OUTLINE if state.get("modify_suggestion") else NODE_GENERATE_CONTENT
-
-
-def build_article_graph(checkpointer: "AsyncSqliteSaver | None") -> "CompiledStateGraph":
+def build_article_graph(checkpointer: Optional[AsyncSqliteSaver]) -> CompiledStateGraph:
     """构建并编译文章生成图
 
     Args:
@@ -114,13 +93,13 @@ def build_article_graph(checkpointer: "AsyncSqliteSaver | None") -> "CompiledSta
     # confirm_outline 后按是否要 AI 修改大纲分流：有 modify_suggestion 走修改节点，否则进 generate_content
     workflow.add_conditional_edges(
         NODE_CONFIRM_OUTLINE,
-        _route_after_outline,
+        route_after_outline,
         {NODE_AI_MODIFY_OUTLINE: NODE_AI_MODIFY_OUTLINE, NODE_GENERATE_CONTENT: NODE_GENERATE_CONTENT},
     )
     # ai_modify_outline 后同理：还可再次修改（mit 后 interrupt）或确认进 generate_content
     workflow.add_conditional_edges(
         NODE_AI_MODIFY_OUTLINE,
-        _route_after_outline,
+        route_after_outline,
         {NODE_AI_MODIFY_OUTLINE: NODE_AI_MODIFY_OUTLINE, NODE_GENERATE_CONTENT: NODE_GENERATE_CONTENT},
     )
     workflow.add_edge(NODE_GENERATE_CONTENT, NODE_IMAGE_ANALYZER)

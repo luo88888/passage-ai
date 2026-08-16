@@ -270,17 +270,6 @@ def create_structured_model(
 ) -> DeepSeekStructuredModel:
     """创建与 DeepSeek 思考模式兼容的结构化输出模型。
 
-    DeepSeek 思考模式（thinking）下 API 会拒绝强制 tool_choice
-    （``Thinking mode does not support this tool_choice``），因此原生
-    ``with_structured_output(method="function_calling")`` 无法在思考模式下使用。
-
-    重新设计后:
-    - ``thinking=False``: method 自动走原生 ``function_calling``，由 API 强制
-      schema，约束最严格；
-    - ``thinking=True``:  method 自动切换为 ``prompt_json`` —— 提示词内嵌
-      JSON Schema，保留思考模式，并用 pydantic 校验输出，保证结构化结果可靠；
-    - 解析结果上附带 ``_reasoning_content``（思考内容）与 ``_raw_response``。
-
     Args:
         structured: pydantic 模型类
         model_name: 模型名称

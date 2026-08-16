@@ -2,10 +2,10 @@ from datetime import datetime
 import json
 from typing import List, Optional, Tuple
 import uuid
+
 from databases import Database
 from databases.interfaces import Record
 from sqlalchemy import and_, func, select
-
 
 
 from app.constants.user import UserConstant
@@ -16,12 +16,12 @@ from app.models.article import Article
 from app.models.enums import ArticleGenreEnum, ArticleLanguageStyleEnum, ArticlePhaseEnum, ArticleStatusEnum, ImageMethodEnum
 from app.schemas.article import ArticleQueryRequest, ArticleState, ArticleVO, CreationOptionsVO, OptionItem, OutlineSection, ResearchDataVO, TitleOption
 from app.schemas.user import LoginUserVO
-from app.agent.image_generator import parallel_image_generator
+from app.services.image_generator import parallel_image_generator
 from app.utils.logger import logger
 
 
 class ArticleService:
-    """文章服务类，提供下述服务：
+    """文章服务类，对外提供下述服务：
     1. 创建文章任务，返回 (task_id, final_image_methods)（task_id 写进数据库）
         - create_article_task -> Tuple[str, Optional[List[str]]]
         - create_article_task_with_slot_check -> Tuple[str, Optional[List[str]]]
@@ -138,7 +138,7 @@ class ArticleService:
     ) -> Tuple[str, Optional[List[str]]]:
         """在同一事务中完成并发名额占用（activeTaskCount+1）和任务创建（后付费闸门）。
 
-        M3 起以「积分 + 并发名额」取代历史 quota 门槛：
+        以「积分 + 并发名额」作为门槛：
           - 仅 admin 豁免（不计数、不限并发）；VIP 与普通用户同样按积分结算并受并发限制；
           - 创建不预扣、不估算，仅原子占用「进行中」任务名额；
           - 余额 >= 0 的快速失败在路由层 require_create_slot 完成，此处做权威原子校验。
@@ -222,7 +222,7 @@ class ArticleService:
         """获取创作页可选项：题材 / 语言风格 + 配图方式（仅已注册可用的方法）。
 
         题材/语言风格枚举（ArticleGenreEnum / ArticleLanguageStyleEnum）提供 label 与
-        description 中文文案，而非在此处硬编码；旧文章风格（ArticleStyleEnum）已弃用，不再返回。
+        description 中文文案；旧文章风格（ArticleStyleEnum）已弃用，不再返回。
         配图方式直接取策略器 service_map 已注册集合，保证与实际可用能力始终一致。
         """
         genres = [
@@ -667,7 +667,11 @@ class ArticleService:
         enabled_image_methods: Optional[List[str]],
         login_user: LoginUserVO,
     ):
-        """校验普通用户高级配图权限"""
+        """校验普通用户高级配图权限
+        
+        Raises:
+            BusinessException: 高级配图功能仅限 VIP 会员使用
+        """
         if not enabled_image_methods or self._is_vip_or_admin(login_user):
             return
 

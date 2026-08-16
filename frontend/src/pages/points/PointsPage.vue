@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 积分中心页（M5，TODO 1.8）
+ * 积分中心页
  *
  * 内容：余额卡片 + 每日签到、积分明细分页（类型/时间筛选）、各模型用量统计（表格 + ECharts）。
  * 数据来源：GET /points/balance、POST /points/checkin、POST /points/transactions、GET /points/usage/stats。
@@ -323,7 +323,7 @@ onBeforeUnmount(() => {
             <GiftOutlined v-else />
             {{ checkedInToday ? '今日已签到' : '签到 +10' }}
           </a-button>
-          <p class="checkin-tip">每日签到赠送 10 积分，欠费用户签到后即可继续创作</p>
+          <p class="checkin-tip">每日签到赠送 100 积分，欠费用户签到后即可继续创作</p>
         </div>
       </div>
 

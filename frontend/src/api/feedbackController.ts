@@ -119,16 +119,44 @@ export async function submitFeedback(
 }
 
 /** Upload Feedback Image 上传反馈截图（multipart/form-data，字段名 file）
- *
- * 仅支持 JPG / PNG / WebP / GIF，大小不超过 2MB，不接受 SVG（防存储型 XSS）；
- * 单张上传返回可访问 URL，同一反馈可多次调用（提交时最多 5 张，由提交接口兜底校验）。
- * 文件保存到本地 static/images/feedback/。 POST /feedback/upload */
-export async function uploadFeedbackImage(file: File, options?: { [key: string]: any }) {
-  const formData = new FormData()
-  formData.append('file', file)
-  return request<API.BaseResponseStr_>('/feedback/upload', {
-    method: 'POST',
+
+仅支持 JPG / PNG / WebP / GIF，大小不超过 2MB，不接受 SVG（防存储型 XSS）；
+单张上传返回可访问 URL，同一反馈可多次调用（提交时最多 5 张，由提交接口兜底校验）。
+文件保存到本地 static/images/feedback/。 POST /feedback/upload */
+export async function uploadFeedbackImage(
+  body: API.BodyUploadFeedbackImageApiFeedbackUploadPost,
+  file?: File,
+  options?: { [key: string]: any }
+) {
+  const formData = new FormData();
+
+  if (file) {
+    formData.append("file", file);
+  }
+
+  Object.keys(body).forEach((ele) => {
+    const item = (body as any)[ele];
+
+    if (item !== undefined && item !== null) {
+      if (typeof item === "object" && !(item instanceof File)) {
+        if (item instanceof Array) {
+          item.forEach((f) => formData.append(ele, f || ""));
+        } else {
+          formData.append(
+            ele,
+            new Blob([JSON.stringify(item)], { type: "application/json" })
+          );
+        }
+      } else {
+        formData.append(ele, item);
+      }
+    }
+  });
+
+  return request<API.BaseResponseStr_>("/feedback/upload", {
+    method: "POST",
     data: formData,
+    requestType: "form",
     ...(options || {}),
-  })
+  });
 }

@@ -102,3 +102,8 @@ class MermaidService(BaseImageSearchService):
             return "application/pdf"
         else:
             return "image/png"
+
+
+if __name__ == '__main__':
+    service = MermaidService()
+    print(f"avaliable: {service.is_available()}")

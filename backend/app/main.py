@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
 
     # 确认图片生成单例就绪（单例在 image_generator 模块导入时即构造，此处仅记录已注册方式，
     # 便于把 mmdc 缺失等服务构造故障在启动期提前暴露）
-    from app.agent.image_generator import parallel_image_generator
+    from app.services.image_generator import parallel_image_generator
     logger.info(
         "图片生成单例就绪, 已注册服务: %s",
         [m.value for m in parallel_image_generator.get_enabled_methods()],

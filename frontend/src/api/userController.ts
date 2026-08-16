@@ -18,17 +18,45 @@ export async function addUser(
 }
 
 /** Upload Avatar 上传用户头像（multipart/form-data，字段名 file）
- *
- * 仅支持 JPG / PNG / WebP / GIF，大小不超过 2MB；
- * 文件保存到本地 static/images/avatar/，返回可访问的图片 URL。 POST /user/avatar/upload */
-export async function uploadUserAvatar(file: File, options?: { [key: string]: any }) {
-  const formData = new FormData()
-  formData.append('file', file)
-  return request<{ code: number; data: string; message?: string }>('/user/avatar/upload', {
-    method: 'POST',
+
+仅支持 JPG / PNG / WebP / GIF，大小不超过 2MB；
+文件保存到本地 static/images/avatar/，返回可访问的图片 URL。 POST /user/avatar/upload */
+export async function uploadUserAvatar(
+  body: API.BodyUploadAvatarApiUserAvatarUploadPost,
+  file?: File,
+  options?: { [key: string]: any }
+) {
+  const formData = new FormData();
+
+  if (file) {
+    formData.append("file", file);
+  }
+
+  Object.keys(body).forEach((ele) => {
+    const item = (body as any)[ele];
+
+    if (item !== undefined && item !== null) {
+      if (typeof item === "object" && !(item instanceof File)) {
+        if (item instanceof Array) {
+          item.forEach((f) => formData.append(ele, f || ""));
+        } else {
+          formData.append(
+            ele,
+            new Blob([JSON.stringify(item)], { type: "application/json" })
+          );
+        }
+      } else {
+        formData.append(ele, item);
+      }
+    }
+  });
+
+  return request<API.BaseResponseStr_>("/user/avatar/upload", {
+    method: "POST",
     data: formData,
+    requestType: "form",
     ...(options || {}),
-  })
+  });
 }
 
 /** Change Password 修改当前登录用户的密码

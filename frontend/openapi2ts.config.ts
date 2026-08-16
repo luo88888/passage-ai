@@ -86,7 +86,10 @@ export default {
       const paths = openAPIData.paths ?? {}
       const snakeToCamel = (s) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
       for (const [pathKey, pathItem] of Object.entries(paths)) {
-        const newPathKey = pathKey.replace(/\{([^}]+)\}/g, (_, name) => `{${snakeToCamel(name)}}`)
+        // 剥离 /api 前缀：后端路由统一挂在 /api 下，前端 request baseURL 已是 /api，
+        // 生成路径须为 /user/register 而非 /api/user/register，否则拼接成 /api/api/... 双前缀 404
+        const strippedKey = pathKey.replace(/^\/api/, '')
+        const newPathKey = strippedKey.replace(/\{([^}]+)\}/g, (_, name) => `{${snakeToCamel(name)}}`)
         for (const method of ['get', 'post', 'put', 'delete']) {
           const op = pathItem?.[method]
           if (!op) continue
