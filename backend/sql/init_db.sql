@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS article
     topic               varchar(500)                    not null comment '选题',
     userDescription     text                            null comment '用户补充描述',
     enabledImageMethods json                            null comment '允许的配图方式列表（JSON格式）',
+    researchData        json                            null comment '信息采集结果（JSON）：{requirement, searchQueriesUsed, articles[]}',
     mainTitle           varchar(200)                    null comment '主标题',
     subTitle            varchar(300)                    null comment '副标题',
     titleOptions        json                            null comment '标题方案列表（3-8个方案）',
