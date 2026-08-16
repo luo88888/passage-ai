@@ -39,7 +39,7 @@ async def checkin(
     db: Database = Depends(get_db),
     current_user: LoginUserVO = Depends(require_login),
 ):
-    """每日签到，赠送积分（Redis SETNX 防重复，记 SIGN_IN 流水）"""
+    """每日签到，赠送 100 积分（Redis SETNX 防重复，记 SIGN_IN 流水）"""
     service = PointsService(db)
     result = await service.checkin(current_user.id)
     return BaseResponse.success(data=result, message=f"签到成功，+{result.gained} 积分")
