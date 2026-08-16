@@ -101,7 +101,7 @@ export async function getPointsBalance(options?: { [key: string]: any }) {
   });
 }
 
-/** Checkin 每日签到（Redis SETNX 防重复，赠送 10 积分，记 SIGN_IN 流水） POST /points/checkin */
+/** Checkin 每日签到（Redis SETNX 防重复，赠送 100 积分，记 SIGN_IN 流水） POST /points/checkin */
 export async function checkin(options?: { [key: string]: any }) {
   return request<API.BaseResponsePointsCheckinVO_>("/points/checkin", {
     method: "POST",

@@ -52,7 +52,7 @@
           >
             <CheckCircleOutlined v-if="checkedInToday" />
             <GiftOutlined v-else />
-            <span>{{ checkedInToday ? '今日已签到' : '签到 +10' }}</span>
+            <span>{{ checkedInToday ? '今日已签到' : '签到 +100' }}</span>
           </a-button>
           <!-- VIP 标识 -->
           <RouterLink v-if="!isVip" to="/vip" class="upgrade-vip-btn">

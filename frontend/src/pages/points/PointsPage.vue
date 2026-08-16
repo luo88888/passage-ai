@@ -321,7 +321,7 @@ onBeforeUnmount(() => {
           >
             <CheckCircleOutlined v-if="checkedInToday" />
             <GiftOutlined v-else />
-            {{ checkedInToday ? '今日已签到' : '签到 +10' }}
+            {{ checkedInToday ? '今日已签到' : '签到 +100' }}
           </a-button>
           <p class="checkin-tip">每日签到赠送 100 积分，欠费用户签到后即可继续创作</p>
         </div>

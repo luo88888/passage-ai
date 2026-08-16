@@ -157,7 +157,7 @@ cp .env.example .env
 # 3. 初始化数据库（幂等建库建表，DDL 与 backend/sql/init_db.sql 一致）
 uv run python scripts/init_db.py
 
-# 4.（可选）种子数据（演示账号 / 模型计价）
+# 4.（可选）种子数据（演示账号 / 管理员账号 / 模型计价）
 uv run python scripts/seed_data.py
 
 # 5. 启动后端（端口 8567）
@@ -172,6 +172,13 @@ npm run dev
 - 浏览器访问 `http://localhost:5173` 开始创作
 - API 文档：`http://localhost:8567/api/docs`
 - 可选：Mermaid 配图需全局安装 `npm install -g @mermaid-js/mermaid-cli`
+- 用户种子数据：
+  账号 | 密码 | 角色
+  :-:|:-:|:-:
+  admin|12345678|管理员
+  user|12345678|普通用户
+  test|12345678|普通用户
+
 
 ### 环境变量说明
 
