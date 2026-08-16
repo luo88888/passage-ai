@@ -222,7 +222,7 @@ class ArticleService:
         """获取创作页可选项：题材 / 语言风格 + 配图方式（仅已注册可用的方法）。
 
         题材/语言风格枚举（ArticleGenreEnum / ArticleLanguageStyleEnum）提供 label 与
-        description 中文文案，而非在此处硬编码；旧文章风格（ArticleStyleEnum）已弃用，不再返回。
+        description 中文文案；旧文章风格（ArticleStyleEnum）已弃用，不再返回。
         配图方式直接取策略器 service_map 已注册集合，保证与实际可用能力始终一致。
         """
         genres = [

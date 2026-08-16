@@ -20,8 +20,8 @@ class PointsConstant:
         TX_ADMIN_ADJUST: 管理员调整/历史折算流水类型。
     """
 
-    DEFAULT_POINTS = 100        # 注册赠送积分
-    SIGN_IN_POINTS = 10         # 每日签到赠送积分
+    DEFAULT_POINTS = 500         # 注册赠送积分
+    SIGN_IN_POINTS = 100         # 每日签到赠送积分
     QUOTA_TO_POINTS_RATE = 100  # 历史配额折算比例（1 quota = 100 积分）
 
     # 积分流水类型

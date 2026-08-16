@@ -56,7 +56,7 @@ npm run dev
 ## 目录结构
 
 ```
-passageAI/
+passage-ai/
 ├── backend/                      # FastAPI 后端（Python 3.11 / uv）
 │   ├── app/
 │   │   ├── main.py               # FastAPI 入口：CORS、lifespan、全局异常、路由注册、/static 挂载

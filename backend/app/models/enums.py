@@ -56,7 +56,7 @@ class ImageMethodEnum(str, Enum):
 
     PEXELS = "PEXELS", "Pexels 真实图", "高质量真实摄影图，适合封面与场景配图"
     NANO_BANANA = "NANO_BANANA", "Nano Banana", "AI 创意插画，适合抽象概念与信息图表"
-    ZHIPU = "ZHIPU", "智谱 GLM-Image", "AI 生图，擅长文字密集的商业海报/科普插画/多格图画/人物/风景/动植物"
+    ZHIPU = "ZHIPU", "智谱 AI 生图", "AI 生图，擅长文字密集的商业海报/科普插画/多格图画/人物/风景/动植物"
     MERMAID = "MERMAID", "Mermaid 流程图", "代码生成流程图/时序图等结构化图表"
     ICONIFY = "ICONIFY", "Iconify 图标", "海量开源图标库，适合图标点缀"
     EMOJI_PACK = "EMOJI_PACK", "表情包", "表情图，增加趣味性"

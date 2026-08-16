@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 管理端模型计价管理页（M5，8.3）
+ * 管理端模型计价管理页
  *
  * 模型计价配置 CRUD + 启用/停用。
  * 数据来源：GET/POST/PUT /admin/model-pricing。

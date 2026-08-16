@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 站内信通知详情页（M3）
+ * 站内信通知详情页
  *
  * 展示单条通知：类型 / 标题 / 时间，正文以 markdown 渲染（utils/markdown 封装，
  * marked + DOMPurify 净化）。进入页面时若未读则自动标记已读并刷新头部角标。
