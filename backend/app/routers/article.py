@@ -18,6 +18,7 @@ from app.graph.graph_runner import article_async_service
 from app.services.article_service import ArticleService
 from app.managers.sse_manager import sse_emitter_manager
 from app.utils.logger import logger
+from app.models.enums import ArticleGenreEnum
 
 
 router = APIRouter(prefix="/article", tags=["文章管理"])
@@ -34,6 +35,12 @@ async def create_article(
         not request.topic or not request.topic.strip(),
         ErrorCode.PARAMS_ERROR,
         "选题不能为空"
+    )
+
+    throw_if(
+        request.genre == ArticleGenreEnum.NEWS and not settings.serper_api_key,
+        ErrorCode.OPERATION_ERROR,
+        "未配置 serper_api_key，无法采集新闻"
     )
 
     fingerprint = hashlib.sha256(
