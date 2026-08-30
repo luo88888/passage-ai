@@ -12,7 +12,7 @@ from app.schemas.article import ArticleState, ImageRequirement, ImageResult
 from app.utils.logger import logger
 
 if TYPE_CHECKING:
-    from app.services.image_generator import ParallelImageGenerator
+    from app.services.images.image_generator import ParallelImageGenerator
     from app.services.agent_log_service import AgentLogService
 
 

@@ -366,7 +366,7 @@ const originItems = [
   {
     key: '/admin/userManage',
     icon: SettingOutlined,
-    label: '管理',
+    label: '用户管理',
     admin: true,
   },
   {

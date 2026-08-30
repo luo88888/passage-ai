@@ -5,7 +5,7 @@ from app.config import settings
 from app.constants.article import ArticleConstant
 from app.models.enums import ImageMethodEnum
 from app.schemas.image import ImageData, ImageRequest
-from app.services.image_search_service import BaseImageSearchService
+from app.services.images.image_search_service import BaseImageSearchService
 from app.utils.logger import logger
 
 

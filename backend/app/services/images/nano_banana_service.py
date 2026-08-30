@@ -11,7 +11,7 @@ from google.genai import types
 from app.constants.article import ArticleConstant
 from app.models.enums import ImageMethodEnum
 from app.schemas.image import ImageRequest, ImageData
-from app.services.image_search_service import BaseImageSearchService
+from app.services.images.image_search_service import BaseImageSearchService
 from app.services.model_usage_service import usage_recorder
 from app.config import settings
 

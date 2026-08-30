@@ -13,7 +13,7 @@ from app.utils.logger import logger
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
 
-    from app.services.image_generator import ParallelImageGenerator
+    from app.services.images.image_generator import ParallelImageGenerator
     from app.services.agent_log_service import AgentLogService
 
 

@@ -13,7 +13,7 @@
 
 本项目是一个 **AI 驱动的文章创作平台**。用户只需输入一个主题，系统便会通过 **LangGraph 状态机** 编排多个 LLM 智能体，自动完成「选题研究 → 标题生成 → 大纲规划 → 正文创作 → 配图生成 → 图文合并」，最终产出一篇图文并茂的完整文章。
 
-创作过程支持 **多阶段人机协同**：标题、大纲等关键节点会暂停等待用户确认或修改；新闻题材会自动接入信息采集智能体，基于实时资讯创作。平台同时内置**注册登录**、**积分计费**、**VIP 会员**、**管理后台**、**意见反馈**与**站内信**等完整运营能力。
+创作过程支持 **多阶段人机协同**：标题、大纲等关键节点会暂停等待用户确认或修改；新闻题材会自动接入信息采集智能体，基于实时资讯创作。平台同时内置**注册登录**、**积分计费**、**VIP 会员**、**管理后台**、**意见反馈**与**站内信**等能力。
 
 ## ✨ 核心功能
 
@@ -31,7 +31,14 @@ LangGraph 编排 **6 个创作智能体 + 1 个新闻信息采集智能体**：
 | 🎨 配图生成 | 按需求并行拉取 / 生成配图并上传 |
 | 📰 信息采集 | 新闻题材专用：Serper 搜索 + ddgs 获取 markdown 格式内容 + 抽取结构化摘要 + 选择最符合选题的新闻 |
 
-![a](docs/images/graph.png)
+
+<div align="center">
+
+**Graph 架构**
+
+</div>
+
+![a](docs/images/graph架构.png)
 
 
 其中 `confirm_title`、`confirm_outline`、`ai_modify_outline` 是 3 个人机协同 interrupt 断点：先落库并发 SSE，再暂停等待用户确认；由 SQLite Checkpointer 持久化，支持断点续跑。大纲确认后既可手动编辑，也可循环请求 AI 修改。
@@ -46,8 +53,8 @@ LangGraph 编排 **6 个创作智能体 + 1 个新闻信息采集智能体**：
 | 🤖 智谱 AI 生图 | AI 生图（配置 API Key 后自动启用） |
 | 📊 AI-SVG 图表 | LLM 生成矢量示意图 |
 | 📐 Mermaid | 流程图 / 时序图等结构化图表（需 `mmdc` CLI） |
-| 🎯 Iconify | 海量开源图标库检索 |
-| 😂 Bing 表情包 | 表情包图片搜索 |
+| 🎯 Iconify | 海量开源图标库检索（默认未启用） |
+| 😂 Bing 表情包 | 表情包图片搜索（默认未启用） |
 | 🔁 Picsum | 兜底随机图，任何服务失败自动降级 |
 
 所有配图服务统一继承 `BaseImageSearchService`，由 `ParallelImageGenerator` 并行调度；普通 / VIP 配图方式按会员权限门控，可用服务动态同步到创作页选项。
@@ -114,7 +121,7 @@ LangGraph 编排 **6 个创作智能体 + 1 个新闻信息采集智能体**：
 - ✅ 配额与并发控制：透支护栏 + 单用户并发限制（原子 SQL 计数）
 - ✅ VIP 会员：一键**免费**开通永久 VIP（限时免费，Stripe 尚未打通）
 - ✅ 安全防护：注册 / 登录 Redis 限流防爆破、任务去重、上传文件白名单
-- ⏳ 内容审核 Agent（review）与 SEO 优化 Agent（seo）：占位节点待接入
+- ⏳ 内容审核 Agent（review）：规划中
 - ⏳ 用户上传配图、全局并发限制：规划中
 
 ## 🏗️ 技术栈
@@ -224,6 +231,60 @@ npm run dev
 - 🗂️ **本地文件**：生成图片落盘（`backend/static/images/`），`/static` 挂载访问
 
 DDL 唯一源为 `backend/sql/init_db.sql`，ORM 权威定义在 `backend/app/models/`；MySQL 列名统一 camelCase，ORM 字段使用 snake_case 映射。
+
+---
+
+## 📁 项目目录结构
+
+
+```text
+passage-ai/
+├── README.md                             # 说明
+├── docs/                                 # 文档 / 图片
+│
+├── backend/                              # 后端
+│   ├── .env.example / pyproject.toml / uv.lock   # 环境变量示例 / 依赖与锁文件
+│   ├── app/
+│   │   ├── main.py                       # 入口
+│   │   ├── config/                       # 配置包
+│   │   ├── database.py / redis.py / deps.py / exceptions.py   # MySQL/Redis 连接、依赖注入、业务异常
+│   │   ├── count_semaphore.py            #   进程内信号量（智谱生图限并发）
+│   │   ├── graph/                        # ⭐ LangGraph 文章生成状态机
+│   │   │   ├── builder.py / constants.py #   图拓扑组装 / 节点常量
+│   │   │   ├── checkpointer.py           #   SQLite 检查点
+│   │   │   ├── graph_runner.py           #   graph 调度
+│   │   │   ├── sse_bridge.py             #   图节点 → SSE 消息转换
+│   │   │   ├── edges/                    #   条件边
+│   │   │   └── nodes/                    #   图节点
+│   │   ├── agent/                        #   LLM 智能体层
+│   │   │   ├── orchestrator.py           #   智能体编排器
+│   │   │   ├── base_agent.py / context/  #   智能体基类 / 流式输出处理
+│   │   │   ├── agents/                   #   创作智能体
+│   │   │   └── information_collector/    #   数据采集智能体
+│   │   ├── llm_factory/                  #   LLM 模型工厂
+│   │   ├── routers/                      #   路由层
+│   │   ├── services/                     #   服务层
+│   │   ├── models/ / schemas/            #   ORM + enums / Pydantic 请求响应模型
+│   │   ├── managers/sse_manager.py       #   SSE 连接管理
+│   │   |── constants/                    #   常量 / LLM 提示词
+        |__ utils/
+│   ├── sql/init_db.sql
+    |—— scripts/                          #   数据库初始化等脚本
+│   └── static/default_avatar/            #   头像种子图
+│
+└── frontend/                             #   前端
+    ├── vite.config.js / index.html / package.json   # 构建配置、入口、依赖
+    ├── openapi.json / openapi2ts.config.ts          # API 快照 + 生成接口客户端
+    └── src/
+        ├── main.js / App.vue / request.ts / access.ts  # 入口 / Axios 封装 / 路由权限
+        ├── router/index.js / stores/loginUser.ts       # 路由表 / Pinia 当前用户
+        ├── api/                                        # openapi2ts 生成的接口客户端
+        ├── layouts/BasicLayout.vue                     # 主布局（全局头 / 页脚）
+        ├── components/                                 # GlobalHeader / GlobalFooter / 创作页组件
+        ├── pages/                                      # 页面
+        ├── utils/
+        └── constants/ types/ assets/                   # 常量 / 类型声明 / 静态资源
+```
 
 ---
 

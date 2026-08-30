@@ -14,7 +14,7 @@ from app.agent.orchestrator import ArticleAgentOrchestrator
 from app.config import settings
 from app.services.agent_log_service import AgentLogService
 from app.database import database
-from app.services.image_generator import parallel_image_generator
+from app.services.images.image_generator import parallel_image_generator
 from app.llm_factory.factory import (
     get_chat_model,
     get_structured_model,

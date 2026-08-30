@@ -13,7 +13,7 @@ from app.schemas.article import ArticleState
 from app.utils.logger import logger
 
 if TYPE_CHECKING:
-    from app.services.image_generator import ParallelImageGenerator
+    from app.services.images.image_generator import ParallelImageGenerator
 
 
 class ContentGeneratorAgent(BaseAgent):

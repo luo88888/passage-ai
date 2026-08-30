@@ -70,7 +70,7 @@ passage-ai/
 │   │   ├── count_semaphore.py    # 进程内信号量（智谱生图限并发）
 │   │   ├── graph/                # ⭐ LangGraph 文章生成状态机
 │   │   │   ├── builder.py        #   图拓扑组装（节点 + 条件边 + interrupt + compile）
-│   │   │   ├── constants.py      #   12 个接入节点 + review/seo 占位节点名
+│   │   │   ├── constants.py      #   12 个接入节点
 │   │   │   ├── checkpointer.py   #   SQLite checkpointer（backend/data/checkpoints.sqlite）
 │   │   │   ├── graph_runner.py   #   文章异步任务服务：start/resume + 并发守卫 + 失败兜底
 │   │   │   ├── sse_bridge.py     #   图节点 → SSE 消息转换
@@ -83,7 +83,8 @@ passage-ai/
 │   │   │   └── information_collector/     # 新闻采集（LangChain create_agent + Serper + ddgs 抓取）
 │   │   ├── llm_factory/          # factory / deepseek / mimo / token_usage_handler
 │   │   ├── routers/              # article/user/payment/statistics/points/admin_points/feedback/message/health
-│   │   ├── services/             # 文章/积分/计价/结算/用量/日志/用户/支付/统计/反馈/站内信 + 配图服务 + local_file_service
+│   │   ├── services/             # 文章/积分/计价/结算/用量/日志/用户/支付/统计/反馈/站内信 + local_file_service 文件存储
+│   │   │   └── images/           # 配图服务子包（image_generator 分发器 / image_search_service 基类 / pexels / mermaid / iconify / emoji_pack / svg_diagram / zhipu / nano_banana）
 │   │   ├── models/               # 10 张表 ORM（article/user/payment/agent_log/user_points/points_transaction/model_pricing/model_usage_record/feedback/message）+ enums.py
 │   │   ├── schemas/              # article/common/image/payment/points/statistic/user/feedback/message
 │   │   ├── managers/sse_manager.py  # SSE 连接管理（task_id → 有界历史 + 实时队列）
@@ -117,7 +118,6 @@ passage-ai/
 - **副作用节点**（落库 + 阶段流转 + SSE）：`bootstrap`、`confirm_title`、`confirm_outline`、`ai_modify_outline`、`finalize`
 - **智能体节点**（纯 LLM/配图工作 + SSE）：`generate_title`、`generate_outline`、`generate_content`、`image_analyzer`、`image_generator`、`merger`
 - **研究节点**：`research`（仅新闻题材，bootstrap 后条件边进入；采集失败不阻塞主流程，结果结构化落库 `article.researchData`）
-- **占位节点**：`review`、`seo` 已建文件但未注册进 builder
 
 ```
 START → bootstrap
@@ -156,8 +156,8 @@ START → bootstrap
 
 ### 配图架构
 
-- 所有图片服务实现 `BaseImageSearchService`（`services/image_search_service.py`）
-- `ParallelImageGenerator` 单例（`services/image_generator.py`）：按 `ImageMethodEnum` 分发、`asyncio.Semaphore` 限并发、失败自动降级（Picsum 兜底并上传本地）
+- 所有图片服务实现 `BaseImageSearchService`（`services/images/image_search_service.py`）
+- `ParallelImageGenerator` 单例（`services/images/image_generator.py`）：按 `ImageMethodEnum` 分发、`asyncio.Semaphore` 限并发、失败自动降级（Picsum 兜底并上传本地）
 - 当前注册服务：Pexels、Mermaid、Iconify、Bing 表情包、AI-SVG；智谱在配置 `zhipu_api_key` 后注册；Nano Banana 服务实现保留但暂未注册
 - 可配置开关与 VIP 门控：启用列表同时驱动 LLM 提示词表（`build_image_methods_guide`）与创作页选项接口（`/api/article/options`）；普通用户默认 Pexels/Mermaid/Iconify/表情包，VIP 解锁 AI 生图与 SVG 图表
 - 数据流：`ImageRequirement` → `service.get_image_data()` → `ImageData` → `LocalFileService.upload_image_data()` → URL
@@ -202,7 +202,6 @@ START → bootstrap
 ## 注意事项 / 已知问题
 
 - 完整待办见 `TODO.md`；`TODOs.md` 为已完成事项清单（站内信、意见反馈、注册/登录限流）
-- `review`（内容审核）、`seo`（SEO 优化）为占位节点，未接入 builder
 - 积分充值暂未开放；Stripe 支付代码已实现但当前未启用，前端走免支付直开永久 VIP
 - Nano Banana（Gemini）配图服务实现保留，因额度原因暂未注册，不在创作选项中暴露
 - 不入库目录/文件：`temp/`、`passage/`、`个人笔记/`、`local data/`、`backend/docs/`、`backend/data/`、`backend/logs/`、`backend/static/images/`、`.env` 等；`docs/images/` 与 `backend/static/default_avatar/` 入库

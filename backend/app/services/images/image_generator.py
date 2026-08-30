@@ -8,16 +8,16 @@ from app.constants.article import ArticleConstant
 from app.models.enums import ImageMethodEnum
 from app.schemas.article import ImageRequirement
 from app.schemas.image import ImageData, ImageRequest
-from app.services.image_search_service import BaseImageSearchService
+from app.services.images.image_search_service import BaseImageSearchService
 from app.services.local_file_service import LocalFileService
-from app.services.pexels_service import PexelsService
+from app.services.images.pexels_service import PexelsService
 # NanoBananaService 暂未注册（见 _register_services 注释），import 保留待额度恢复后启用
-# from app.services.nano_banana_service import NanoBananaService
-from app.services.mermaid_service import MermaidService
-from app.services.iconify_service import IconifyService
-from app.services.emoji_pack_service import EmojiPackService
-from app.services.svg_diagram_service import SvgDiagramService
-from app.services.zhipu_image_service import ZhipuImageService
+# from app.services.images.nano_banana_service import NanoBananaService
+from app.services.images.mermaid_service import MermaidService
+from app.services.images.iconify_service import IconifyService
+from app.services.images.emoji_pack_service import EmojiPackService
+from app.services.images.svg_diagram_service import SvgDiagramService
+from app.services.images.zhipu_image_service import ZhipuImageService
 from app.utils.logger import logger
 
 
@@ -58,12 +58,12 @@ class ParallelImageGenerator:
         # 注册后每次调用都会失败再降级，徒增延迟。待额度/付费到位后再加回此列表。
         services: List[BaseImageSearchService] = [
             PexelsService(),
-            MermaidService(), IconifyService(),
-            EmojiPackService(), SvgDiagramService(),
+            MermaidService(),
+            # IconifyService(), # NOTE: 效果不佳，已停用
+            # EmojiPackService(),
+            SvgDiagramService(),
+            ZhipuImageService(),
         ]
-        # 智谱 AI 生图：仅在配置了 API key 时才注册，避免空 key 时每次调用失败再降级
-        if settings.zhipu_api_key:
-            services.append(ZhipuImageService())
 
         for service in services:
             method = service.get_method()
@@ -179,10 +179,13 @@ class ParallelImageGenerator:
         """
         services = list(self.service_map.values())
 
-        # 按启用列表和 is_available() 过滤；None 表示全部已注册服务
+        # 始终过滤不可用服务（如 mmdc 未安装），保证提示词口径与创作页选项一致
+        services = [s for s in services if s.is_available()]
+
+        # 按启用列表过滤；None 表示全部已注册服务
         if enabled_image_methods is not None:
             enabled_set = set(enabled_image_methods)
-            services = [s for s in services if s.name in enabled_set and s.is_available()]
+            services = [s for s in services if s.name in enabled_set]
 
         # 排除兜底方式（PICSUM 不应作为创作选项暴露给 LLM）
         services = [

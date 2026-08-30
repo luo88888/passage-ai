@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
 
     # 确认图片生成单例就绪（单例在 image_generator 模块导入时即构造，此处仅记录已注册方式，
     # 便于把 mmdc 缺失等服务构造故障在启动期提前暴露）
-    from app.services.image_generator import parallel_image_generator
+    from app.services.images.image_generator import parallel_image_generator
     logger.info(
         "图片生成单例就绪, 已注册服务: %s",
         [m.value for m in parallel_image_generator.get_enabled_methods()],
@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
     await init_checkpointer()
     logger.info("SQLite checkpointer 初始化成功")
 
-    # 启动对账（M3 并发限制）：纠正 user.activeTaskCount 与 article 表「进行中（含挂起）」任务数一致，
+    # 启动对账：纠正 user.activeTaskCount 与 article 表「进行中（含挂起）」任务数一致，
     # 修复历史漂移/僵尸任务计数，保证服务重启后并发计数依然准确
     from app.services.settlement_service import reconcile_active_task_counts
     await reconcile_active_task_counts()

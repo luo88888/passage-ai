@@ -9,7 +9,7 @@ from app.llm_factory.factory import get_chat_model
 from app.services.model_usage_service import usage_context
 from app.models.enums import ImageMethodEnum
 from app.schemas.image import ImageData, ImageRequest
-from app.services.image_search_service import BaseImageSearchService
+from app.services.images.image_search_service import BaseImageSearchService
 from app.utils.logger import logger
 from app.config import settings
 
