@@ -83,7 +83,8 @@ passage-ai/
 │   │   │   └── information_collector/     # 新闻采集（LangChain create_agent + Serper + ddgs 抓取）
 │   │   ├── llm_factory/          # factory / deepseek / mimo / token_usage_handler
 │   │   ├── routers/              # article/user/payment/statistics/points/admin_points/feedback/message/health
-│   │   ├── services/             # 文章/积分/计价/结算/用量/日志/用户/支付/统计/反馈/站内信 + 配图服务 + local_file_service
+│   │   ├── services/             # 文章/积分/计价/结算/用量/日志/用户/支付/统计/反馈/站内信 + local_file_service 文件存储
+│   │   │   └── images/           # 配图服务子包（image_generator 分发器 / image_search_service 基类 / pexels / mermaid / iconify / emoji_pack / svg_diagram / zhipu / nano_banana）
 │   │   ├── models/               # 10 张表 ORM（article/user/payment/agent_log/user_points/points_transaction/model_pricing/model_usage_record/feedback/message）+ enums.py
 │   │   ├── schemas/              # article/common/image/payment/points/statistic/user/feedback/message
 │   │   ├── managers/sse_manager.py  # SSE 连接管理（task_id → 有界历史 + 实时队列）
@@ -155,8 +156,8 @@ START → bootstrap
 
 ### 配图架构
 
-- 所有图片服务实现 `BaseImageSearchService`（`services/image_search_service.py`）
-- `ParallelImageGenerator` 单例（`services/image_generator.py`）：按 `ImageMethodEnum` 分发、`asyncio.Semaphore` 限并发、失败自动降级（Picsum 兜底并上传本地）
+- 所有图片服务实现 `BaseImageSearchService`（`services/images/image_search_service.py`）
+- `ParallelImageGenerator` 单例（`services/images/image_generator.py`）：按 `ImageMethodEnum` 分发、`asyncio.Semaphore` 限并发、失败自动降级（Picsum 兜底并上传本地）
 - 当前注册服务：Pexels、Mermaid、Iconify、Bing 表情包、AI-SVG；智谱在配置 `zhipu_api_key` 后注册；Nano Banana 服务实现保留但暂未注册
 - 可配置开关与 VIP 门控：启用列表同时驱动 LLM 提示词表（`build_image_methods_guide`）与创作页选项接口（`/api/article/options`）；普通用户默认 Pexels/Mermaid/Iconify/表情包，VIP 解锁 AI 生图与 SVG 图表
 - 数据流：`ImageRequirement` → `service.get_image_data()` → `ImageData` → `LocalFileService.upload_image_data()` → URL

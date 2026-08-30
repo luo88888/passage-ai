@@ -13,7 +13,7 @@ from app.agent.agents.outline_generator import OutlineGeneratorAgent
 from app.agent.agents.title_generator import TitleGeneratorAgent
 
 if TYPE_CHECKING:
-    from app.services.image_generator import ParallelImageGenerator
+    from app.services.images.image_generator import ParallelImageGenerator
     from app.services.agent_log_service import AgentLogService
 
 

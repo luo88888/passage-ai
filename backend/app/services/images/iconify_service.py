@@ -5,7 +5,7 @@ import httpx
 
 
 from app.constants.article import ArticleConstant
-from app.services.image_search_service import BaseImageSearchService
+from app.services.images.image_search_service import BaseImageSearchService
 from app.schemas.image import ImageData, ImageRequest
 from app.models.enums import ImageMethodEnum
 from app.utils.logger import logger

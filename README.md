@@ -53,8 +53,8 @@ LangGraph 编排 **6 个创作智能体 + 1 个新闻信息采集智能体**：
 | 🤖 智谱 AI 生图 | AI 生图（配置 API Key 后自动启用） |
 | 📊 AI-SVG 图表 | LLM 生成矢量示意图 |
 | 📐 Mermaid | 流程图 / 时序图等结构化图表（需 `mmdc` CLI） |
-| 🎯 Iconify | 海量开源图标库检索 |
-| 😂 Bing 表情包 | 表情包图片搜索 |
+| 🎯 Iconify | 海量开源图标库检索（默认未启用） |
+| 😂 Bing 表情包 | 表情包图片搜索（默认未启用） |
 | 🔁 Picsum | 兜底随机图，任何服务失败自动降级 |
 
 所有配图服务统一继承 `BaseImageSearchService`，由 `ParallelImageGenerator` 并行调度；普通 / VIP 配图方式按会员权限门控，可用服务动态同步到创作页选项。

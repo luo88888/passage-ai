@@ -12,7 +12,7 @@ from app.constants.article import ArticleConstant
 from app.count_semaphore import AsyncCountingSemaphore
 from app.models.enums import ImageMethodEnum
 from app.schemas.image import ImageRequest, ImageData
-from app.services.image_search_service import BaseImageSearchService
+from app.services.images.image_search_service import BaseImageSearchService
 from app.services.model_usage_service import usage_recorder
 from app.utils.logger import logger
 
@@ -140,6 +140,9 @@ class ZhipuImageService(BaseImageSearchService):
 
     def get_fallback_image(self, position: int) -> str:
         return ArticleConstant.PICSUM_URL_TEMPLATE.format(position)
+
+    def is_available(self) -> bool:
+        return bool(settings.zhipu_api_key)
 
 
 if __name__ == "__main__":
