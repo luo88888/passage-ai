@@ -18,3 +18,5 @@ class UserConstant:
     ADMIN_ROLE = UserRole.ADMIN.value
     VIP_ROLE = UserRole.VIP.value
     DEFAULT_QUOTA = 5   # 默认配额
+    # 默认头像（backend/static/default_avatar/ 下的文件，配合 static_base_url 拼完整 URL）
+    DEFAULT_AVATAR = "default_avatar/0ca3d6k8f81f9dsf905949eckad953ar.png"

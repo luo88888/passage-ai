@@ -19,6 +19,7 @@ from app.schemas.user import (
 )
 from app.constants.points import PointsConstant
 from app.constants.user import UserConstant
+from app.config import settings
 from app.exceptions import ErrorCode, throw_if, throw_if_not, BusinessException
 from app.services.points_service import PointsService
 from app.utils.password import encrypt_password, verify_password
@@ -63,8 +64,8 @@ class UserService:
         # 插入用户 + 初始化积分账户（同一事务：注册赠送积分）
         async with self.db.transaction():
             query = """
-                INSERT INTO user (userAccount, userPassword, userName, userRole, quota)
-                VALUES (:userAccount, :userPassword, :userName, :userRole, :quota)
+                INSERT INTO user (userAccount, userPassword, userName, userAvatar, userRole, quota)
+                VALUES (:userAccount, :userPassword, :userName, :userAvatar, :userRole, :quota)
             """
             user_id = await self.db.execute(
                 query=query,
@@ -72,6 +73,7 @@ class UserService:
                     "userAccount": request.user_account,
                     "userPassword": encrypted_password,
                     "userName": f"用户{request.user_account}",
+                    "userAvatar": f"{settings.static_base_url}/static/{UserConstant.DEFAULT_AVATAR}",
                     "userRole": UserConstant.DEFAULT_ROLE,
                     "quota": UserConstant.DEFAULT_QUOTA,
                 }
