@@ -70,7 +70,7 @@ passage-ai/
 │   │   ├── count_semaphore.py    # 进程内信号量（智谱生图限并发）
 │   │   ├── graph/                # ⭐ LangGraph 文章生成状态机
 │   │   │   ├── builder.py        #   图拓扑组装（节点 + 条件边 + interrupt + compile）
-│   │   │   ├── constants.py      #   12 个接入节点 + review/seo 占位节点名
+│   │   │   ├── constants.py      #   12 个接入节点
 │   │   │   ├── checkpointer.py   #   SQLite checkpointer（backend/data/checkpoints.sqlite）
 │   │   │   ├── graph_runner.py   #   文章异步任务服务：start/resume + 并发守卫 + 失败兜底
 │   │   │   ├── sse_bridge.py     #   图节点 → SSE 消息转换
@@ -117,7 +117,6 @@ passage-ai/
 - **副作用节点**（落库 + 阶段流转 + SSE）：`bootstrap`、`confirm_title`、`confirm_outline`、`ai_modify_outline`、`finalize`
 - **智能体节点**（纯 LLM/配图工作 + SSE）：`generate_title`、`generate_outline`、`generate_content`、`image_analyzer`、`image_generator`、`merger`
 - **研究节点**：`research`（仅新闻题材，bootstrap 后条件边进入；采集失败不阻塞主流程，结果结构化落库 `article.researchData`）
-- **占位节点**：`review`、`seo` 已建文件但未注册进 builder
 
 ```
 START → bootstrap
@@ -202,7 +201,6 @@ START → bootstrap
 ## 注意事项 / 已知问题
 
 - 完整待办见 `TODO.md`；`TODOs.md` 为已完成事项清单（站内信、意见反馈、注册/登录限流）
-- `review`（内容审核）、`seo`（SEO 优化）为占位节点，未接入 builder
 - 积分充值暂未开放；Stripe 支付代码已实现但当前未启用，前端走免支付直开永久 VIP
 - Nano Banana（Gemini）配图服务实现保留，因额度原因暂未注册，不在创作选项中暴露
 - 不入库目录/文件：`temp/`、`passage/`、`个人笔记/`、`local data/`、`backend/docs/`、`backend/data/`、`backend/logs/`、`backend/static/images/`、`.env` 等；`docs/images/` 与 `backend/static/default_avatar/` 入库

@@ -5,9 +5,6 @@
   信息采集节点：research（新闻题材专用，bootstrap 后条件边路由进入）
   智能体节点：generate_title / generate_outline / generate_content / image_analyzer / image_generator / merger
 
-占位节点（暂不接入 builder，保留以备后续实现）：
-  review / seo
-
 状态：统一使用 app/schemas/article.py 的 ArticleState（Pydantic model，兼作图状态与智能体状态）
 """
 from app.graph.nodes.bootstrap import bootstrap_node
@@ -27,9 +24,6 @@ from app.graph.nodes.ai_modify_outline import ai_modify_outline_node
 # 信息采集节点（接入图，新闻题材专用，bootstrap 后条件边路由进入）
 from app.graph.nodes.research import research_node
 
-# 占位节点（暂不接入 builder，保留以备后续实现）
-from app.graph.nodes.review import review_node
-from app.graph.nodes.seo import seo_node
 
 __all__ = [
     # 副作用节点（接入图）
@@ -47,7 +41,4 @@ __all__ = [
     "image_analyzer_node",
     "image_generator_node",
     "content_merger_node",
-    # 占位节点（暂未接入）
-    "review_node",
-    "seo_node",
 ]
