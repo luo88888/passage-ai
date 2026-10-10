@@ -8,7 +8,7 @@ from typing import Callable, TYPE_CHECKING
 
 from app.agent.base_agent import BaseAgent
 from app.constants.prompt import PromptConstant
-from app.models.enums import SseMessageTypeEnum
+from app.models.enums import RetryStageEnum, SseMessageTypeEnum
 from app.schemas.article import ArticleState
 from app.utils.logger import logger
 
@@ -66,6 +66,8 @@ class ContentGeneratorAgent(BaseAgent):
             content = await self._call_llm_with_streaming(
                 prompt, stream_handler, SseMessageTypeEnum.AGENT3_STREAMING,
                 agent_name="agent3_generate_content",
+                retry_stage=RetryStageEnum.CONTENT,
+                retry_message="正文生成异常，正在重新生成",
             )
             state.content = content
             log_data["outputData"] = self._safe_json_dumps(

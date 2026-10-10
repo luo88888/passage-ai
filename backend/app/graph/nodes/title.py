@@ -19,7 +19,7 @@ async def title_node(state: ArticleState) -> dict:
     emit = make_emit(state.task_id or "", state)
 
     logger.info("[graph] 标题生成节点, taskId=%s", state.task_id)
-    await orchestrator.title_agent.run(state)
+    await orchestrator.title_agent.run(state, stream_handler=emit)
     emit(SseMessageTypeEnum.AGENT1_COMPLETE.value)
 
     return {"title_options": [o.model_dump(by_alias=True) for o in state.title_options] if state.title_options else None}

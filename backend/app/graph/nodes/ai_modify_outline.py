@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from app.graph.nodes._orchestrator import get_orchestrator
-from app.graph.sse_bridge import send_sse_message
+from app.graph.sse_bridge import make_emit, send_sse_message
 from app.models.enums import SseMessageTypeEnum
 from app.schemas.article import ArticleState
 from app.utils.logger import logger
@@ -47,6 +47,8 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
     # 复用编排器单例持有的独立 AI 修改大纲智能体
     orchestrator = get_orchestrator()
     agent = orchestrator.ai_modify_outline_agent
+    # 重试信号（AGENT_RETRY）经 emit 透传；本节点不依赖 state 拼装完成消息
+    emit = make_emit(task_id, state)
 
     try:
         sections = await agent.run(
@@ -57,6 +59,7 @@ async def ai_modify_outline_node(state: ArticleState) -> Dict[str, Any]:
             modify_suggestion=state.modify_suggestion or "",
             target_word_count=target_word_count,
             language_style=state.language_style,
+            stream_handler=emit,
         )
     except Exception as e:
         # 失败：发失败 SSE、不写 DB、清空 modify_suggestion 让下次确认能前进，不 re-raise

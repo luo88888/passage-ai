@@ -472,6 +472,18 @@ const handleSse = (data: SseMessage) => {
       errorMsg.value = data.message || 'AI 修改大纲失败'
       message.error(errorMsg.value)
       break
+    case 'AGENT_RETRY':
+      // 阶段重试信号：只清理对应阶段的过程态（重试流随后从零开始追加），
+      // 不触碰 outline.value / fullContent.value / completed 等已确认或终态数据
+      if (data.stage === 'title') titleOptions.value = []
+      if (data.stage === 'outline') outlineRaw.value = ''
+      if (data.stage === 'content') contentRaw.value = ''
+      if (data.stage === 'image') {
+        imageUrls.value = []
+        images.value = []
+      }
+      if (data.message) message.info(data.message)
+      break
     case 'ERROR':
       errorMsg.value = data.message || '生成失败，请稍后重试'
       message.error(errorMsg.value)

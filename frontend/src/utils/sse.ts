@@ -25,7 +25,11 @@ export type SseMessageType =
   | 'AI_MODIFY_OUTLINE_COMPLETE' // AI 修改大纲完成（不关流）
   | 'AI_MODIFY_OUTLINE_FAILED' // AI 修改大纲失败（不关流）
   | 'RESEARCH_COMPLETE' // 信息采集完成（新闻题材，不关流）
+  | 'AGENT_RETRY' // 阶段重试信号（不关流，按 stage 清理对应阶段过程态）
   | 'ERROR'
+
+/** AGENT_RETRY 的重试阶段（与后端 RetryStageEnum 对齐） */
+export type RetryStage = 'title' | 'outline' | 'content' | 'image'
 
 /** 标题候选（AGENT1_COMPLETE / TITLE_GENERATED 携带） */
 export interface TitleOption {
@@ -92,6 +96,8 @@ export interface SseMessage {
   taskId?: string
   // ERROR / AI_MODIFY_OUTLINE_FAILED
   message?: string
+  // AGENT_RETRY：阶段重试信号（前端按 stage 清理对应阶段过程态）
+  stage?: RetryStage
   // RESEARCH_COMPLETE：信息采集完成（新闻题材），携带采集到的相关新闻条数
   count?: number
   // RESEARCH_COMPLETE：实际使用的搜索词列表
