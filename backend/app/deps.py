@@ -12,7 +12,7 @@ from app.database import get_db
 from app.exceptions import ErrorCode, BusinessException, throw_if
 from app.schemas.user import LoginUserVO
 from app.services.points_service import PointsService
-from app.utils.session import get_session
+from app.utils.session import get_session, remove_session
 from app.utils.logger import logger
 
 
@@ -22,9 +22,15 @@ async def get_session_id(session_id: Optional[str] = Cookie(None, alias="SESSION
 
 
 async def get_current_user(
-    session_id: Optional[str] = Depends(get_session_id)
+    session_id: Optional[str] = Depends(get_session_id),
+    db: Database = Depends(get_db),
 ) -> Optional[LoginUserVO]:
-    """获取当前登录用户（可选）"""
+    """获取当前登录用户（可选）
+
+    Session 里存的是登录那一刻的用户快照，用户被软删除后快照依然有效，
+    因此这里回查一次数据库确认账号仍在；已删除则顺带清掉 Redis 会话并视为未登录，
+    避免被删用户拿着旧 Cookie 继续访问。
+    """
     if not session_id:
         return None
 
@@ -33,7 +39,19 @@ async def get_current_user(
         return None
 
     user_data = session_data["user"]
-    return LoginUserVO(**user_data)
+    current_user = LoginUserVO(**user_data)
+
+    # 主键回查（user 表按 id 走聚簇索引），开销远小于会话失效带来的越权风险
+    alive = await db.fetch_one(
+        query="SELECT id FROM user WHERE id = :id AND isDelete = 0",
+        values={"id": current_user.id},
+    )
+    if not alive:
+        logger.warning("会话对应用户已不存在或已删除，清除会话 userId=%s", current_user.id)
+        await remove_session(session_id)
+        return None
+
+    return current_user
 
 
 async def require_login(

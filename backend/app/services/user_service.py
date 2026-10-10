@@ -3,6 +3,7 @@
 from typing import Optional, List, Tuple, Any
 from sqlalchemy import select, func, and_, or_
 from databases import Database
+from pymysql.err import IntegrityError
 
 from app.models.user import User
 from app.schemas.user import (
@@ -52,32 +53,39 @@ class UserService:
         )
         
         # 检查账号是否已存在
+        # 不限定 isDelete：userAccount 唯一键只建在单列上，软删除用户仍占着账号名，
+        # 若只查未删除行会漏判，INSERT 撞唯一键抛 IntegrityError 变成「系统内部错误」
         query = select(func.count(User.id)).where(
-            and_(User.user_account == request.user_account, User.is_delete == 0)
+            User.user_account == request.user_account
         )
         count = await self.db.fetch_val(query)
         throw_if(count > 0, ErrorCode.USER_ALREADY_EXIST, "账号已存在")
-        
+
         # 加密密码
         encrypted_password = encrypt_password(request.user_password)
-        
+
         # 插入用户 + 初始化积分账户（同一事务：注册赠送积分）
         async with self.db.transaction():
             query = """
                 INSERT INTO user (userAccount, userPassword, userName, userAvatar, userRole, quota)
                 VALUES (:userAccount, :userPassword, :userName, :userAvatar, :userRole, :quota)
             """
-            user_id = await self.db.execute(
-                query=query,
-                values={
-                    "userAccount": request.user_account,
-                    "userPassword": encrypted_password,
-                    "userName": f"用户{request.user_account}",
-                    "userAvatar": f"{settings.static_base_url}/static/{UserConstant.DEFAULT_AVATAR}",
-                    "userRole": UserConstant.DEFAULT_ROLE,
-                    "quota": UserConstant.DEFAULT_QUOTA,
-                }
-            )
+            try:
+                user_id = await self.db.execute(
+                    query=query,
+                    values={
+                        "userAccount": request.user_account,
+                        "userPassword": encrypted_password,
+                        "userName": f"用户{request.user_account}",
+                        "userAvatar": f"{settings.static_base_url}/static/{UserConstant.DEFAULT_AVATAR}",
+                        "userRole": UserConstant.DEFAULT_ROLE,
+                        "quota": UserConstant.DEFAULT_QUOTA,
+                    }
+                )
+            except IntegrityError:
+                # 并发注册同名账号时查重会同时通过，兜底唯一键冲突为业务错误
+                logger.warning("注册账号唯一键冲突 userAccount=%s", request.user_account)
+                raise BusinessException(ErrorCode.USER_ALREADY_EXIST, "账号已存在")
             await PointsService(self.db).grant_points(
                 user_id=user_id,
                 amount=PointsConstant.DEFAULT_POINTS,
@@ -432,34 +440,39 @@ class UserService:
     
     async def add_user(self, request: UserAddRequest) -> int:
         """添加用户（管理员）"""
-        # 校验账号是否已存在
+        # 校验账号是否已存在（不限定 isDelete，与 userAccount 唯一键口径一致，见 register）
         query = select(func.count(User.id)).where(
-            and_(User.user_account == request.user_account, User.is_delete == 0)
+            User.user_account == request.user_account
         )
         count = await self.db.fetch_val(query)
         throw_if(count > 0, ErrorCode.USER_ALREADY_EXIST, "账号已存在")
-        
+
         # 加密密码
         encrypted_password = encrypt_password(request.user_password)
-        
+
         # 插入用户 + 初始化积分账户（同一事务：管理员新增默认赠送积分）
         async with self.db.transaction():
             query = """
                 INSERT INTO user (userAccount, userPassword, userName, userAvatar, userProfile, userRole, quota)
                 VALUES (:userAccount, :userPassword, :userName, :userAvatar, :userProfile, :userRole, :quota)
             """
-            user_id = await self.db.execute(
-                query=query,
-                values={
-                    "userAccount": request.user_account,
-                    "userPassword": encrypted_password,
-                    "userName": request.user_name or f"用户{request.user_account}",
-                    "userAvatar": request.user_avatar,
-                    "userProfile": request.user_profile,
-                    "userRole": request.user_role,
-                    "quota": UserConstant.DEFAULT_QUOTA,
-                }
-            )
+            try:
+                user_id = await self.db.execute(
+                    query=query,
+                    values={
+                        "userAccount": request.user_account,
+                        "userPassword": encrypted_password,
+                        "userName": request.user_name or f"用户{request.user_account}",
+                        "userAvatar": request.user_avatar,
+                        "userProfile": request.user_profile,
+                        "userRole": request.user_role,
+                        "quota": UserConstant.DEFAULT_QUOTA,
+                    }
+                )
+            except IntegrityError:
+                # 并发新增同名账号时查重会同时通过，兜底唯一键冲突为业务错误
+                logger.warning("新增用户账号唯一键冲突 userAccount=%s", request.user_account)
+                raise BusinessException(ErrorCode.USER_ALREADY_EXIST, "账号已存在")
             await PointsService(self.db).grant_points(
                 user_id=user_id,
                 amount=PointsConstant.DEFAULT_POINTS,
