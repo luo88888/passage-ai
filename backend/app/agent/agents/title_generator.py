@@ -1,8 +1,11 @@
 """
 标题生成智能体
 """
+from typing import Any, Callable, Optional
+
 from app.agent.base_agent import BaseAgent
 from app.constants.prompt import PromptConstant
+from app.models.enums import RetryStageEnum
 from app.schemas.article import ArticleState, TitleOptionResult
 from app.utils.logger import logger
 
@@ -10,8 +13,17 @@ from app.utils.logger import logger
 class TitleGeneratorAgent(BaseAgent):
     """标题生成智能体"""
 
-    async def run(self, state: ArticleState):
-        """生成 3-5 个标题方案，填充 state.title_options"""
+    async def run(
+        self,
+        state: ArticleState,
+        stream_handler: Optional[Callable[[Any], None]] = None,
+    ):
+        """生成 3-5 个标题方案，填充 state.title_options
+
+        Args:
+            state: 文章生成状态。
+            stream_handler: SSE 回调（结构化校验失败/瞬时错误重试前发 AGENT_RETRY，可选）。
+        """
         prompt = PromptConstant.AGENT1_TITLE_PROMPT.format(topic=state.topic)
         prompt += self._get_genre_prompt(state.genre)
         prompt += self._get_language_style_prompt(state.language_style)
@@ -28,7 +40,11 @@ class TitleGeneratorAgent(BaseAgent):
             },
         ) as log_data:
             result: TitleOptionResult = await self._call_structured_model(
-                prompt, agent_name="agent1_generate_titles"
+                prompt,
+                agent_name="agent1_generate_titles",
+                retry_stage=RetryStageEnum.TITLE,
+                stream_handler=stream_handler,
+                retry_message="标题方案生成异常，正在重试",
             )
             state.title_options = result.title_options
             log_data["outputData"] = self._safe_json_dumps(

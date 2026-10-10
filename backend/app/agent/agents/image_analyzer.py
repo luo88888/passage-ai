@@ -3,10 +3,11 @@
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, List, Optional
 
 from app.agent.base_agent import BaseAgent
 from app.constants.prompt import PromptConstant
+from app.models.enums import RetryStageEnum
 from app.schemas.article import Agent4Result, ArticleState, ImageRequirement
 from app.utils.logger import logger
 
@@ -70,8 +71,17 @@ class ImageAnalyzerAgent(BaseAgent):
 
     # ==================== 主流程 ====================
 
-    async def run(self, state: ArticleState):
-        """分析配图需求"""
+    async def run(
+        self,
+        state: ArticleState,
+        stream_handler: Optional[Callable[[Any], None]] = None,
+    ):
+        """分析配图需求
+
+        Args:
+            state: 文章生成状态。
+            stream_handler: SSE 回调（校验失败/瞬时错误重试前发 AGENT_RETRY，可选）。
+        """
         methods_guide = self.parallel_image_generator.build_image_methods_guide(
             enabled_image_methods=state.enabled_image_methods,
         )
@@ -90,7 +100,11 @@ class ImageAnalyzerAgent(BaseAgent):
             input_data={"enabledImageMethods": state.enabled_image_methods},
         ) as log_data:
             agent4_result: Agent4Result = await self._call_structured_model(
-                prompt, agent_name="agent4_analyze_image_requirements"
+                prompt,
+                agent_name="agent4_analyze_image_requirements",
+                retry_stage=RetryStageEnum.IMAGE,
+                stream_handler=stream_handler,
+                retry_message="配图需求分析异常，正在重试",
             )
             # state.content = agent4_result.content_with_placeholders
 

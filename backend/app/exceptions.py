@@ -34,6 +34,41 @@ class ErrorCode(Enum):
         self.message = message
 
 
+class LLMTransientError(Exception):
+    """LLM 瞬时错误（超时、429、5xx、连接中断等），可重试。"""
+
+
+class LLMOutputFormatError(Exception):
+    """LLM 输出格式/校验错误，可重试（重试时把错误反馈拼回提示词）。
+
+    Attributes:
+        raw_output: 模型原始输出文本（可选，用于构造重试提示词的错误反馈）。
+    """
+
+    def __init__(self, message: str, raw_output: Optional[str] = None):
+        self.raw_output = raw_output
+        super().__init__(message)
+
+
+class AgentMaxRetriesError(Exception):
+    """智能体重试次数耗尽后的统一异常（向上抛给图节点做降级决策）。
+
+    Attributes:
+        attempts: 已尝试次数（含首次）。
+        last_error: 最后一次失败原因（可选）。
+    """
+
+    def __init__(
+        self,
+        message: str,
+        attempts: Optional[int] = None,
+        last_error: Optional[Exception] = None,
+    ):
+        self.attempts = attempts
+        self.last_error = last_error
+        super().__init__(message)
+
+
 class BusinessException(Exception):
     """业务异常"""
     

@@ -22,6 +22,7 @@ from langchain_core.runnables import Runnable
 from langchain_deepseek import ChatDeepSeek
 
 from app.config import settings
+from app.exceptions import LLMOutputFormatError
 from app.llm_factory.token_usage_handler import TokenUsageCallbackHandler
 from app.utils.json_tool import loads_with_repair
 
@@ -102,6 +103,18 @@ def _attach_meta(parsed: BaseModel, raw: AIMessage) -> None:
         pass
 
 
+def _content_text(raw: AIMessage) -> str:
+    """提取 AIMessage 的纯文本内容（兼容 list 形态的 content 块）。"""
+    content = raw.content
+    if isinstance(content, list):
+        return "".join(
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+    return str(content or "")
+
+
 # ---------------------------------------------------------------------------
 # 结构化输出模型（思考模式兼容）
 # ---------------------------------------------------------------------------
@@ -174,16 +187,7 @@ class DeepSeekStructuredModel(Runnable):
         return [SystemMessage(content=self._system_prompt()), *msgs]
 
     def _parse(self, raw: AIMessage) -> BaseModel:
-        content = raw.content
-        # 理论上已是 str
-        if isinstance(content, list):
-            text = "".join(
-                block.get("text", "")
-                for block in content
-                if isinstance(block, dict) and block.get("type") == "text"
-            )
-        else:
-            text = str(content)
+        text = _content_text(raw)
         parsed = self.structured.model_validate(_extract_json(text))
         _attach_meta(parsed, raw)
         return parsed
@@ -198,7 +202,11 @@ class DeepSeekStructuredModel(Runnable):
         if self.include_raw:
             return {"raw": raw, "parsed": parsed, "parsing_error": parsing_error}
         if parsing_error is not None:
-            raise parsing_error
+            # 包装为可重试的格式错误并携带原始输出，供 BaseAgent 重试时拼回提示词
+            raise LLMOutputFormatError(
+                f"结构化输出校验失败: {parsing_error}",
+                raw_output=_content_text(raw),
+            ) from parsing_error
         return parsed
 
     # -- Runnable 接口 ------------------------------------------------------

@@ -36,10 +36,33 @@ class SseMessageTypeEnum(str, Enum):
     AI_MODIFY_OUTLINE_COMPLETE = "AI_MODIFY_OUTLINE_COMPLETE"  # AI 修改大纲完成
     AI_MODIFY_OUTLINE_FAILED = "AI_MODIFY_OUTLINE_FAILED"     # AI 修改大纲失败
     RESEARCH_COMPLETE = "RESEARCH_COMPLETE"   # 信息采集完成（新闻题材）
+    AGENT_RETRY = "AGENT_RETRY"               # 阶段重试信号（前端清空对应阶段过程态，不关流）
 
     def get_streaming_prefix(self) -> str:
         """获取流式输出消息前缀"""
         return f"{self.value}:"
+
+
+class RetryStageEnum(str, Enum):
+    """重试阶段枚举（约束 AGENT_RETRY 消息的 stage 字段）
+
+    每个成员形如 (value, label)：
+    - value: SSE 载荷中的 stage 值，与前端 RetryStage 类型对齐
+    - label: 后端日志 / 默认重试文案使用的中文名
+    """
+
+    label: str
+
+    TITLE = "title", "标题"
+    OUTLINE = "outline", "大纲"
+    CONTENT = "content", "正文"
+    IMAGE = "image", "配图"
+
+    def __new__(cls, value: str, label: str = ""):
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj.label = label
+        return obj
 
 
 class ImageMethodEnum(str, Enum):

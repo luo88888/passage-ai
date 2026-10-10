@@ -4,10 +4,11 @@ AI 修改大纲智能体
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, List, Optional
 
 from app.agent.base_agent import BaseAgent
 from app.constants.prompt import PromptConstant
+from app.models.enums import RetryStageEnum
 from app.schemas.article import OutlineResult, OutlineSection
 from app.utils.logger import logger
 
@@ -45,6 +46,7 @@ class AiModifyOutlineAgent(BaseAgent):
         modify_suggestion: str,
         target_word_count: int,
         language_style: Optional[str],
+        stream_handler: Optional[Callable[[Any], None]] = None,
     ) -> List[OutlineSection]:
         """根据用户修改建议重写大纲，返回新的章节列表
 
@@ -56,6 +58,7 @@ class AiModifyOutlineAgent(BaseAgent):
             modify_suggestion: 用户修改建议
             target_word_count: 目标总字数
             language_style: 语言风格（可选）
+            stream_handler: SSE 回调（校验失败/瞬时错误重试前发 AGENT_RETRY，可选）
 
         Returns:
             修改后的章节列表
@@ -88,6 +91,9 @@ class AiModifyOutlineAgent(BaseAgent):
             result: OutlineResult = await self._call_structured_model(
                 prompt,
                 agent_name="ai_modify_outline",
+                retry_stage=RetryStageEnum.OUTLINE,
+                stream_handler=stream_handler,
+                retry_message="AI 修改大纲异常，正在重试",
             )
             sections = result.sections
             log_data["outputData"] = self._safe_json_dumps(

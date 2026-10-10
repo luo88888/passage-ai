@@ -12,10 +12,10 @@ make_emit(task_id, state) 返回一个 Callable[[str], None]：
 闭包按引用捕获 state（Pydantic model），智能体就地修改后完成事件能读到最新产物。
 """
 import json
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Literal
 
 from app.managers.sse_manager import sse_emitter_manager
-from app.models.enums import SseMessageTypeEnum
+from app.models.enums import RetryStageEnum, SseMessageTypeEnum
 from app.schemas.article import ArticleState
 from app.utils.logger import logger
 
@@ -90,7 +90,7 @@ def make_emit(task_id: str, state: ArticleState) -> Callable[[str], None]:
 
     智能体就地修改后完成事件能读到最新产物。
     """
-    def emit(message: str) -> None:
+    def emit(message: Any) -> None:
         """智能体流式回调：把裸消息转换为 SSE 数据并推送到全局队列。
 
         闭包按引用捕获 task_id 与 state（智能体就地修改后完成事件能读到最新产物），
@@ -100,9 +100,11 @@ def make_emit(task_id: str, state: ArticleState) -> Callable[[str], None]:
         若 _build_message_data 返回 None（未知完成消息）则静默忽略，不推送。
 
         Args:
-            message: 智能体传出的原始消息（流式带前缀 / 完成裸标识符）。
+            message: 智能体传出的原始消息（流式带前缀 / 完成裸标识符）或字典。
         """
-        data = _build_message_data(message, state)
+        data = message
+        if isinstance(message, str):
+            data = _build_message_data(message, state)
         if data is not None:
             sse_emitter_manager.send(task_id, json.dumps(data, ensure_ascii=False))
 
@@ -114,3 +116,12 @@ def send_sse_message(task_id: str, type_enum: SseMessageTypeEnum, additional_dat
     data = {"type": type_enum.value}
     data.update(additional_data)
     sse_emitter_manager.send(task_id, json.dumps(data, ensure_ascii=False))
+
+
+def send_agent_retry(task_id: str, stage: RetryStageEnum, message: str) -> None:
+    """发送 AGENT_RETRY 阶段重试信号（不关流，前端按 stage 清空对应阶段过程态）"""
+    send_sse_message(
+        task_id,
+        SseMessageTypeEnum.AGENT_RETRY,
+        {"stage": stage.value, "message": message},
+    )
